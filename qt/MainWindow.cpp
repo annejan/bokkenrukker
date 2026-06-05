@@ -170,17 +170,21 @@ void MainWindow::buildUi() {
     connect(followA, &QAction::triggered, this, &MainWindow::toggleFollowPlay);
 
     auto *playMenu = menuBar()->addMenu("&Play");
-    auto *playA = playMenu->addAction("Play from &beginning");
+    auto *playA = playMenu->addAction(QString::fromUtf8("⏮  Play from &beginning"));
     playA->setShortcut(Qt::Key_F1);
+    playA->setToolTip("Play song from beginning (F1)");
     connect(playA, &QAction::triggered, this, &MainWindow::playFromBeginning);
-    auto *playPosA = playMenu->addAction("Play from &position");
+    auto *playPosA = playMenu->addAction(QString::fromUtf8("▶  Play from &position"));
     playPosA->setShortcut(Qt::Key_F2);
+    playPosA->setToolTip("Play song from current order position (F2)");
     connect(playPosA, &QAction::triggered, this, &MainWindow::playFromPos);
-    auto *playPatA = playMenu->addAction("Play one pa&ttern");
+    auto *playPatA = playMenu->addAction(QString::fromUtf8("⧈  Play one pa&ttern"));
     playPatA->setShortcut(Qt::Key_F3);
+    playPatA->setToolTip("Loop the current pattern (F3)");
     connect(playPatA, &QAction::triggered, this, &MainWindow::playPattern);
-    auto *stopA = playMenu->addAction("&Stop");
+    auto *stopA = playMenu->addAction(QString::fromUtf8("⏹  &Stop"));
     stopA->setShortcut(Qt::Key_F4);
+    stopA->setToolTip("Stop playback (F4)");
     connect(stopA, &QAction::triggered, this, &MainWindow::stopSong);
     playMenu->addSeparator();
     auto *muteA = playMenu->addAction("&Mute current channel");
@@ -199,37 +203,40 @@ void MainWindow::buildUi() {
     auto *tb = addToolBar("Transport");
     tb->setMovable(false);
     tb->setStyleSheet(QString(
-        "QToolBar { background:%1; spacing:6px; padding:4px; border:0; }"
-        "QToolButton { color:%2; background:%3; padding:4px 10px; border:1px solid %4; border-radius:3px; }"
+        "QToolBar { background:%1; spacing:4px; padding:6px; border:0; }"
+        "QToolButton { color:%2; background:%3; padding:5px 10px; border:1px solid %4; border-radius:4px; min-width:0; }"
         "QToolButton:hover { background:%5; }"
-        "QToolButton#playBtn { background:%6; color:#0E1117; font-weight:bold; border-color:%6; }"
-        "QToolButton#playBtn:hover { background:#5BCB6A; }"
-        "QToolButton#stopBtn { background:%7; color:#FFFFFF; font-weight:bold; border-color:%7; }"
-        "QToolButton#stopBtn:hover { background:#F26060; }"
+        // Play family — distinct shades + icon-sized
+        "QToolButton#playBegin  { background:#2F8C3A; color:#FFFFFF; border-color:#3FB950; font-weight:bold; }"
+        "QToolButton#playBegin:hover  { background:#3FB950; }"
+        "QToolButton#playPos    { background:#1F5E7A; color:#E0E6EE; border-color:#3892B5; }"
+        "QToolButton#playPos:hover    { background:#3892B5; }"
+        "QToolButton#playPatt   { background:#7A5A1F; color:#E0E6EE; border-color:#D9A441; }"
+        "QToolButton#playPatt:hover   { background:#B58E38; }"
+        "QToolButton#stopBtn    { background:#8C2F2F; color:#FFFFFF; border-color:#E5484D; font-weight:bold; }"
+        "QToolButton#stopBtn:hover    { background:#E5484D; }"
     )
         .arg(Theme::C::bgAlt.name())
         .arg(Theme::C::text.name())
         .arg(Theme::C::bgBase.name())
         .arg(Theme::C::sep.name())
-        .arg(Theme::C::editRow.name())
-        .arg(Theme::C::vuGreen.name())
-        .arg(Theme::C::vuRed.name()));
+        .arg(Theme::C::editRow.name()));
 
-    // Transport group — Play (green), Stop (red)
+    // Transport group: distinct color per play variant + red stop
     tb->addAction(playA);
     tb->addAction(playPosA);
     tb->addAction(playPatA);
     tb->addAction(stopA);
     if (auto *btn = qobject_cast<QToolButton*>(tb->widgetForAction(playA)))
-        btn->setObjectName("playBtn");
+        { btn->setObjectName("playBegin"); btn->setText("⏮ Begin"); }
     if (auto *btn = qobject_cast<QToolButton*>(tb->widgetForAction(playPosA)))
-        btn->setObjectName("playBtn");
+        { btn->setObjectName("playPos");   btn->setText("▶ Pos"); }
     if (auto *btn = qobject_cast<QToolButton*>(tb->widgetForAction(playPatA)))
-        btn->setObjectName("playBtn");
+        { btn->setObjectName("playPatt");  btn->setText("⧈ Patt"); }
     if (auto *btn = qobject_cast<QToolButton*>(tb->widgetForAction(stopA)))
-        btn->setObjectName("stopBtn");
+        { btn->setObjectName("stopBtn");   btn->setText("⏹ Stop"); }
 
-    auto addSpacer = [&](int w = 24) {
+    auto addSpacer = [&](int w = 28) {
         auto *spacer = new QWidget(tb);
         spacer->setFixedWidth(w);
         tb->addWidget(spacer);
@@ -250,7 +257,6 @@ void MainWindow::buildUi() {
     tb->addAction(insQuickDock_->toggleViewAction());
     tb->addAction(followA);
 
-    // Re-apply style after adding (Qt needs nudging for newly named widgets)
     tb->style()->unpolish(tb);
     tb->style()->polish(tb);
 

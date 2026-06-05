@@ -64,6 +64,9 @@ set(QT_SRC
     InstrumentView.cpp
     TablesView.cpp
     SongNameView.cpp
+    OrderMiniMap.cpp
+    InstrumentQuickList.cpp
+    StatusStrip.cpp
     qt_globals.c
     qt_stubs.c
 )

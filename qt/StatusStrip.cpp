@@ -1,0 +1,120 @@
+#include "StatusStrip.h"
+#include "Theme.h"
+
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QFrame>
+#include <QTimer>
+
+extern "C" {
+#include "gcommon.h"
+#include "gplay.h"
+extern int editmode;
+extern int eppos;
+extern int epchn;
+extern int epoctave;
+extern int einum;
+extern int esnum;
+extern int followplay;
+extern int epnum[MAX_CHN];
+extern int pattlen[MAX_PATT];
+extern int espos[MAX_CHN];
+extern int songlen[MAX_SONGS][MAX_CHN];
+extern unsigned sidmodel;
+extern unsigned multiplier;
+extern CHN chn[MAX_CHN];
+int isplaying(void);
+}
+
+static QLabel *makeSegment(const QString &init, const QColor &fg, QWidget *parent) {
+    auto *l = new QLabel(init, parent);
+    l->setFont(Theme::monoFont(10));
+    QPalette p = l->palette();
+    p.setColor(QPalette::WindowText, fg);
+    l->setPalette(p);
+    l->setContentsMargins(8, 0, 8, 0);
+    l->setMinimumHeight(22);
+    return l;
+}
+
+StatusStrip::StatusStrip(QWidget *parent) : QFrame(parent) {
+    setFrameShape(QFrame::NoFrame);
+    setAutoFillBackground(true);
+    QPalette pal = palette();
+    pal.setColor(QPalette::Window, Theme::C::bgAlt);
+    setPalette(pal);
+    setFixedHeight(24);
+
+    auto *layout = new QHBoxLayout(this);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+
+    transport_ = makeSegment("■ STOPPED", Theme::C::textDim, this);
+    position_  = makeSegment("Row --/--", Theme::C::text, this);
+    tempo_     = makeSegment("Spd 1x", Theme::C::text, this);
+    octave_    = makeSegment("Oct 2", Theme::C::text, this);
+    instr_     = makeSegment("Ins 01", Theme::C::instr, this);
+    sid_       = makeSegment("6581", Theme::C::highlight, this);
+    follow_    = makeSegment("Follow off", Theme::C::textDim, this);
+    message_   = makeSegment("", Theme::C::textDim, this);
+
+    auto addSep = [&]() {
+        auto *sep = new QFrame(this);
+        sep->setFrameShape(QFrame::VLine);
+        sep->setFrameShadow(QFrame::Plain);
+        QPalette sp = sep->palette();
+        sp.setColor(QPalette::WindowText, Theme::C::sep);
+        sep->setPalette(sp);
+        layout->addWidget(sep);
+    };
+
+    layout->addWidget(transport_);
+    addSep();
+    layout->addWidget(position_);
+    addSep();
+    layout->addWidget(tempo_);
+    addSep();
+    layout->addWidget(octave_);
+    addSep();
+    layout->addWidget(instr_);
+    addSep();
+    layout->addWidget(sid_);
+    addSep();
+    layout->addWidget(follow_);
+    addSep();
+    layout->addWidget(message_, 1);
+}
+
+void StatusStrip::refresh() {
+    bool playing = isplaying() != 0;
+    transport_->setText(playing ? "▶ PLAYING" : "■ STOPPED");
+    QPalette tp = transport_->palette();
+    tp.setColor(QPalette::WindowText, playing ? Theme::C::vuGreen : Theme::C::textDim);
+    transport_->setPalette(tp);
+
+    int patnum = epnum[epchn];
+    int currentRow = playing ? (chn[epchn].pattptr / 4) : eppos;
+    position_->setText(QString("Row %1/%2  Patt %3  Order %4/%5")
+        .arg(currentRow, 3, 16, QLatin1Char('0'))
+        .arg(pattlen[patnum], 2, 16, QLatin1Char('0'))
+        .arg(patnum, 2, 16, QLatin1Char('0'))
+        .arg(espos[epchn], 2, 16, QLatin1Char('0'))
+        .arg(songlen[esnum][epchn], 2, 16, QLatin1Char('0'))
+        .toUpper());
+
+    tempo_->setText(QString("Spd %1x").arg(multiplier ? multiplier : 1));
+    octave_->setText(QString("Oct %1").arg(epoctave));
+    instr_->setText(QString("Ins %1").arg(einum, 2, 16, QLatin1Char('0')).toUpper());
+    sid_->setText(sidmodel ? "8580" : "6581");
+    follow_->setText(followplay ? "Follow ON" : "Follow off");
+    QPalette fp = follow_->palette();
+    fp.setColor(QPalette::WindowText, followplay ? Theme::C::highlight : Theme::C::textDim);
+    follow_->setPalette(fp);
+}
+
+void StatusStrip::showMessage(const QString &t, int ms) {
+    message_->setText(t);
+    if (ms > 0) {
+        QTimer::singleShot(ms, message_, [this]{ message_->setText(""); });
+    }
+}

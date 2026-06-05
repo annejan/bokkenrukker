@@ -4,6 +4,9 @@
 #include "InstrumentView.h"
 #include "TablesView.h"
 #include "SongNameView.h"
+#include "OrderMiniMap.h"
+#include "InstrumentQuickList.h"
+#include "StatusStrip.h"
 
 #include <QDockWidget>
 #include <QFileDialog>
@@ -12,11 +15,13 @@
 #include <QAction>
 #include <QShortcut>
 #include <QKeySequence>
-#include <QStatusBar>
 #include <QStackedWidget>
 #include <QLabel>
 #include <QTimer>
 #include <QStandardPaths>
+#include <QStatusBar>
+#include <QWidget>
+#include <QVBoxLayout>
 #include <cstring>
 
 extern "C" {
@@ -34,40 +39,40 @@ extern char instrpath[];
 extern char songname[MAX_STR];
 extern char authorname[MAX_STR];
 extern char copyrightname[MAX_STR];
-extern unsigned char songorder[MAX_SONGS][MAX_CHN][MAX_SONGLEN+2];
-extern int songlen[MAX_SONGS][MAX_CHN];
 extern int esnum;
 extern int editmode;
 extern int followplay;
-extern int epoctave;
 extern int einum;
 extern int epchn;
 extern unsigned sidmodel;
 extern unsigned multiplier;
-extern unsigned adparam;
 int savesong(void);
 int saveinstrument(void);
 void loadinstrument(void);
-void calculatefreqtable(void);
 void prevmultiplier(void);
 void nextmultiplier(void);
-void initchannels(void);
 }
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     buildUi();
     timer_ = new QTimer(this);
     connect(timer_, &QTimer::timeout, this, &MainWindow::tick);
-    timer_->start(20); // ~50 Hz
+    timer_->start(20);
 }
 
 MainWindow::~MainWindow() = default;
 
 void MainWindow::buildUi() {
     setWindowTitle("GoatTracker Qt");
-    resize(1200, 760);
+    resize(1280, 800);
 
-    stack_ = new QStackedWidget(this);
+    // Central stacked editor with custom bottom status strip
+    auto *centralWrap = new QWidget(this);
+    auto *centralLay = new QVBoxLayout(centralWrap);
+    centralLay->setContentsMargins(0, 0, 0, 0);
+    centralLay->setSpacing(0);
+
+    stack_ = new QStackedWidget(centralWrap);
     pattern_    = new PatternView(stack_);
     order_      = new OrderView(stack_);
     instrument_ = new InstrumentView(stack_);
@@ -78,21 +83,33 @@ void MainWindow::buildUi() {
     stack_->insertWidget(EDIT_INSTRUMENT, instrument_);
     stack_->insertWidget(EDIT_TABLES, tables_);
     stack_->insertWidget(EDIT_NAMES, songName_);
-    setCentralWidget(stack_);
+    centralLay->addWidget(stack_, 1);
+
+    statusStrip_ = new StatusStrip(centralWrap);
+    centralLay->addWidget(statusStrip_);
+
+    setCentralWidget(centralWrap);
 
     connect(pattern_, &PatternView::patternEdited, this, &MainWindow::refreshAll);
     connect(order_, &OrderView::edited, this, &MainWindow::refreshAll);
     connect(instrument_, &InstrumentView::edited, this, &MainWindow::refreshAll);
     connect(tables_, &TablesView::edited, this, &MainWindow::refreshAll);
-    connect(songName_, &SongNameView::edited, this, &MainWindow::refreshSongInfo);
+    connect(songName_, &SongNameView::edited, this, &MainWindow::refreshAll);
 
-    auto *infoDock = new QDockWidget("Song", this);
-    songInfo_ = new QLabel("<no song loaded>", infoDock);
-    songInfo_->setMargin(8);
-    songInfo_->setTextFormat(Qt::RichText);
-    infoDock->setWidget(songInfo_);
-    addDockWidget(Qt::RightDockWidgetArea, infoDock);
+    // Dock widgets
+    orderMapDock_ = new QDockWidget("Order map", this);
+    orderMap_ = new OrderMiniMap(orderMapDock_);
+    orderMapDock_->setWidget(orderMap_);
+    addDockWidget(Qt::LeftDockWidgetArea, orderMapDock_);
+    connect(orderMap_, &OrderMiniMap::positionChanged, this, &MainWindow::refreshAll);
 
+    insQuickDock_ = new QDockWidget("Instruments", this);
+    insQuick_ = new InstrumentQuickList(insQuickDock_);
+    insQuickDock_->setWidget(insQuick_);
+    addDockWidget(Qt::RightDockWidgetArea, insQuickDock_);
+    connect(insQuick_, &InstrumentQuickList::instrumentChosen, this, &MainWindow::refreshAll);
+
+    // ---- Menus -----------------------------------------------------------
     auto *fileMenu = menuBar()->addMenu("&File");
     auto *openA = fileMenu->addAction("&Open .sng…");
     openA->setShortcut(Qt::CTRL | Qt::Key_O);
@@ -118,7 +135,7 @@ void MainWindow::buildUi() {
         auto *a = modeMenu->addAction(label);
         a->setShortcut(shortcut);
         connect(a, &QAction::triggered, this, [this, mode]{
-            editmode = mode; syncStack(); refreshStatus();
+            editmode = mode; syncStack(); refreshAll();
         });
     };
     addMode("&Pattern editor",   EDIT_PATTERN,    Qt::Key_F5);
@@ -127,10 +144,9 @@ void MainWindow::buildUi() {
     addMode("&Tables editor",     EDIT_TABLES,    Qt::Key_F8);
     auto *namesA = modeMenu->addAction("Song&name editor");
     connect(namesA, &QAction::triggered, this, [this]{
-        editmode = EDIT_NAMES; syncStack(); refreshStatus();
+        editmode = EDIT_NAMES; syncStack(); refreshAll();
     });
-    // Tab/Backtab: cycle edit modes. Use shortcut on MainWindow so any
-    // focused subwidget yields to it.
+
     auto *tabA = new QAction(this);
     tabA->setShortcut(Qt::Key_Tab);
     tabA->setShortcutContext(Qt::ApplicationShortcut);
@@ -141,6 +157,14 @@ void MainWindow::buildUi() {
     backTabA->setShortcutContext(Qt::ApplicationShortcut);
     connect(backTabA, &QAction::triggered, this, [this]{ cycleEditMode(true); });
     addAction(backTabA);
+
+    auto *viewMenu = menuBar()->addMenu("&View");
+    viewMenu->addAction(orderMapDock_->toggleViewAction());
+    viewMenu->addAction(insQuickDock_->toggleViewAction());
+    auto *followA = viewMenu->addAction("Toggle &follow-play");
+    followA->setShortcut(Qt::CTRL | Qt::Key_F);
+    followA->setCheckable(true);
+    connect(followA, &QAction::triggered, this, &MainWindow::toggleFollowPlay);
 
     auto *playMenu = menuBar()->addMenu("&Play");
     auto *playA = playMenu->addAction("Play from &beginning");
@@ -178,15 +202,7 @@ void MainWindow::buildUi() {
     tb->addAction(modeMenu->actions().at(2));
     tb->addAction(modeMenu->actions().at(3));
 
-    statusOctave_ = new QLabel("Oct 2");
-    statusInstr_ = new QLabel("Ins 01");
-    statusMode_ = new QLabel("Pattern");
-    statusFollow_ = new QLabel("Follow: off");
-    statusBar()->addPermanentWidget(statusOctave_);
-    statusBar()->addPermanentWidget(statusInstr_);
-    statusBar()->addPermanentWidget(statusMode_);
-    statusBar()->addPermanentWidget(statusFollow_);
-    statusBar()->showMessage("Ready. Open a .sng to begin.");
+    statusStrip_->showMessage("Ready. Ctrl+O to open a song.");
     syncStack();
 }
 
@@ -213,7 +229,7 @@ void MainWindow::loadSongFile(const QString &path) {
     loadsong();
     countpatternlengths();
     refreshAll();
-    statusBar()->showMessage(QString("Loaded: %1").arg(path));
+    statusStrip_->showMessage(QString("Loaded: %1").arg(path));
 }
 
 void MainWindow::openSong() {
@@ -226,8 +242,8 @@ void MainWindow::openSong() {
 
 void MainWindow::saveSong() {
     if (!songfilename[0]) { saveSongAs(); return; }
-    if (savesong()) statusBar()->showMessage(QString("Saved: %1").arg(songfilename));
-    else statusBar()->showMessage("Save failed");
+    if (savesong()) statusStrip_->showMessage(QString("Saved: %1").arg(songfilename));
+    else statusStrip_->showMessage("Save failed");
 }
 
 void MainWindow::saveSongAs() {
@@ -251,7 +267,7 @@ void MainWindow::loadInstrument() {
     instrfilename[MAX_FILENAME - 1] = 0;
     loadinstrument();
     refreshAll();
-    statusBar()->showMessage(QString("Loaded ins: %1").arg(fn));
+    statusStrip_->showMessage(QString("Loaded ins: %1").arg(fn));
 }
 
 void MainWindow::saveInstrument() {
@@ -262,33 +278,8 @@ void MainWindow::saveInstrument() {
     QByteArray ba = fn.toLocal8Bit();
     std::strncpy(instrfilename, ba.constData(), MAX_FILENAME - 1);
     instrfilename[MAX_FILENAME - 1] = 0;
-    if (saveinstrument()) statusBar()->showMessage(QString("Saved ins: %1").arg(fn));
-    else statusBar()->showMessage("Save instrument failed");
-}
-
-void MainWindow::refreshSongInfo() {
-    songInfo_->setText(QString(
-        "<b>Title:</b> %1<br>"
-        "<b>Author:</b> %2<br>"
-        "<b>Copyright:</b> %3<br>"
-        "<b>Song:</b> %4 / 32<br>"
-        "<b>SID:</b> %5<br>"
-        "<b>Multiplier:</b> %6x"
-    ).arg(QString::fromLocal8Bit(songname).toHtmlEscaped())
-     .arg(QString::fromLocal8Bit(authorname).toHtmlEscaped())
-     .arg(QString::fromLocal8Bit(copyrightname).toHtmlEscaped())
-     .arg(esnum + 1)
-     .arg(sidmodel ? "8580" : "6581")
-     .arg(multiplier));
-}
-
-void MainWindow::refreshStatus() {
-    statusOctave_->setText(QString("Oct %1").arg(epoctave));
-    statusInstr_->setText(QString("Ins %1")
-                          .arg(einum, 2, 16, QLatin1Char('0')).toUpper());
-    static const char *modeNames[] = {"Pattern", "Order", "Instr", "Tables", "Names"};
-    statusMode_->setText(modeNames[editmode]);
-    statusFollow_->setText(followplay ? "Follow: ON" : "Follow: off");
+    if (saveinstrument()) statusStrip_->showMessage(QString("Saved ins: %1").arg(fn));
+    else statusStrip_->showMessage("Save instrument failed");
 }
 
 void MainWindow::refreshAll() {
@@ -297,35 +288,33 @@ void MainWindow::refreshAll() {
     instrument_->refresh();
     tables_->refresh();
     songName_->refresh();
-    refreshSongInfo();
-    refreshStatus();
+    orderMap_->refresh();
+    insQuick_->refresh();
+    statusStrip_->refresh();
 }
 
-void MainWindow::playFromBeginning() {
-    initsong(esnum, PLAY_BEGINNING);
-}
-void MainWindow::playFromPos() {
-    initsong(esnum, PLAY_POS);
-}
-void MainWindow::playPattern() {
-    initsong(esnum, PLAY_PATTERN);
-}
-void MainWindow::stopSong() { stopsong(); }
+void MainWindow::playFromBeginning() { initsong(esnum, PLAY_BEGINNING); }
+void MainWindow::playFromPos()       { initsong(esnum, PLAY_POS); }
+void MainWindow::playPattern()       { initsong(esnum, PLAY_PATTERN); }
+void MainWindow::stopSong()          { stopsong(); }
 
 void MainWindow::muteCurrentChannel() {
     mutechannel(epchn);
 }
 
-void MainWindow::prevMultiplierSlot() { prevmultiplier(); refreshSongInfo(); }
-void MainWindow::nextMultiplierSlot() { nextmultiplier(); refreshSongInfo(); }
+void MainWindow::prevMultiplierSlot() { prevmultiplier(); refreshAll(); }
+void MainWindow::nextMultiplierSlot() { nextmultiplier(); refreshAll(); }
 void MainWindow::toggleSidModel() {
     sidmodel ^= 1;
-    refreshSongInfo();
+    refreshAll();
+}
+void MainWindow::toggleFollowPlay() {
+    followplay = !followplay;
+    refreshAll();
 }
 
 void MainWindow::tick() {
-    // Refresh pattern view at 50 Hz so VU meters animate even when stopped
-    // (envelope release still ringing). Other views update only on edit.
+    pattern_->tickScope();
     if (stack_->currentIndex() == EDIT_PATTERN) pattern_->refresh();
-    refreshStatus();
+    statusStrip_->refresh();
 }

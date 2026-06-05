@@ -6,9 +6,13 @@ class OrderView;
 class InstrumentView;
 class TablesView;
 class SongNameView;
+class OrderMiniMap;
+class InstrumentQuickList;
+class StatusStrip;
 class QStackedWidget;
 class QLabel;
 class QTimer;
+class QDockWidget;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -32,6 +36,7 @@ private slots:
     void prevMultiplierSlot();
     void nextMultiplierSlot();
     void toggleSidModel();
+    void toggleFollowPlay();
     void cycleEditMode(bool backwards = false);
     void tick();
 
@@ -42,16 +47,14 @@ private:
     TablesView *tables_ = nullptr;
     SongNameView *songName_ = nullptr;
     QStackedWidget *stack_ = nullptr;
-    QLabel *songInfo_ = nullptr;
-    QLabel *statusOctave_ = nullptr;
-    QLabel *statusInstr_ = nullptr;
-    QLabel *statusMode_ = nullptr;
-    QLabel *statusFollow_ = nullptr;
+    OrderMiniMap *orderMap_ = nullptr;
+    InstrumentQuickList *insQuick_ = nullptr;
+    QDockWidget *orderMapDock_ = nullptr;
+    QDockWidget *insQuickDock_ = nullptr;
+    StatusStrip *statusStrip_ = nullptr;
     QTimer *timer_ = nullptr;
 
     void buildUi();
-    void refreshSongInfo();
-    void refreshStatus();
     void refreshAll();
     void syncStack();
 };

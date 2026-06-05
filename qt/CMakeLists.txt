@@ -25,10 +25,28 @@ set(CORE_SRC
     ${SRC_DIR}/gsid.cpp
 )
 
-file(GLOB RESID_SRC ${SRC_DIR}/resid/*.cpp)
-list(REMOVE_ITEM RESID_SRC ${SRC_DIR}/resid/version.cpp)
-file(GLOB RESIDFP_SRC ${SRC_DIR}/resid-fp/*.cpp)
-list(REMOVE_ITEM RESIDFP_SRC ${SRC_DIR}/resid-fp/versionfp.cpp)
+# libresidfp 2.x backend (vendored under src/residfp/)
+set(RESIDFP_SRC
+    ${SRC_DIR}/residfp/Dac.cpp
+    ${SRC_DIR}/residfp/EnvelopeGenerator.cpp
+    ${SRC_DIR}/residfp/ExternalFilter.cpp
+    ${SRC_DIR}/residfp/Filter.cpp
+    ${SRC_DIR}/residfp/Filter6581.cpp
+    ${SRC_DIR}/residfp/Filter8580.cpp
+    ${SRC_DIR}/residfp/FilterModelConfig.cpp
+    ${SRC_DIR}/residfp/FilterModelConfig6581.cpp
+    ${SRC_DIR}/residfp/FilterModelConfig8580.cpp
+    ${SRC_DIR}/residfp/Integrator6581.cpp
+    ${SRC_DIR}/residfp/Integrator8580.cpp
+    ${SRC_DIR}/residfp/OpAmp.cpp
+    ${SRC_DIR}/residfp/SID.cpp
+    ${SRC_DIR}/residfp/Spline.cpp
+    ${SRC_DIR}/residfp/version.cc
+    ${SRC_DIR}/residfp/WaveformCalculator.cpp
+    ${SRC_DIR}/residfp/WaveformGenerator.cpp
+    ${SRC_DIR}/residfp/resample/SincResampler.cpp
+    ${SRC_DIR}/residfp/residfp/residfp.cpp
+)
 file(GLOB ASM_SRC ${SRC_DIR}/asm/*.c)
 
 set(BME_SRC
@@ -53,7 +71,6 @@ set(QT_SRC
 add_executable(goattrk2-qt
     ${QT_SRC}
     ${CORE_SRC}
-    ${RESID_SRC}
     ${RESIDFP_SRC}
     ${ASM_SRC}
     ${BME_SRC}
@@ -63,6 +80,8 @@ target_include_directories(goattrk2-qt PRIVATE
     ${SRC_DIR}
     ${SRC_DIR}/bme
     ${SRC_DIR}/asm
+    ${SRC_DIR}/residfp
+    ${SRC_DIR}/residfp/residfp
     ${SDL_INCLUDE_DIRS}
     ${JACK_INCLUDE_DIRS}
 )

@@ -2,8 +2,8 @@
 
 CC=gcc
 CXX=g++
-CFLAGS+=-O3 -Wall -Ibme -Iasm
-CXXFLAGS=$(CFLAGS)
+CFLAGS+=-O3 -Wall -Ibme -Iasm -fcommon
+CXXFLAGS=$(CFLAGS) -std=c++17 -Wno-narrowing
 
 EXE=	$(PREFIX)goattrk2$(SUFFIX) \
 	$(PREFIX)ins2snd2$(SUFFIX) \
@@ -13,13 +13,34 @@ EXE=	$(PREFIX)goattrk2$(SUFFIX) \
 
 all: $(EXE)
 
+# libresidfp 2.x backend (vendored under src/residfp/)
+RESIDFP_OBJS = \
+residfp/Dac.o residfp/EnvelopeGenerator.o residfp/ExternalFilter.o \
+residfp/Filter.o residfp/Filter6581.o residfp/Filter8580.o \
+residfp/FilterModelConfig.o residfp/FilterModelConfig6581.o residfp/FilterModelConfig8580.o \
+residfp/Integrator6581.o residfp/Integrator8580.o residfp/OpAmp.o \
+residfp/SID.o residfp/Spline.o residfp/version.o \
+residfp/WaveformCalculator.o residfp/WaveformGenerator.o \
+residfp/resample/SincResampler.o residfp/residfp/residfp.o
+
+residfp/%.o: residfp/%.cpp
+	$(CXX) $(CXXFLAGS) -Iresidfp -Iresidfp/residfp -c $< -o $@
+
+residfp/%.o: residfp/%.cc
+	$(CXX) $(CXXFLAGS) -Iresidfp -Iresidfp/residfp -c $< -o $@
+
+residfp/resample/%.o: residfp/resample/%.cpp
+	$(CXX) $(CXXFLAGS) -Iresidfp -Iresidfp/residfp -c $< -o $@
+
+residfp/residfp/%.o: residfp/residfp/%.cpp
+	$(CXX) $(CXXFLAGS) -Iresidfp -Iresidfp/residfp -c $< -o $@
+
+gsid.o: gsid.cpp gsid.h
+	$(CXX) $(CXXFLAGS) -Iresidfp -Iresidfp/residfp -c $< -o $@
+
 $(PREFIX)goattrk2$(SUFFIX): goatdata.o goattrk2.o gsong.o gorder.o gpattern.o ginstr.o gtable.o gplay.o gdisplay.o \
 gfile.o greloc.o ghelp.o gsound.o gconsole.o gsid.o \
-resid/envelope.o resid/extfilt.o resid/filter.o resid/pot.o resid/sid.o resid/wave.o resid/wave6581__ST.o \
-resid/wave6581_P_T.o resid/wave6581_PS_.o resid/wave6581_PST.o resid/wave8580__ST.o resid/wave8580_P_T.o \
-resid/wave8580_PS_.o resid/wave8580_PST.o resid/voice.o \
-resid-fp/envelopefp.o resid-fp/extfiltfp.o resid-fp/filterfp.o resid-fp/potfp.o resid-fp/sidfp.o \
-resid-fp/wavefp.o resid-fp/voicefp.o \
+$(RESIDFP_OBJS) \
 asm/asmtab.o asm/chnkpool.o asm/expr.o asm/lexyy.o asm/log.o asm/membuf.o asm/membufio.o asm/namedbuf.o asm/parse.o \
 asm/pc.o asm/vec.o \
 bme/bme_gfx.o bme/bme_snd.o bme/bme_win.o bme/bme_mou.o bme/bme_kbd.o bme/bme_io.o bme/bme_end.o bme/bme.o
@@ -52,6 +73,7 @@ clean:
 	$(RM) *.o *~
 	$(RM) asm/*.o
 	$(RM) bme/*.o
-	$(RM) resid/*.o
-	$(RM) resid-fp/*.o
+	$(RM) residfp/*.o
+	$(RM) residfp/resample/*.o
+	$(RM) residfp/residfp/*.o
 	$(RM) $(EXE)

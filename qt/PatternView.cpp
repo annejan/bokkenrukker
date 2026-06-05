@@ -12,6 +12,7 @@
 extern "C" {
 #include "gcommon.h"
 #include "gplay.h"
+#include "gsid.h"
 extern unsigned char pattern[MAX_PATT][MAX_PATTROWS*4+4];
 extern int pattlen[MAX_PATT];
 extern int epnum[MAX_CHN];
@@ -133,11 +134,44 @@ void PatternView::paintEvent(QPaintEvent *) {
     p.setFont(font());
 
     const int rowOffset = verticalScrollBar()->value();
-    const int rows = visibleRows();
 
     // Layout: row# (4 chars) | per channel: "NNN II CP " ~ 11 chars + 1 gap
     const int rowNumW = 5 * colWidth;
     const int chnW = 12 * colWidth;
+    const int vuH = 10;
+    const int vuPad = 4;
+
+    // OctaMED-style per-channel VU bars across the top, one per channel.
+    unsigned char levels[3] = {0,0,0};
+    sid_getlevels(levels);
+    for (int c = 0; c < MAX_CHN; c++) {
+        int x = rowNumW + c * chnW + 2;
+        int w = chnW - 6;
+        QRect frame(x, vuPad, w, vuH);
+        p.fillRect(frame, QColor(15, 18, 22));
+        p.setPen(QColor(80, 85, 100));
+        p.drawRect(frame);
+        int filled = (int)((double)levels[c] / 255.0 * (w - 2));
+        if (chn[c].mute) {
+            p.setPen(QColor(120, 60, 60));
+            p.drawText(QPoint(x + 4, vuPad + vuH - 2), "MUTE");
+        } else if (filled > 0) {
+            // Gradient: green (0%) → yellow (60%) → red (90%)
+            int seg1 = (int)((w - 2) * 0.6);
+            int seg2 = (int)((w - 2) * 0.9);
+            int rem = filled;
+            int xx = x + 1;
+            int g = qMin(rem, seg1);
+            if (g > 0) { p.fillRect(QRect(xx, vuPad + 1, g, vuH - 2), QColor(80, 200, 90)); rem -= g; xx += g; }
+            int y = qMin(rem, seg2 - seg1);
+            if (y > 0) { p.fillRect(QRect(xx, vuPad + 1, y, vuH - 2), QColor(230, 200, 60)); rem -= y; xx += y; }
+            if (rem > 0) p.fillRect(QRect(xx, vuPad + 1, rem, vuH - 2), QColor(230, 80, 60));
+        }
+    }
+    const int topOffset = vuPad * 2 + vuH;
+
+    // Recompute visible rows accounting for VU strip.
+    const int rows = (viewport()->height() - topOffset) / rowHeight;
 
     const QColor cBeat(60, 80, 110);
     const QColor cText(230, 230, 210);
@@ -149,7 +183,7 @@ void PatternView::paintEvent(QPaintEvent *) {
 
     for (int r = 0; r < rows; r++) {
         int row = r + rowOffset;
-        QRect lineRect(0, r * rowHeight, viewport()->width(), rowHeight);
+        QRect lineRect(0, topOffset + r * rowHeight, viewport()->width(), rowHeight);
 
         // Beat highlight
         if (row % 4 == 0) {

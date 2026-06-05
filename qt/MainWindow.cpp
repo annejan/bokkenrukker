@@ -324,6 +324,8 @@ void MainWindow::toggleSidModel() {
 }
 
 void MainWindow::tick() {
-    if (isplaying()) pattern_->refresh();
+    // Refresh pattern view at 50 Hz so VU meters animate even when stopped
+    // (envelope release still ringing). Other views update only on edit.
+    if (stack_->currentIndex() == EDIT_PATTERN) pattern_->refresh();
     refreshStatus();
 }

@@ -8,6 +8,7 @@
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include "SdlKeyMap.h"
+#include "Theme.h"
 
 extern "C" {
 #include "gcommon.h"
@@ -38,18 +39,13 @@ static const char *notename[] = {
 };
 
 PatternView::PatternView(QWidget *parent) : QAbstractScrollArea(parent) {
-    QFont mono = QFontDatabase::systemFont(QFontDatabase::FixedFont);
-    mono.setPointSize(11);
+    QFont mono = Theme::monoFont(11);
     setFont(mono);
     QFontMetrics fm(mono);
-    rowHeight = fm.height();
+    rowHeight = fm.height() + 3;
     colWidth = fm.horizontalAdvance('0');
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    viewport()->setAutoFillBackground(true);
-    QPalette pal = viewport()->palette();
-    pal.setColor(QPalette::Window, QColor(20, 24, 30));
-    pal.setColor(QPalette::WindowText, QColor(220, 220, 200));
-    viewport()->setPalette(pal);
+    Theme::applyDarkPalette(viewport());
     setFocusPolicy(Qt::StrongFocus);
     viewport()->setFocusPolicy(Qt::StrongFocus);
     updateScrollRange();
@@ -148,8 +144,8 @@ void PatternView::paintEvent(QPaintEvent *) {
         int x = rowNumW + c * chnW + 2;
         int w = chnW - 6;
         QRect frame(x, vuPad, w, vuH);
-        p.fillRect(frame, QColor(15, 18, 22));
-        p.setPen(QColor(80, 85, 100));
+        p.fillRect(frame, Theme::C::vuBg);
+        p.setPen(Theme::C::sep);
         p.drawRect(frame);
         int filled = (int)((double)levels[c] / 255.0 * (w - 2));
         if (chn[c].mute) {
@@ -162,22 +158,35 @@ void PatternView::paintEvent(QPaintEvent *) {
             int rem = filled;
             int xx = x + 1;
             int g = qMin(rem, seg1);
-            if (g > 0) { p.fillRect(QRect(xx, vuPad + 1, g, vuH - 2), QColor(80, 200, 90)); rem -= g; xx += g; }
+            if (g > 0) { p.fillRect(QRect(xx, vuPad + 1, g, vuH - 2), Theme::C::vuGreen); rem -= g; xx += g; }
             int y = qMin(rem, seg2 - seg1);
-            if (y > 0) { p.fillRect(QRect(xx, vuPad + 1, y, vuH - 2), QColor(230, 200, 60)); rem -= y; xx += y; }
-            if (rem > 0) p.fillRect(QRect(xx, vuPad + 1, rem, vuH - 2), QColor(230, 80, 60));
+            if (y > 0) { p.fillRect(QRect(xx, vuPad + 1, y, vuH - 2), Theme::C::vuAmber); rem -= y; xx += y; }
+            if (rem > 0) p.fillRect(QRect(xx, vuPad + 1, rem, vuH - 2), Theme::C::vuRed);
         }
     }
-    const int topOffset = vuPad * 2 + vuH;
 
-    // Recompute visible rows accounting for VU strip.
+    // Channel header row below VU bars
+    const int headerY = vuPad * 2 + vuH;
+    const int headerH = rowHeight;
+    for (int c = 0; c < MAX_CHN; c++) {
+        int x = rowNumW + c * chnW + 2;
+        bool active = (c == epchn);
+        p.setPen(active ? Theme::C::highlight : Theme::C::textDim);
+        QFont hf = font();
+        hf.setBold(active);
+        p.setFont(hf);
+        p.drawText(QPoint(x + 4, headerY + headerH - 5),
+                   QString("Channel %1%2").arg(c + 1).arg(chn[c].mute ? " M" : ""));
+    }
+    p.setFont(font());
+    // Header separator line
+    p.setPen(Theme::C::sep);
+    p.drawLine(0, headerY + headerH, viewport()->width(), headerY + headerH);
+
+    const int topOffset = headerY + headerH + 1;
+
+    // Recompute visible rows accounting for VU strip + header.
     const int rows = (viewport()->height() - topOffset) / rowHeight;
-
-    const QColor cBeat(60, 80, 110);
-    const QColor cText(230, 230, 210);
-    const QColor cDim(120, 120, 110);
-    const QColor cPlay(80, 30, 30);
-    const QColor cEdit(40, 60, 80);
 
     const bool playing = isplaying() != 0;
 
@@ -185,15 +194,17 @@ void PatternView::paintEvent(QPaintEvent *) {
         int row = r + rowOffset;
         QRect lineRect(0, topOffset + r * rowHeight, viewport()->width(), rowHeight);
 
-        // Beat highlight
-        if (row % 4 == 0) {
-            p.fillRect(QRect(0, lineRect.y(), rowNumW + chnW * MAX_CHN, rowHeight), cBeat);
+        // Beat / downbeat highlight
+        if (row % 16 == 0) {
+            p.fillRect(QRect(0, lineRect.y(), rowNumW + chnW * MAX_CHN, rowHeight), Theme::C::downbeat);
+        } else if (row % 4 == 0) {
+            p.fillRect(QRect(0, lineRect.y(), rowNumW + chnW * MAX_CHN, rowHeight), Theme::C::beat);
         }
         // Edit cursor row
         if (row == eppos) {
-            p.fillRect(lineRect, cEdit);
+            p.fillRect(lineRect, Theme::C::editRow);
         }
-        p.setPen(cDim);
+        p.setPen(Theme::C::textDim);
         p.drawText(QRect(0, lineRect.y(), rowNumW, rowHeight),
                    Qt::AlignRight | Qt::AlignVCenter,
                    QString("%1").arg(row, 3, 16, QLatin1Char('0')).toUpper());
@@ -207,11 +218,11 @@ void PatternView::paintEvent(QPaintEvent *) {
             // Playback row highlight per channel
             if (playing) {
                 int prow = chn[c].pattptr / 4;
-                if (prow == row) p.fillRect(cellRect, cPlay);
+                if (prow == row) p.fillRect(cellRect, Theme::C::playRow);
             }
 
             if (row >= plen) {
-                p.setPen(cDim);
+                p.setPen(Theme::C::textDim);
                 p.drawText(cellRect.adjusted(colWidth, 0, 0, 0),
                            Qt::AlignLeft | Qt::AlignVCenter, "---");
                 continue;
@@ -237,12 +248,17 @@ void PatternView::paintEvent(QPaintEvent *) {
                 QString("%1%2").arg(cmd, 1, 16, QLatin1Char('0'))
                               .arg(param, 2, 16, QLatin1Char('0')).toUpper();
 
-            p.setPen(cText);
             int tx = x + colWidth;
-            p.drawText(QPoint(tx, lineRect.y() + rowHeight - 4), noteStr);
-            p.drawText(QPoint(tx + 4 * colWidth, lineRect.y() + rowHeight - 4), insStr);
-            p.setPen(QColor(180, 200, 230));
-            p.drawText(QPoint(tx + 7 * colWidth, lineRect.y() + rowHeight - 4), cmdStr);
+            int ty = lineRect.y() + rowHeight - 5;
+            p.setPen(note == REST || note == KEYOFF || note == KEYON || note < FIRSTNOTE
+                     ? Theme::C::textDim : Theme::C::note);
+            p.drawText(QPoint(tx, ty), noteStr);
+            p.setPen(ins ? Theme::C::instr : Theme::C::textDim);
+            p.drawText(QPoint(tx + 4 * colWidth, ty), insStr);
+            p.setPen(cmd ? Theme::C::cmdDigit : Theme::C::textDim);
+            p.drawText(QPoint(tx + 7 * colWidth, ty), QString(cmdStr[0]));
+            p.setPen(cmd || param ? Theme::C::cmdParam : Theme::C::textDim);
+            p.drawText(QPoint(tx + 8 * colWidth, ty), cmdStr.mid(1));
         }
     }
 }

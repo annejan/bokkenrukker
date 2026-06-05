@@ -1,4 +1,5 @@
 #include "SongNameView.h"
+#include "Theme.h"
 
 #include <QVBoxLayout>
 #include <QFormLayout>
@@ -23,28 +24,26 @@ static void writeStr(char *dst, const QString &s) {
 }
 
 SongNameView::SongNameView(QWidget *parent) : QWidget(parent) {
-    setAutoFillBackground(true);
-    QPalette pal = palette();
-    pal.setColor(QPalette::Window, QColor(20, 24, 30));
-    pal.setColor(QPalette::WindowText, QColor(220, 220, 200));
-    setPalette(pal);
+    Theme::applyDarkPalette(this);
 
     auto *layout = new QVBoxLayout(this);
-    layout->setContentsMargins(40, 40, 40, 40);
+    layout->setContentsMargins(32, 24, 32, 24);
     layout->setSpacing(12);
 
     auto *header = new QLabel("Song metadata", this);
     QFont hf = header->font();
     hf.setPointSize(14);
     hf.setBold(true);
+    QPalette hp = header->palette();
+    hp.setColor(QPalette::WindowText, Theme::C::highlight);
+    header->setPalette(hp);
     header->setFont(hf);
     layout->addWidget(header);
 
     auto *form = new QFormLayout();
     form->setSpacing(10);
 
-    QFont mono = QFontDatabase::systemFont(QFontDatabase::FixedFont);
-    mono.setPointSize(12);
+    QFont mono = Theme::monoFont(12);
 
     title_ = new QLineEdit(this);
     title_->setMaxLength(MAX_STR - 1);

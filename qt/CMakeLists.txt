@@ -68,6 +68,11 @@ set(QT_SRC
     qt_stubs.c
 )
 
+set(QT_HEADERS
+    Theme.h
+    SdlKeyMap.h
+)
+
 add_executable(goattrk2-qt
     ${QT_SRC}
     ${CORE_SRC}

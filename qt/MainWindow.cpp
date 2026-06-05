@@ -22,6 +22,9 @@
 #include <QStatusBar>
 #include <QWidget>
 #include <QVBoxLayout>
+#include <QToolButton>
+#include <QStyle>
+#include "Theme.h"
 #include <cstring>
 
 extern "C" {
@@ -194,13 +197,62 @@ void MainWindow::buildUi() {
     connect(sidA, &QAction::triggered, this, &MainWindow::toggleSidModel);
 
     auto *tb = addToolBar("Transport");
+    tb->setMovable(false);
+    tb->setStyleSheet(QString(
+        "QToolBar { background:%1; spacing:6px; padding:4px; border:0; }"
+        "QToolButton { color:%2; background:%3; padding:4px 10px; border:1px solid %4; border-radius:3px; }"
+        "QToolButton:hover { background:%5; }"
+        "QToolButton#playBtn { background:%6; color:#0E1117; font-weight:bold; border-color:%6; }"
+        "QToolButton#playBtn:hover { background:#5BCB6A; }"
+        "QToolButton#stopBtn { background:%7; color:#FFFFFF; font-weight:bold; border-color:%7; }"
+        "QToolButton#stopBtn:hover { background:#F26060; }"
+    )
+        .arg(Theme::C::bgAlt.name())
+        .arg(Theme::C::text.name())
+        .arg(Theme::C::bgBase.name())
+        .arg(Theme::C::sep.name())
+        .arg(Theme::C::editRow.name())
+        .arg(Theme::C::vuGreen.name())
+        .arg(Theme::C::vuRed.name()));
+
+    // Transport group — Play (green), Stop (red)
     tb->addAction(playA);
+    tb->addAction(playPosA);
+    tb->addAction(playPatA);
     tb->addAction(stopA);
-    tb->addSeparator();
+    if (auto *btn = qobject_cast<QToolButton*>(tb->widgetForAction(playA)))
+        btn->setObjectName("playBtn");
+    if (auto *btn = qobject_cast<QToolButton*>(tb->widgetForAction(playPosA)))
+        btn->setObjectName("playBtn");
+    if (auto *btn = qobject_cast<QToolButton*>(tb->widgetForAction(playPatA)))
+        btn->setObjectName("playBtn");
+    if (auto *btn = qobject_cast<QToolButton*>(tb->widgetForAction(stopA)))
+        btn->setObjectName("stopBtn");
+
+    auto addSpacer = [&](int w = 24) {
+        auto *spacer = new QWidget(tb);
+        spacer->setFixedWidth(w);
+        tb->addWidget(spacer);
+    };
+
+    addSpacer();
+
+    // Mode group
     tb->addAction(modeMenu->actions().at(0));
     tb->addAction(modeMenu->actions().at(1));
     tb->addAction(modeMenu->actions().at(2));
     tb->addAction(modeMenu->actions().at(3));
+
+    addSpacer();
+
+    // View toggles
+    tb->addAction(orderMapDock_->toggleViewAction());
+    tb->addAction(insQuickDock_->toggleViewAction());
+    tb->addAction(followA);
+
+    // Re-apply style after adding (Qt needs nudging for newly named widgets)
+    tb->style()->unpolish(tb);
+    tb->style()->polish(tb);
 
     statusStrip_->showMessage("Ready. Ctrl+O to open a song.");
     syncStack();

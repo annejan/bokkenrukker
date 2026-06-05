@@ -28,6 +28,11 @@ extern int followplay;
 extern int epmarkchn;
 extern int epmarkstart;
 extern int epmarkend;
+extern int eseditpos;
+extern int esview;
+extern int eschn;
+extern int esnum;
+extern int songlen[MAX_SONGS][MAX_CHN];
 extern CHN chn[MAX_CHN];
 int isplaying(void);
 void patterncommands(void);
@@ -85,11 +90,27 @@ void PatternView::resizeEvent(QResizeEvent *) {
 }
 
 void PatternView::refresh() {
+    bool playing = isplaying() != 0;
+
+    // Follow-play: track which pattern each channel is currently playing
+    // and move the edit cursor onto it, mirroring gdisplay.c:100-126.
+    if (followplay && playing) {
+        for (int c = 0; c < MAX_CHN; c++) {
+            if (chn[c].advance) epnum[c] = chn[c].pattnum;
+            int newpos = chn[c].pattptr / 4;
+            if (newpos > pattlen[epnum[c]]) newpos = pattlen[epnum[c]];
+            if (c == epchn) eppos = newpos;
+            // Mirror to orderlist position so the order view stays in sync
+            int songpos = chn[c].songptr - 1;
+            if (songpos < 0) songpos = 0;
+            if (songpos > songlen[esnum][c]) songpos = songlen[esnum][c];
+            if (c == eschn && chn[c].advance) eseditpos = songpos;
+        }
+    }
+
     updateScrollRange();
     int rowOffset = verticalScrollBar()->value();
     int rows = visibleRows();
-    bool playing = isplaying() != 0;
-    // Centered follow-play scroll.
     if (followplay && playing) {
         int prow = chn[epchn].pattptr / 4;
         int center = std::max(0, prow - rows / 2);

@@ -293,9 +293,9 @@ void MainWindow::refreshAll() {
     statusStrip_->refresh();
 }
 
-void MainWindow::playFromBeginning() { initsong(esnum, PLAY_BEGINNING); }
-void MainWindow::playFromPos()       { initsong(esnum, PLAY_POS); }
-void MainWindow::playPattern()       { initsong(esnum, PLAY_PATTERN); }
+void MainWindow::playFromBeginning() { followplay = 1; initsong(esnum, PLAY_BEGINNING); }
+void MainWindow::playFromPos()       { followplay = 1; initsong(esnum, PLAY_POS); }
+void MainWindow::playPattern()       { followplay = 1; initsong(esnum, PLAY_PATTERN); }
 void MainWindow::stopSong()          { stopsong(); }
 
 void MainWindow::muteCurrentChannel() {
@@ -310,6 +310,7 @@ void MainWindow::toggleSidModel() {
 }
 void MainWindow::toggleFollowPlay() {
     followplay = !followplay;
+    statusStrip_->showMessage(followplay ? "Follow-play ON" : "Follow-play OFF");
     refreshAll();
 }
 

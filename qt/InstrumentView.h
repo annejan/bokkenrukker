@@ -35,9 +35,11 @@ private slots:
     void onGotoFilterTable();
     void onTestNote();
     void onSilenceTestNote();
+    void applyPreset(int index);
 
 private:
     QListWidget *list_ = nullptr;
+    class QComboBox *presetBox_ = nullptr;
     QLineEdit *name_ = nullptr;
     QSpinBox *attack_, *decay_, *sustain_, *release_;
     QSpinBox *wave_, *pulse_, *filter_, *vibParam_;

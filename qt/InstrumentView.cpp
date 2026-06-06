@@ -9,6 +9,7 @@
 #include <QSpinBox>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QComboBox>
 #include <QLabel>
 #include <QGroupBox>
 #include <QPainter>
@@ -224,6 +225,36 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     nameRow->addWidget(name_, 1);
     center->addLayout(nameRow);
     connect(name_, &QLineEdit::textEdited, this, &InstrumentView::onNameChanged);
+
+    // Preset envelope picker — sets ADSR + 1stFrame Wave + name to a sensible
+    // default for a common instrument archetype. Wavetable / pulse / filter
+    // pointers are NOT touched, so existing wavetable programs keep working.
+    auto *presetRow = new QHBoxLayout();
+    auto *presetLbl = new QLabel("Preset:", this);
+    presetBox_ = new QComboBox(this);
+    presetBox_->setToolTip("Apply a starter envelope for a common instrument "
+                           "archetype. Only ADSR / name / 1stFrame Wave change; "
+                           "wavetable pointers stay where they are.");
+    presetBox_->addItem("(choose a preset…)");
+    presetBox_->addItem("Bass — tight pulse");
+    presetBox_->addItem("Bass — triangle, soft");
+    presetBox_->addItem("Lead — sawtooth");
+    presetBox_->addItem("Pluck — fast decay");
+    presetBox_->addItem("Pad — slow attack, sustain");
+    presetBox_->addItem("Brass — punchy attack");
+    presetBox_->addItem("Organ — full sustain, no release");
+    presetBox_->addItem("Bell — instant attack, long decay");
+    presetBox_->addItem("Strings — soft attack, full sustain");
+    presetBox_->addItem("Drum — instant decay");
+    auto *applyBtn = new QPushButton("Apply", this);
+    applyBtn->setToolTip("Overwrite this instrument's envelope with the "
+                         "selected preset.");
+    connect(applyBtn, &QPushButton::clicked, this,
+            [this]{ applyPreset(presetBox_->currentIndex()); });
+    presetRow->addWidget(presetLbl);
+    presetRow->addWidget(presetBox_, 1);
+    presetRow->addWidget(applyBtn);
+    center->addLayout(presetRow);
 
     auto *envBox = new QGroupBox("Envelope (ADSR)", this);
     envBox->setToolTip("SID envelope shape. $0 is fastest, $F is slowest. "
@@ -548,3 +579,51 @@ void InstrumentView::onTestNote() {
 void InstrumentView::onSilenceTestNote() {
     releasenote(epchn);
 }
+
+// Preset starter envelopes from docs/sid-composition.md.
+// Tuple: name (display), AD byte, SR byte, 1stFrame, "label written into ins.name".
+namespace {
+struct Preset {
+    const char *label;
+    unsigned char ad;
+    unsigned char sr;
+    unsigned char firstwave;
+    const char *insName;
+};
+static const Preset kPresets[] = {
+    {"",                       0,    0,    0x09, ""},          // index 0 placeholder
+    {"Bass — tight pulse",     0x09, 0x00, 0x09, "Bass"},
+    {"Bass — triangle soft",   0x0A, 0xFC, 0x09, "Bass tri"},
+    {"Lead — sawtooth",        0x08, 0x85, 0x09, "Lead"},
+    {"Pluck — fast decay",     0x00, 0xC0, 0x09, "Pluck"},
+    {"Pad — slow, sustain",    0x84, 0xC5, 0x09, "Pad"},
+    {"Brass — punchy",         0x2A, 0xF4, 0x09, "Brass"},
+    {"Organ — full sustain",   0x00, 0xF0, 0x09, "Organ"},
+    {"Bell — long decay",      0x0B, 0x00, 0x09, "Bell"},
+    {"Strings — soft sus",     0x88, 0xCA, 0x09, "Strings"},
+    {"Drum — instant decay",   0x00, 0x00, 0x09, "Drum"},
+};
+}
+
+void InstrumentView::applyPreset(int index) {
+    if (index <= 0 || index >= (int)(sizeof(kPresets) / sizeof(kPresets[0]))) return;
+    QByteArray before = captureSongSnapshot();
+    const Preset &p = kPresets[index];
+    INSTR &ins = instr[einum];
+    ins.ad = p.ad;
+    ins.sr = p.sr;
+    ins.firstwave = p.firstwave;
+    // Only rename if the slot is empty or already a default placeholder.
+    char nameBuf[MAX_INSTRNAMELEN + 1];
+    std::memcpy(nameBuf, ins.name, MAX_INSTRNAMELEN);
+    nameBuf[MAX_INSTRNAMELEN] = 0;
+    QString cur = QString::fromLocal8Bit(nameBuf).trimmed();
+    if (cur.isEmpty()) {
+        std::strncpy(ins.name, p.insName, MAX_INSTRNAMELEN - 1);
+        ins.name[MAX_INSTRNAMELEN - 1] = 0;
+    }
+    pushEditIfChanged(this, std::move(before), "Apply preset");
+    refresh();
+    emit edited();
+}
+

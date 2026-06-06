@@ -209,7 +209,16 @@ void PatternView::mousePressEvent(QMouseEvent *e) {
         int c = channelAtX(e->pos().x());
         if (c >= 0) {
             epchn = c;
-            epcolumn = 0;
+            // Map x-within-channel to epcolumn. Layout mirrors paintEvent's
+            // colRect math: note=3w@0, instr=2w@4w, cmd=1w@7w, param=2w@8w.
+            int xInChan = e->pos().x() - (rowNumW_ + c * chnW_);
+            int col = xInChan / colWidth;
+            if      (col < 4)  epcolumn = 0;          // note
+            else if (col == 4) epcolumn = 1;          // instr hi
+            else if (col == 5) epcolumn = 2;          // instr lo
+            else if (col <= 7) epcolumn = 3;          // cmd
+            else if (col == 8) epcolumn = 4;          // param hi
+            else               epcolumn = 5;          // param lo
         }
         refresh();
         emit patternEdited();

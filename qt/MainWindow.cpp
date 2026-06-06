@@ -296,13 +296,12 @@ void MainWindow::buildUi() {
 
     settingsMenu->addSeparator();
     auto *audioMenu = settingsMenu->addMenu("&Audio engine");
-    auto *stereoA = audioMenu->addAction("Stereo mode (2× SID, 6 channels)");
+    auto *stereoA = audioMenu->addAction("Dual-SID / 6-channel mode");
     stereoA->setCheckable(true);
     stereoA->setChecked(stereo_mode != 0);
-    stereoA->setToolTip("Toggle between mono (3-channel, single SID) and stereo "
-                        "(6-channel, dual SID). On-disk .sng format is still 3 "
-                        "channels until stereo file support lands; mode mostly "
-                        "affects live playback + the editor's view of ch4-6.");
+    stereoA->setToolTip("UNCHECKED = single SID, 3 channels (default mono).\n"
+                        "CHECKED   = dual SID, 6 channels.\n"
+                        "Toggle anytime — uncheck to return to single SID.");
     connect(stereoA, &QAction::toggled, this, &MainWindow::toggleStereoMode);
     auto *sid2A = audioMenu->addAction("Second SID is 8580 (else 6581)");
     sid2A->setCheckable(true);

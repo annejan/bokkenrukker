@@ -282,14 +282,26 @@ static int render_pair(short *ptr, int samples) {
   int tdelta = clockrate * samples / samplerate;
   if (tdelta <= 0) return 0;
 
+  // residfp::clock(cycles, buf) writes the produced samples into `buf` with
+  // no size guard — calling it when s1/s2 is already 0 overruns. Use
+  // clockSilent for whichever SID is done so the internal phase keeps
+  // advancing in lockstep with the still-rendering one.
   auto step = [&](int cycles) {
     if (cycles <= 0) return;
-    int r1 = sid->clock((unsigned)cycles, p1);
-    if (r1 > s1) r1 = s1;
-    int r2 = sid2->clock((unsigned)cycles, p2);
-    if (r2 > s2) r2 = s2;
-    p1 += r1; s1 -= r1; total1 += r1;
-    p2 += r2; s2 -= r2; total2 += r2;
+    if (s1 > 0) {
+      int r1 = sid->clock((unsigned)cycles, p1);
+      if (r1 > s1) r1 = s1;
+      p1 += r1; s1 -= r1; total1 += r1;
+    } else {
+      sid->clockSilent((unsigned)cycles);
+    }
+    if (s2 > 0) {
+      int r2 = sid2->clock((unsigned)cycles, p2);
+      if (r2 > s2) r2 = s2;
+      p2 += r2; s2 -= r2; total2 += r2;
+    } else {
+      sid2->clockSilent((unsigned)cycles);
+    }
   };
 
   for (c = 0; c < NUMSIDREGS; c++) {
@@ -312,14 +324,18 @@ static int render_pair(short *ptr, int samples) {
   }
 
   int n = std::min(total1, total2);
-  // Mix at 0.625x each to give a 6-voice peak of ~1.25× int16, then clip.
-  // Pure x0.5 leaves stereo material noticeably quieter than mono.
+  // Mix at 0.5x per source — six voices max out at int16 without clipping,
+  // and stereo sits roughly at parity with mono perceived loudness because
+  // SID material rarely hits both peaks at the same instant.
   for (int i = 0; i < n; i++) {
-    int v = ((int)ptr[i] * 5 / 8) + ((int)tmp[i] * 5 / 8);
-    if (v > 32767) v = 32767; else if (v < -32768) v = -32768;
+    int v = ((int)ptr[i] + (int)tmp[i]) / 2;
     ptr[i] = (short)v;
   }
-  return n;
+  // If one SID rendered more samples than the other, zero-pad the tail of
+  // ptr up to n so we don't leak the previous buffer's contents back to the
+  // audio callback.
+  for (int i = n; i < samples; i++) ptr[i] = 0;
+  return samples;
 }
 
 int sid_fillbuffer(short *ptr, int samples)

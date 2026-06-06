@@ -348,45 +348,123 @@ void TablesView::onCellSelectionChanged() {
 }
 
 static QString tableLegendHtml(int t) {
+    // Common style tags. Most lines: "[Range] — what it does. Example."
+    const QString dim   = "color:#5A6470";
+    const QString hi    = "color:#FFD93D";
+    const QString mono  = "font-family:'JetBrains Mono','monospace'";
     switch (t) {
         case 0: return QString(
-            "<b style='color:#A1C181'>Wave table</b><br>"
-            "<span style='color:#5A6470'>L bytes:</span><br>"
-            "<b>$00</b> no change<br>"
-            "<b>$01-$0F</b> delay 1..15 frames<br>"
-            "<b>$10-$DF</b> waveform value (gate / saw / tri / pulse / noise bits)<br>"
-            "<b>$E0-$EF</b> inaudible waveform $00-$0F<br>"
-            "<b>$F0-$FE</b> execute pattern command 0XY-EXY (R = param)<br>"
-            "<b>$FF</b> jump (R = target step, $00 = stop)<br>"
-            "<span style='color:#5A6470'>R bytes:</span><br>"
-            "<b>$00-$5F</b> relative note +0..+95<br>"
-            "<b>$60-$7F</b> negative relative<br>"
-            "<b>$80</b> hold frequency<br>"
-            "<b>$81-$DF</b> absolute notes C#0..B-7"
-        );
+            "<p style='margin:0 0 6px 0'><b style='color:#A1C181;font-size:13px'>"
+            "Wave table</b> &nbsp;<span style='%1'>"
+            "shapes the instrument timbre over time</span></p>"
+            "<p style='margin:0 0 4px 0'>"
+            "Each row plays one frame (1/50 s PAL). The instrument's <b>Wave-ptr</b>"
+            " points at the first row; execution falls through row-by-row until it hits"
+            " a jump (<b>$FF</b>)."
+            "</p>"
+            "<p style='margin:0 0 4px 0'><b style='%2'>Left byte (waveform / opcode)</b></p>"
+            "<table style='%3;font-size:11px'>"
+            "<tr><td><b>$00</b></td><td>keep the previous waveform</td></tr>"
+            "<tr><td><b>$01-$0F</b></td><td>delay 1..15 frames (then continue)</td></tr>"
+            "<tr><td><b>$10-$DF</b></td><td>set waveform — bits: noise $80, pulse $40,"
+            " saw $20, tri $10, gate $01, test $08, ring $04, sync $02</td></tr>"
+            "<tr><td><b>$E0-$EF</b></td><td>inaudible $00-$0F (silent step)</td></tr>"
+            "<tr><td><b>$F0-$FE</b></td><td>run pattern command 0XY-EXY with R as param</td></tr>"
+            "<tr><td><b>$FF</b></td><td>jump to step in R ($00 = stop wavetable)</td></tr>"
+            "</table>"
+            "<p style='margin:6px 0 4px 0'><b style='%2'>Right byte (note)</b></p>"
+            "<table style='%3;font-size:11px'>"
+            "<tr><td><b>$00-$5F</b></td><td>relative note +0..+95 semitones</td></tr>"
+            "<tr><td><b>$60-$7F</b></td><td>negative relative -1..-32</td></tr>"
+            "<tr><td><b>$80</b></td><td>hold note's frequency unchanged</td></tr>"
+            "<tr><td><b>$81-$DF</b></td><td>absolute notes C#0..B-7</td></tr>"
+            "</table>"
+            "<p style='margin:6px 0 0 0;%1'>Examples:</p>"
+            "<p style='margin:0;%3;font-size:11px'>"
+            "<b>21 00</b> sawtooth at original note<br>"
+            "<b>41 03</b> pulse +3 semitones (minor 3rd arp step)<br>"
+            "<b>FF 01</b> loop back to row 1<br>"
+            "<b>F6 5A</b> run cmd 6XY (sustain/release) with $5A"
+            "</p>"
+        ).arg(dim).arg(hi).arg(mono);
+
         case 1: return QString(
-            "<b style='color:#6FA6CE'>Pulse table</b><br>"
-            "<b>$01-$7F</b> modulate L ticks at signed-byte speed R<br>"
-            "<b>$8X-$FX</b> set pulse width X|R (12-bit value $000-$FFF)<br>"
-            "<b>$FF</b> jump (R = target, $00 = stop)"
-        );
+            "<p style='margin:0 0 6px 0'><b style='color:#6FA6CE;font-size:13px'>"
+            "Pulse table</b> &nbsp;<span style='%1'>"
+            "sweeps pulse-width while a pulse-wave note plays</span></p>"
+            "<p style='margin:0 0 4px 0'>"
+            "Started by the instrument's <b>Pulse-ptr</b>. Runs in parallel with the"
+            " wavetable. Pulse width is 12-bit, $000=thin square..$800=square..$FFF=inverse."
+            "</p>"
+            "<table style='%2;font-size:11px'>"
+            "<tr><td><b>$01-$7F</b></td><td>modulate for L ticks; R is signed 8-bit speed"
+            " (positive = wider, negative = narrower)</td></tr>"
+            "<tr><td><b>$8X-$FX</b></td><td>set pulse width directly to <b>X|R</b>"
+            " (12-bit value — X is hi nybble, R is low byte)</td></tr>"
+            "<tr><td><b>$FF</b></td><td>jump to step R ($00 = stop)</td></tr>"
+            "</table>"
+            "<p style='margin:6px 0 0 0;%1'>Examples:</p>"
+            "<p style='margin:0;%2;font-size:11px'>"
+            "<b>88 00</b> set pulse to $800 (square)<br>"
+            "<b>80 10</b> set pulse to $010 (very thin)<br>"
+            "<b>40 E0</b> for 64 ticks, decrease pw by 32/tick<br>"
+            "<b>FF 03</b> loop to step 3"
+            "</p>"
+        ).arg(dim).arg(mono);
+
         case 2: return QString(
-            "<b style='color:#D89B8C'>Filter table</b><br>"
-            "<b>$00</b> set cutoff to R<br>"
-            "<b>$01-$7F</b> modulate L ticks at signed-byte speed R<br>"
-            "<b>$80-$F0</b> set filter params: hi-nibble = passband "
-            "(90=LP, A0=BP, C0=HP, etc), R = resonance | channel-mask<br>"
-            "<b>$FF</b> jump (R = target, $00 = stop)"
-        );
+            "<p style='margin:0 0 6px 0'><b style='color:#D89B8C;font-size:13px'>"
+            "Filter table</b> &nbsp;<span style='%1'>"
+            "drives SID cutoff + resonance over time</span></p>"
+            "<p style='margin:0 0 4px 0'>"
+            "Started by the instrument's <b>Filter-ptr</b>. <i>Only one channel</i>"
+            " should drive the filter at a time. Run cmd <b>B00</b> to disable."
+            "</p>"
+            "<table style='%2;font-size:11px'>"
+            "<tr><td><b>$00</b></td><td>set cutoff to R (8-bit, hi byte of $D415/$D416)</td></tr>"
+            "<tr><td><b>$01-$7F</b></td><td>modulate cutoff L ticks at signed speed R</td></tr>"
+            "<tr><td><b>$8X</b></td><td>set passband + bitmask: $80 off, <b>$90</b> lowpass,"
+            " <b>$A0</b> bandpass, <b>$B0</b> low+band, <b>$C0</b> highpass,"
+            " <b>$D0</b> low+high, <b>$E0</b> high+band, <b>$F0</b> all-pass.<br>"
+            "R = (resonance hi-nyb) | (channel mask lo-nyb 1=ch1, 2=ch2, 4=ch3)</td></tr>"
+            "<tr><td><b>$FF</b></td><td>jump to step R ($00 = stop)</td></tr>"
+            "</table>"
+            "<p style='margin:6px 0 0 0;%1'>Examples:</p>"
+            "<p style='margin:0;%2;font-size:11px'>"
+            "<b>90 F1</b> lowpass, res $F, ch1 only<br>"
+            "<b>00 40</b> set cutoff to $40<br>"
+            "<b>7F 01</b> for 127 ticks, raise cutoff by 1/tick<br>"
+            "<b>B00</b> in pattern: disable filter"
+            "</p>"
+        ).arg(dim).arg(mono);
+
         case 3: return QString(
-            "<b style='color:#E0C16E'>Speed table</b><br>"
-            "Shared by vibrato, portamento, funktempo. No jump opcode.<br>"
-            "<b>Vibrato</b> L=direction-change speed, R=depth per tick<br>"
-            "<b>Portamento</b> LR = signed 16-bit pitch step / tick<br>"
-            "<b>Funktempo</b> L,R = two tempo values alternated per row<br>"
-            "<b>L bit $80</b> enables note-independent vib depth / porta speed; "
-            "R then specifies the divisor."
-        );
+            "<p style='margin:0 0 6px 0'><b style='color:#E0C16E;font-size:13px'>"
+            "Speed table</b> &nbsp;<span style='%1'>"
+            "shared parameter pool for vibrato, portamento, funktempo</span></p>"
+            "<p style='margin:0 0 4px 0'>"
+            "Pattern commands <b>1XY</b> portamento up, <b>2XY</b> down,"
+            " <b>3XY</b> toneporta, <b>4XY</b> vibrato, <b>EXY</b> funktempo"
+            " — and the instrument's <b>Vibrato param</b> — all index into this table."
+            " <i>No jump opcode</i>. Same row reused across uses."
+            "</p>"
+            "<table style='%2;font-size:11px'>"
+            "<tr><td><b>Vibrato (4XY)</b></td><td>L = ticks before direction flip,"
+            " R = pitch delta per tick</td></tr>"
+            "<tr><td><b>Portamento (1XY/2XY/3XY)</b></td><td>signed 16-bit value <b>L:R</b>"
+            " added to pitch each tick</td></tr>"
+            "<tr><td><b>Funktempo (EXY)</b></td><td>L = even-row tempo, R = odd-row tempo</td></tr>"
+            "<tr><td><b>L bit $80</b></td><td>enables note-independent calc;"
+            " R then specifies the right-shift divisor</td></tr>"
+            "</table>"
+            "<p style='margin:6px 0 0 0;%1'>Examples:</p>"
+            "<p style='margin:0;%2;font-size:11px'>"
+            "<b>03 40</b> classic vibrato (depth 40, speed 3)<br>"
+            "<b>00 20</b> portamento $0020 / tick<br>"
+            "<b>09 06</b> funktempo 9-then-6<br>"
+            "<b>83 04</b> note-indep vibrato, divisor 4"
+            "</p>"
+        ).arg(dim).arg(mono);
     }
     return {};
 }
@@ -398,13 +476,12 @@ void TablesView::updateLegend() {
 void TablesView::updateDecoder() {
     unsigned char L = ltable[etnum][etpos];
     unsigned char R = rtable[etnum][etpos];
-    decode_->setText(QString("%1 step $%2\nL=$%3  R=$%4\n→ %5")
+    QString head = QString("%1 step $%2   L=$%3  R=$%4")
         .arg(tableName[etnum])
-        .arg(etpos + 1, 2, 16, QLatin1Char('0'))
-        .arg(L, 2, 16, QLatin1Char('0'))
-        .arg(R, 2, 16, QLatin1Char('0'))
-        .arg(decodeCell(etnum, L, R))
-        .toUpper());
+        .arg(etpos + 1, 2, 16, QLatin1Char('0')).toUpper()
+        .arg(L, 2, 16, QLatin1Char('0')).toUpper()
+        .arg(R, 2, 16, QLatin1Char('0')).toUpper();
+    decode_->setText(head + "\n→ " + decodeCell(etnum, L, R));
 }
 
 void TablesView::updateUsedBy() {

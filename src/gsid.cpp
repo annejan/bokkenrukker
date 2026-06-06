@@ -267,29 +267,13 @@ static int render_sid(reSIDfp::residfp *s, const unsigned char *regs,
 int sid_fillbuffer(short *ptr, int samples)
 {
   if (!sid) return 0;
-  if (!sid2) return render_sid(sid, sidreg, ptr, samples);
-
-  // Stereo path. Use the same per-SID renderer that produces the mono path's
-  // sample count — that loop has an aggressive top-up at the tail, so both
-  // calls reliably hit `samples` and we mix N==samples both sides.
-  static std::vector<short> tmp;
-  if ((int)tmp.size() < samples) tmp.resize(samples);
-
-  int n1 = render_sid(sid,  sidreg,  ptr,         samples);
-  int n2 = render_sid(sid2, sidreg2, tmp.data(),  samples);
-  int n  = std::min(n1, n2);
-
-  // Straight sum with hard clip. SID2 with all-zero registers produces a
-  // near-silent stream so this keeps the SID1 voicing at full volume in the
-  // common case (no extra parts written to ch4-6). When SID2 actually has
-  // material, peaks may clip — that's preferable to permanent attenuation.
-  for (int i = 0; i < n; i++) {
-    int v = (int)ptr[i] + (int)tmp[i];
-    if (v >  32767) v =  32767;
-    if (v < -32768) v = -32768;
-    ptr[i] = (short)v;
-  }
-  return n;
+  // Per user request: revert to the original mono mixing path. The stereo
+  // audio mix needs a proper rewrite (cycle-accurate dual-SID render + true
+  // L/R output through the SDL audio spec); the experimental mix-down was
+  // hurting quality. SID2 still receives register writes via the playroutine
+  // in stereo mode so the envelopes / VU meters update, but the audio
+  // callback only reads SID1's output. Stereo audio output stays a TODO.
+  return render_sid(sid, sidreg, ptr, samples);
 }
 
 }

@@ -193,7 +193,16 @@ void playroutine(void)
          songinit = 0x01;
     }
 
-    for (c = 0; c < MAX_CHN; c++)
+    // Walk only as many channels as the song actually has on disk
+    // (song_channels = 3 for mono, 6 for stereo). The in-memory arrays
+    // size for 6, but driving the playroutine over channels 4-6 in a
+    // mono song would double-play patterns and could leave those
+    // channels racing the real ones to the end-of-pattern early-stop
+    // check below.
+    extern int song_channels;
+    int active_chn = song_channels;
+    if (active_chn > MAX_CHN) active_chn = MAX_CHN;
+    for (c = 0; c < active_chn; c++)
     {
       cptr->songptr = 0;
       cptr->command = 0;
@@ -321,7 +330,13 @@ void playroutine(void)
         sidreg2[0x18] = filtertype | masterfader;
     }
 
-    for (c = 0; c < MAX_CHN; c++)
+    // Main per-tick loop also bound to song_channels, matching the song-init
+    // loop above. Avoids walking phantom ch4-6 in a mono song.
+    {
+        extern int song_channels;
+        int main_chn = song_channels;
+        if (main_chn > MAX_CHN) main_chn = MAX_CHN;
+    for (c = 0; c < main_chn; c++)
     {
       iptr = &instr[cptr->instr];
 
@@ -972,6 +987,7 @@ void playroutine(void)
       }
       cptr++;
     }
+    }  // close active_chn bounding block
   }
   if (songinit != PLAY_STOPPED) incrementtime();
 }

@@ -54,6 +54,8 @@ extern char instrpath[];
 extern char songname[MAX_STR];
 extern char authorname[MAX_STR];
 extern char copyrightname[MAX_STR];
+extern int eppos, epcolumn, epchn, eschn;
+extern int espos[MAX_CHN];
 extern int esnum;
 extern int editmode;
 extern int followplay;
@@ -415,9 +417,22 @@ void MainWindow::loadSongFile(const QString &path) {
     std::strncpy(songfilename, ba.constData(), MAX_FILENAME - 1);
     songfilename[MAX_FILENAME - 1] = 0;
     rememberDir(path, songpath, MAX_PATHNAME);
+    // Reset editor cursors so the views point at row 0 of pattern 0 — any
+    // stale eppos from a previously edited song would land past the end of
+    // the new song's patterns and the grid would look empty.
+    eppos = 0;
+    epcolumn = 0;
+    epchn = 0;
+    eschn = 0;
+    for (int c = 0; c < MAX_CHN; c++) espos[c] = 0;
     loadsong();
     countpatternlengths();
+    undoStack_->clear();   // loaded state starts a fresh history
     refreshAll();
+    // Force a full repaint on the active editor — Qt skips paint events when
+    // the scroll range didn't change between the previous song and the new
+    // one, which can leave the pattern grid showing the prior song's rows.
+    if (auto *w = activeEditorWidget()) w->update();
     statusStrip_->showMessage(QString("Loaded: %1").arg(path));
 }
 

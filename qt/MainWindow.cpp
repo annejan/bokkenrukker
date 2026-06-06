@@ -450,7 +450,7 @@ void MainWindow::loadSongFile(const QString &path) {
     // sidreg[], songorder[] every fill. loadsong / clearsong mutate all of
     // those — racing the audio thread is the segfault on big songs like
     // cabrinigreen. Bracket the load with sink suspend / resume.
-    if (auto *a = QtAudio::instance()) a->suspend();
+    if (auto *a = AudioOut::instance()) a->suspend();
     QByteArray ba = path.toLocal8Bit();
     std::strncpy(songfilename, ba.constData(), MAX_FILENAME - 1);
     songfilename[MAX_FILENAME - 1] = 0;
@@ -469,7 +469,7 @@ void MainWindow::loadSongFile(const QString &path) {
     undoStack_->clear();   // loaded state starts a fresh history
     refreshAll();
     if (auto *w = activeEditorWidget()) w->update();
-    if (auto *a = QtAudio::instance()) a->resume();
+    if (auto *a = AudioOut::instance()) a->resume();
     statusStrip_->showMessage(QString("Loaded: %1").arg(path));
 }
 
@@ -645,7 +645,7 @@ void MainWindow::muteCurrentChannel() {
 void MainWindow::prevMultiplierSlot() { prevmultiplier(); refreshAll(); }
 void MainWindow::nextMultiplierSlot() { nextmultiplier(); refreshAll(); }
 void MainWindow::toggleStereoMode(bool on) {
-    if (auto *a = QtAudio::instance()) a->suspend();
+    if (auto *a = AudioOut::instance()) a->suspend();
     stereo_mode = on ? 1 : 0;
     // When promoting an existing mono song to stereo, channels 4-6 normally
     // have songlen=0 (nothing loaded for them) — the order map would render
@@ -663,7 +663,7 @@ void MainWindow::toggleStereoMode(bool on) {
         }
     }
     sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
-    if (auto *a = QtAudio::instance()) a->resume();
+    if (auto *a = AudioOut::instance()) a->resume();
     statusStrip_->showMessage(on
         ? "Stereo ON — 6 channels, dual SID"
         : "Stereo OFF — 3 channels, single SID");
@@ -683,32 +683,32 @@ void MainWindow::toggleSid2Model() {
 void MainWindow::toggleSidModel() {
     // sound_init / sid_init tear down + rebuild the libresidfp instance the
     // audio thread is mid-clock on. Bracket with suspend / resume.
-    if (auto *a = QtAudio::instance()) a->suspend();
+    if (auto *a = AudioOut::instance()) a->suspend();
     sidmodel ^= 1;
     sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
-    if (auto *a = QtAudio::instance()) a->resume();
+    if (auto *a = AudioOut::instance()) a->resume();
     statusStrip_->showMessage(sidmodel ? "Switched to 8580 SID"
                                        : "Switched to 6581 SID");
     refreshAll();
 }
 
 void MainWindow::toggleNtsc() {
-    if (auto *a = QtAudio::instance()) a->suspend();
+    if (auto *a = AudioOut::instance()) a->suspend();
     ntsc ^= 1;
     sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
-    if (auto *a = QtAudio::instance()) a->resume();
+    if (auto *a = AudioOut::instance()) a->resume();
     statusStrip_->showMessage(ntsc ? "Switched to NTSC 60Hz"
                                    : "Switched to PAL 50Hz");
     refreshAll();
 }
 
 void MainWindow::cycleMultiplier() {
-    if (auto *a = QtAudio::instance()) a->suspend();
+    if (auto *a = AudioOut::instance()) a->suspend();
     if (multiplier == 0)      multiplier = 1;
     else if (multiplier < 4)  multiplier++;
     else                       multiplier = 0;
     sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
-    if (auto *a = QtAudio::instance()) a->resume();
+    if (auto *a = AudioOut::instance()) a->resume();
     statusStrip_->showMessage(QString("Speed multiplier: %1")
         .arg(multiplier == 0 ? "½x" : QString("%1x").arg(multiplier)));
     refreshAll();

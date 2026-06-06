@@ -65,9 +65,9 @@ int main(int argc, char **argv) {
     // memset(0) (now sample-hold) and not aliasing.
     sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
 
-    QtAudio audio;
+    AudioOut audio;
     if (!audio.start((int)mr)) {
-        qWarning("QtAudio failed to start; running silent.");
+        qWarning("AudioOut failed to start; running silent.");
     }
 
     // Start with a fresh empty song so the pattern editor is immediately

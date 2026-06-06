@@ -9,11 +9,11 @@ class QAudioSink;
 // SDL 1.2 + bme_snd audio path for the Qt build — Qt routes its audio
 // output through PipeWire / PulseAudio / ALSA / WASAPI / CoreAudio without
 // us having to know which is active on the host.
-class QtAudio : public QObject {
+class AudioOut : public QObject {
     Q_OBJECT
 public:
-    explicit QtAudio(QObject *parent = nullptr);
-    ~QtAudio() override;
+    explicit AudioOut(QObject *parent = nullptr);
+    ~AudioOut() override;
 
     bool start(int sampleRate);
     void stop();
@@ -24,12 +24,12 @@ public:
     void suspend();
     void resume();
 
-    static QtAudio *instance() { return self_; }
+    static AudioOut *instance() { return self_; }
 
 private:
     class PullDevice;
     std::unique_ptr<QAudioSink> sink_;
     PullDevice *device_ = nullptr;
     int sampleRate_ = 0;
-    static QtAudio *self_;
+    static AudioOut *self_;
 };

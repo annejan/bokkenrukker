@@ -19,7 +19,7 @@ extern unsigned ntsc;
 // buffer needs more samples. Drives the C playroutine at the C64 frame rate
 // (PAL 50 Hz / NTSC 60 Hz times the user's speed multiplier) and the
 // libresidfp render via sid_fillbuffer.
-class QtAudio::PullDevice : public QIODevice {
+class AudioOut::PullDevice : public QIODevice {
 public:
     PullDevice(int sampleRate, QObject *parent = nullptr)
         : QIODevice(parent), sampleRate_(sampleRate) {
@@ -65,19 +65,19 @@ private:
     double  sampleAccumF_ = 0.0;
 };
 
-QtAudio *QtAudio::self_ = nullptr;
+AudioOut *AudioOut::self_ = nullptr;
 
-QtAudio::QtAudio(QObject *parent) : QObject(parent) { self_ = this; }
-QtAudio::~QtAudio() { stop(); if (self_ == this) self_ = nullptr; }
+AudioOut::AudioOut(QObject *parent) : QObject(parent) { self_ = this; }
+AudioOut::~AudioOut() { stop(); if (self_ == this) self_ = nullptr; }
 
-void QtAudio::suspend() {
+void AudioOut::suspend() {
     if (sink_) sink_->suspend();
 }
-void QtAudio::resume() {
+void AudioOut::resume() {
     if (sink_) sink_->resume();
 }
 
-bool QtAudio::start(int sampleRate) {
+bool AudioOut::start(int sampleRate) {
     sampleRate_ = sampleRate;
     QAudioFormat fmt;
     fmt.setSampleRate(sampleRate);
@@ -86,7 +86,7 @@ bool QtAudio::start(int sampleRate) {
 
     QAudioDevice out = QMediaDevices::defaultAudioOutput();
     if (!out.isFormatSupported(fmt)) {
-        qWarning("QtAudio: default device doesn't support the requested format; "
+        qWarning("AudioOut: default device doesn't support the requested format; "
                  "QtMultimedia will resample.");
     }
     sink_ = std::make_unique<QAudioSink>(out, fmt);
@@ -99,17 +99,17 @@ bool QtAudio::start(int sampleRate) {
     sink_->setVolume(1.0);
     device_ = new PullDevice(sampleRate, this);
     sink_->start(device_);
-    qInfo() << "QtAudio: device=" << out.description()
+    qInfo() << "AudioOut: device=" << out.description()
             << "buffer(B)=" << sink_->bufferSize()
             << "state=" << sink_->state();
     if (sink_->state() == QAudio::StoppedState) {
-        qWarning("QtAudio: sink failed to start: %d", (int)sink_->error());
+        qWarning("AudioOut: sink failed to start: %d", (int)sink_->error());
         return false;
     }
     return true;
 }
 
-void QtAudio::stop() {
+void AudioOut::stop() {
     if (sink_) sink_->stop();
     sink_.reset();
     device_ = nullptr;

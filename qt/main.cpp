@@ -48,14 +48,22 @@ int main(int argc, char **argv) {
         else if (!args[i].startsWith("-")) songArg = args[i];
     }
 
-    if (SDL_Init(SDL_INIT_AUDIO) < 0) {
-        qWarning("SDL_Init audio failed: %s", SDL_GetError());
+    // SDL audio init removed — QAudioSink owns the audio device now. SDL is
+    // only kept around for misc helpers in the bundled bme code, so init the
+    // timer subsystem (cheap, no device locking).
+    if (SDL_Init(SDL_INIT_TIMER) < 0) {
+        qWarning("SDL_Init timer failed: %s", SDL_GetError());
     }
 
     initchannels();
     songinit = PLAY_STOPPED;
-    // Initialise libresidfp directly (skip bme/SDL audio init).
-    sid_init((int)mr, sidmodel, ntsc, interpolate, customclockrate, 1);
+    // Initialise libresidfp directly. Stick with DECIMATE (interpolate=0)
+    // for the audio thread — RESAMPLE's sinc filter is 5-10× slower and was
+    // causing the audio thread to miss its real-time deadline, producing
+    // the 'instruments not playing on time' stutter the user reported. The
+    // ticks RESAMPLE was supposed to fix turned out to be the underrun
+    // memset(0) (now sample-hold) and not aliasing.
+    sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
 
     QtAudio audio;
     if (!audio.start((int)mr)) {

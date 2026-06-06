@@ -18,8 +18,18 @@ public:
     bool start(int sampleRate);
     void stop();
 
+    // Suspend the audio thread without tearing down the sink — used to
+    // bracket non-thread-safe operations (loadsong / clearsong) on the C
+    // globals that the audio thread reads each fill.
+    void suspend();
+    void resume();
+
+    static QtAudio *instance() { return self_; }
+
 private:
     class PullDevice;
     std::unique_ptr<QAudioSink> sink_;
     PullDevice *device_ = nullptr;
+    int sampleRate_ = 0;
+    static QtAudio *self_;
 };

@@ -37,6 +37,7 @@
 #include <QInputDialog>
 #include <QActionGroup>
 #include "Theme.h"
+#include "QtAudio.h"
 #include <cstring>
 
 extern "C" {
@@ -81,6 +82,8 @@ extern char tuningname[64];
 int sound_init(unsigned b, unsigned mr, unsigned writer, unsigned hardsid,
                unsigned m, unsigned ntsc, unsigned multiplier,
                unsigned catweasel, unsigned interpolate, unsigned customclockrate);
+void sid_init(int speed, unsigned m, unsigned ntsc, unsigned interpolate,
+              unsigned customclockrate, unsigned usefp);
 int savesong(void);
 int saveinstrument(void);
 void loadinstrument(void);
@@ -103,7 +106,11 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     if (!ip.isEmpty()) std::strncpy(instrpath, ip.constData(), MAX_PATHNAME - 1);
     timer_ = new QTimer(this);
     connect(timer_, &QTimer::timeout, this, &MainWindow::tick);
-    timer_->start(20);
+    // 25 Hz UI tick (40 ms). Halved from the previous 50 Hz to leave more
+    // room for the audio thread + the playroutine; the user explicitly
+    // accepts visual drop-frames over note timing slips. Pattern follow-play
+    // and VU strip still update fast enough to read at a glance.
+    timer_->start(40);
 }
 
 MainWindow::~MainWindow() {
@@ -439,6 +446,11 @@ static QString titleForSong(const QString &path) {
 }
 
 void MainWindow::loadSongFile(const QString &path) {
+    // The audio thread runs sid_fillbuffer + playroutine and touches chn[],
+    // sidreg[], songorder[] every fill. loadsong / clearsong mutate all of
+    // those — racing the audio thread is the segfault on big songs like
+    // cabrinigreen. Bracket the load with sink suspend / resume.
+    if (auto *a = QtAudio::instance()) a->suspend();
     QByteArray ba = path.toLocal8Bit();
     std::strncpy(songfilename, ba.constData(), MAX_FILENAME - 1);
     songfilename[MAX_FILENAME - 1] = 0;
@@ -456,10 +468,8 @@ void MainWindow::loadSongFile(const QString &path) {
     countpatternlengths();
     undoStack_->clear();   // loaded state starts a fresh history
     refreshAll();
-    // Force a full repaint on the active editor — Qt skips paint events when
-    // the scroll range didn't change between the previous song and the new
-    // one, which can leave the pattern grid showing the prior song's rows.
     if (auto *w = activeEditorWidget()) w->update();
+    if (auto *a = QtAudio::instance()) a->resume();
     statusStrip_->showMessage(QString("Loaded: %1").arg(path));
 }
 
@@ -635,6 +645,7 @@ void MainWindow::muteCurrentChannel() {
 void MainWindow::prevMultiplierSlot() { prevmultiplier(); refreshAll(); }
 void MainWindow::nextMultiplierSlot() { nextmultiplier(); refreshAll(); }
 void MainWindow::toggleStereoMode(bool on) {
+    if (auto *a = QtAudio::instance()) a->suspend();
     stereo_mode = on ? 1 : 0;
     // When promoting an existing mono song to stereo, channels 4-6 normally
     // have songlen=0 (nothing loaded for them) — the order map would render
@@ -651,8 +662,8 @@ void MainWindow::toggleStereoMode(bool on) {
             }
         }
     }
-    sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
-               catweasel, interpolate, customclockrate);
+    sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
+    if (auto *a = QtAudio::instance()) a->resume();
     statusStrip_->showMessage(on
         ? "Stereo ON — 6 channels, dual SID"
         : "Stereo OFF — 3 channels, single SID");
@@ -670,30 +681,34 @@ void MainWindow::toggleSid2Model() {
 }
 
 void MainWindow::toggleSidModel() {
+    // sound_init / sid_init tear down + rebuild the libresidfp instance the
+    // audio thread is mid-clock on. Bracket with suspend / resume.
+    if (auto *a = QtAudio::instance()) a->suspend();
     sidmodel ^= 1;
-    sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
-               catweasel, interpolate, customclockrate);
+    sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
+    if (auto *a = QtAudio::instance()) a->resume();
     statusStrip_->showMessage(sidmodel ? "Switched to 8580 SID"
                                        : "Switched to 6581 SID");
     refreshAll();
 }
 
 void MainWindow::toggleNtsc() {
+    if (auto *a = QtAudio::instance()) a->suspend();
     ntsc ^= 1;
-    sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
-               catweasel, interpolate, customclockrate);
+    sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
+    if (auto *a = QtAudio::instance()) a->resume();
     statusStrip_->showMessage(ntsc ? "Switched to NTSC 60Hz"
                                    : "Switched to PAL 50Hz");
     refreshAll();
 }
 
 void MainWindow::cycleMultiplier() {
-    // ½x (0) → 1 → 2 → 3 → 4 → ½x
+    if (auto *a = QtAudio::instance()) a->suspend();
     if (multiplier == 0)      multiplier = 1;
     else if (multiplier < 4)  multiplier++;
     else                       multiplier = 0;
-    sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
-               catweasel, interpolate, customclockrate);
+    sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
+    if (auto *a = QtAudio::instance()) a->resume();
     statusStrip_->showMessage(QString("Speed multiplier: %1")
         .arg(multiplier == 0 ? "½x" : QString("%1x").arg(multiplier)));
     refreshAll();
@@ -709,9 +724,19 @@ QWidget *MainWindow::activeEditorWidget() const {
 }
 
 void MainWindow::tick() {
+    // Audio wins: when playback is running, drop the heaviest UI work
+    // (pattern repaint + order map repaint) to every other tick. The scope
+    // strip still pushes per tick so the meter stays smooth, but the
+    // pattern grid + order map repaint at ~12 Hz instead of 25 Hz when
+    // notes are flying — keeps the audio thread out of contention.
     pattern_->tickScope();
-    if (stack_->currentIndex() == EDIT_PATTERN) pattern_->refresh();
-    if (isplaying()) orderMap_->refresh();
+    const bool playing = isplaying();
+    static int playSkip = 0;
+    bool heavy = !playing || ((++playSkip & 1) == 0);
+    if (heavy) {
+        if (stack_->currentIndex() == EDIT_PATTERN) pattern_->refresh();
+        if (playing) orderMap_->refresh();
+    }
     statusStrip_->refresh();
     // Re-label the Pos toolbar button between ▶ Pos and ⏸ Pause as transport
     // state changes, so the button always shows the action it will perform.

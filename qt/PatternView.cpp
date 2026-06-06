@@ -447,17 +447,30 @@ void PatternView::paintEvent(QPaintEvent *) {
                 if (prow == row) p.fillRect(cellRect, Theme::C::playRow);
             }
 
-            // Edit-column tint on active channel/row
+            // Edit-column tint + white border on active channel/row. The
+            // border narrows down to a single nybble when epcolumn lands on
+            // the hi / lo of a 2-digit field, so the user can see which
+            // nybble the next keystroke will land in.
             if (c == epchn && row == eppos) {
                 int tx = x + colWidth;
-                QRect colRect;
-                if (epcolumn == 0)      colRect = QRect(tx, lineRect.y(), 3 * colWidth, rowHeight);
-                else if (epcolumn <= 2) colRect = QRect(tx + 4 * colWidth, lineRect.y(), 2 * colWidth, rowHeight);
-                else if (epcolumn == 3) colRect = QRect(tx + 7 * colWidth, lineRect.y(), colWidth, rowHeight);
-                else                    colRect = QRect(tx + 8 * colWidth, lineRect.y(), 2 * colWidth, rowHeight);
+                QRect colRect, focusRect;
+                switch (epcolumn) {
+                case 0: colRect = focusRect = QRect(tx, lineRect.y(), 3 * colWidth, rowHeight); break;
+                case 1: colRect = QRect(tx + 4 * colWidth, lineRect.y(), 2 * colWidth, rowHeight);
+                        focusRect = QRect(tx + 4 * colWidth, lineRect.y(), colWidth, rowHeight); break;
+                case 2: colRect = QRect(tx + 4 * colWidth, lineRect.y(), 2 * colWidth, rowHeight);
+                        focusRect = QRect(tx + 5 * colWidth, lineRect.y(), colWidth, rowHeight); break;
+                case 3: colRect = focusRect = QRect(tx + 7 * colWidth, lineRect.y(), colWidth, rowHeight); break;
+                case 4: colRect = QRect(tx + 8 * colWidth, lineRect.y(), 2 * colWidth, rowHeight);
+                        focusRect = QRect(tx + 8 * colWidth, lineRect.y(), colWidth, rowHeight); break;
+                case 5: colRect = QRect(tx + 8 * colWidth, lineRect.y(), 2 * colWidth, rowHeight);
+                        focusRect = QRect(tx + 9 * colWidth, lineRect.y(), colWidth, rowHeight); break;
+                }
                 p.fillRect(colRect, QColor(Theme::C::highlight.red(),
                                            Theme::C::highlight.green(),
                                            Theme::C::highlight.blue(), 35));
+                p.setPen(QPen(QColor(255, 255, 255), 1));
+                p.drawRect(focusRect.adjusted(0, 0, -1, -1));
             }
 
             if (row >= plen) {

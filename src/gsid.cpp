@@ -9,6 +9,8 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <vector>
+#include <algorithm>
 
 #include "residfp/residfp.h"
 #include "residfp/residfp_defs.h"
@@ -73,8 +75,14 @@ void sid_init(int speed, unsigned m, unsigned ntsc, unsigned interpolate, unsign
 
   if (!sid)
     sid = new reSIDfp::residfp();
-  if (stereo_mode && !sid2)
-    sid2 = new reSIDfp::residfp();
+  if (stereo_mode) {
+    if (!sid2) sid2 = new reSIDfp::residfp();
+  } else if (sid2) {
+    // Tear down SID2 when stereo flips off so audio actually returns to a
+    // single-SID mix and CPU load drops.
+    delete sid2;
+    sid2 = 0;
+  }
 
   /* Chip model: SID1 follows m, SID2 follows sid2model independently. */
   if (m == 1)
@@ -149,15 +157,19 @@ void sid_getlevels(unsigned char *out)
  * we run small bursts between writes, accumulate produced samples,
  * and only top up at the end if the requested count was not yet hit.
  */
-int sid_fillbuffer(short *ptr, int samples)
-{
+// Render one SID instance into `ptr` for `samples` mono samples. Body is the
+// historical sid_fillbuffer logic parameterised over the residfp instance
+// and the register shadow array, so we can drive SID2 the same way for the
+// stereo mix path below.
+static int render_sid(reSIDfp::residfp *s, const unsigned char *regs,
+                      short *ptr, int samples) {
   int tdelta;
   int tdelta2;
   int result = 0;
   int total = 0;
   int c;
 
-  if (!sid) return 0;
+  if (!s) return 0;
 
   int badline = rand() % NUMSIDREGS;
 
@@ -174,7 +186,7 @@ int sid_fillbuffer(short *ptr, int samples)
       tdelta2 = SIDWAVEDELAY;
       if (samples > 0)
       {
-        result = sid->clock((unsigned)tdelta2, ptr);
+        result = s->clock((unsigned)tdelta2, ptr);
         if (result > samples) result = samples;
         total += result;
         ptr += result;
@@ -182,7 +194,7 @@ int sid_fillbuffer(short *ptr, int samples)
       }
       else
       {
-        sid->clockSilent((unsigned)tdelta2);
+        s->clockSilent((unsigned)tdelta2);
       }
       tdelta -= SIDWAVEDELAY;
     }
@@ -193,7 +205,7 @@ int sid_fillbuffer(short *ptr, int samples)
       tdelta2 = (int)residdelay;
       if (samples > 0)
       {
-        result = sid->clock((unsigned)tdelta2, ptr);
+        result = s->clock((unsigned)tdelta2, ptr);
         if (result > samples) result = samples;
         total += result;
         ptr += result;
@@ -201,17 +213,17 @@ int sid_fillbuffer(short *ptr, int samples)
       }
       else
       {
-        sid->clockSilent((unsigned)tdelta2);
+        s->clockSilent((unsigned)tdelta2);
       }
       tdelta -= (int)residdelay;
     }
 
-    sid->write(o, sidreg[o]);
+    s->write(o, regs[o]);
 
     tdelta2 = SIDWRITEDELAY;
     if (samples > 0)
     {
-      result = sid->clock((unsigned)tdelta2, ptr);
+      result = s->clock((unsigned)tdelta2, ptr);
       if (result > samples) result = samples;
       total += result;
       ptr += result;
@@ -219,7 +231,7 @@ int sid_fillbuffer(short *ptr, int samples)
     }
     else
     {
-      sid->clockSilent((unsigned)tdelta2);
+      s->clockSilent((unsigned)tdelta2);
     }
     tdelta -= SIDWRITEDELAY;
 
@@ -228,7 +240,7 @@ int sid_fillbuffer(short *ptr, int samples)
 
   if (tdelta > 0 && samples > 0)
   {
-    result = sid->clock((unsigned)tdelta, ptr);
+    result = s->clock((unsigned)tdelta, ptr);
     if (result > samples) result = samples;
     total += result;
     ptr += result;
@@ -241,20 +253,36 @@ int sid_fillbuffer(short *ptr, int samples)
     tdelta = clockrate * samples / samplerate;
     if (tdelta <= 0) return total;
 
-    result = sid->clock((unsigned)tdelta, ptr);
+    result = s->clock((unsigned)tdelta, ptr);
     if (result > samples) result = samples;
-    if (result <= 0)
-    {
-      /* Safety: avoid an infinite loop if the resampler refuses to
-         emit samples for the requested cycles. */
-      break;
-    }
+    if (result <= 0) break;
     total += result;
     ptr += result;
     samples -= result;
   }
 
   return total;
+}
+
+int sid_fillbuffer(short *ptr, int samples)
+{
+  if (!sid) return 0;
+  if (!sid2) return render_sid(sid, sidreg, ptr, samples);
+
+  // Stereo mix: render both SIDs and sum to mono with clipping.
+  static std::vector<short> tmp;
+  if ((int)tmp.size() < samples) tmp.resize(samples);
+
+  int n1 = render_sid(sid, sidreg, ptr, samples);
+  int n2 = render_sid(sid2, sidreg2, tmp.data(), samples);
+  int n = std::min(n1, n2);
+  for (int i = 0; i < n; i++) {
+    int s = (int)ptr[i] + (int)tmp[i];
+    if (s > 32767) s = 32767;
+    else if (s < -32768) s = -32768;
+    ptr[i] = (short)s;
+  }
+  return n;
 }
 
 }

@@ -13,9 +13,12 @@ extern int esnum;
 extern int espos[MAX_CHN];
 extern int eschn;
 extern int lastsonginit;
+extern int stereo_mode;
 extern CHN chn[MAX_CHN];
 int isplaying(void);
 }
+
+static int activeChannels() { return stereo_mode ? MAX_CHN : 3; }
 
 OrderMiniMap::OrderMiniMap(QWidget *parent) : QWidget(parent) {
     setMinimumWidth(120);
@@ -26,12 +29,13 @@ OrderMiniMap::OrderMiniMap(QWidget *parent) : QWidget(parent) {
 void OrderMiniMap::paintEvent(QPaintEvent *) {
     QPainter p(this);
     int W = width(), H = height();
+    int nc = activeChannels();
     int maxLen = 0;
-    for (int c = 0; c < MAX_CHN; c++)
+    for (int c = 0; c < nc; c++)
         if (songlen[esnum][c] > maxLen) maxLen = songlen[esnum][c];
     if (maxLen == 0) maxLen = 1;
     int rowH = qMax(2, H / qMax(maxLen, 1));
-    int colW = (W - 8) / MAX_CHN;
+    int colW = (W - 8) / nc;
 
     p.setPen(Theme::C::textDim);
     QFont f = font(); f.setPointSize(8); p.setFont(f);
@@ -88,13 +92,14 @@ extern int eseditpos;
 
 void OrderMiniMap::mousePressEvent(QMouseEvent *e) {
     int W = width();
-    int colW = (W - 8) / MAX_CHN;
+    int nc = activeChannels();
+    int colW = (W - 8) / nc;
     int x = e->pos().x() - 4;
     if (x < 0) return;
     int c = x / colW;
-    if (c < 0 || c >= MAX_CHN) return;
+    if (c < 0 || c >= nc) return;
     int maxLen = 0;
-    for (int cc = 0; cc < MAX_CHN; cc++)
+    for (int cc = 0; cc < nc; cc++)
         if (songlen[esnum][cc] > maxLen) maxLen = songlen[esnum][cc];
     int rowH = qMax(2, height() / qMax(maxLen, 1));
     int r = (e->pos().y() - 18) / rowH;
@@ -121,7 +126,7 @@ void OrderMiniMap::mousePressEvent(QMouseEvent *e) {
         epchn = c;
         eseditpos = r;
     } else {
-        for (int cc = 0; cc < MAX_CHN; cc++) apply(cc);
+        for (int cc = 0; cc < nc; cc++) apply(cc);
         eschn = c;
         epchn = c;
         eseditpos = r;

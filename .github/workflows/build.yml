@@ -55,8 +55,12 @@ jobs:
         run: |
           BREW="$(brew --prefix)"
           export PKG_CONFIG_PATH="$BREW/opt/sdl12-compat/lib/pkgconfig:$BREW/opt/jack/lib/pkgconfig:$BREW/lib/pkgconfig:$PKG_CONFIG_PATH"
+          # The sources use #include <SDL/SDL.h>, but Homebrew's SDL pc only adds
+          # .../include/SDL. Add the Homebrew include root so the SDL/ prefix resolves.
           cmake -S qt -B qt/build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH="$(brew --prefix qt6)"
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt6)" \
+            -DCMAKE_C_FLAGS="-I$BREW/include" \
+            -DCMAKE_CXX_FLAGS="-I$BREW/include"
 
       - name: Build
         run: cmake --build qt/build -j"$(sysctl -n hw.ncpu)"

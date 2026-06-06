@@ -68,7 +68,7 @@ set(QT_SRC
     InstrumentQuickList.cpp
     StatusStrip.cpp
     UndoStack.cpp
-    Rpc.cpp
+    RpcServer.cpp
     qt_globals.c
     qt_stubs.c
 )

@@ -4,7 +4,7 @@
 #include <SDL/SDL.h>
 #include <cstring>
 #include "MainWindow.h"
-#include "Rpc.h"
+#include "RpcServer.h"
 
 extern "C" {
 #include "gcommon.h"

@@ -103,7 +103,11 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     if (!ip.isEmpty()) std::strncpy(instrpath, ip.constData(), MAX_PATHNAME - 1);
     timer_ = new QTimer(this);
     connect(timer_, &QTimer::timeout, this, &MainWindow::tick);
-    timer_->start(20);
+    // 25 Hz UI tick (40 ms). Halved from the previous 50 Hz to leave more
+    // room for the audio thread + the playroutine; the user explicitly
+    // accepts visual drop-frames over note timing slips. Pattern follow-play
+    // and VU strip still update fast enough to read at a glance.
+    timer_->start(40);
 }
 
 MainWindow::~MainWindow() {
@@ -709,9 +713,19 @@ QWidget *MainWindow::activeEditorWidget() const {
 }
 
 void MainWindow::tick() {
+    // Audio wins: when playback is running, drop the heaviest UI work
+    // (pattern repaint + order map repaint) to every other tick. The scope
+    // strip still pushes per tick so the meter stays smooth, but the
+    // pattern grid + order map repaint at ~12 Hz instead of 25 Hz when
+    // notes are flying — keeps the audio thread out of contention.
     pattern_->tickScope();
-    if (stack_->currentIndex() == EDIT_PATTERN) pattern_->refresh();
-    if (isplaying()) orderMap_->refresh();
+    const bool playing = isplaying();
+    static int playSkip = 0;
+    bool heavy = !playing || ((++playSkip & 1) == 0);
+    if (heavy) {
+        if (stack_->currentIndex() == EDIT_PATTERN) pattern_->refresh();
+        if (playing) orderMap_->refresh();
+    }
     statusStrip_->refresh();
     // Re-label the Pos toolbar button between ▶ Pos and ⏸ Pause as transport
     // state changes, so the button always shows the action it will perform.

@@ -67,6 +67,7 @@ set(QT_SRC
     OrderMiniMap.cpp
     InstrumentQuickList.cpp
     StatusStrip.cpp
+    UndoStack.cpp
     qt_globals.c
     qt_stubs.c
 )

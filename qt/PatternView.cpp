@@ -11,6 +11,8 @@
 #include <QInputDialog>
 #include "SdlKeyMap.h"
 #include "Theme.h"
+#include "UndoStack.h"
+#include "MainWindow.h"
 
 extern "C" {
 #include "gcommon.h"
@@ -136,10 +138,26 @@ bool PatternView::event(QEvent *e) {
 }
 
 void PatternView::keyPressEvent(QKeyEvent *e) {
+    // Nav keys don't mutate; everything else gets wrapped in an undo command.
+    int k = e->key();
+    bool isNav = (k == Qt::Key_Up || k == Qt::Key_Down
+                  || k == Qt::Key_Left || k == Qt::Key_Right
+                  || k == Qt::Key_PageUp || k == Qt::Key_PageDown
+                  || k == Qt::Key_Home || k == Qt::Key_End
+                  || k == Qt::Key_Tab || k == Qt::Key_Backtab);
+    QByteArray before;
+    auto *mw = qobject_cast<MainWindow*>(window());
+    if (!isNav && mw) before = mw->beginEdit();
     setGoatKeys(e);
     patterncommands();
     clearGoatKeys();
     refresh();
+    if (!isNav && mw && !before.isEmpty()) {
+        QByteArray after = captureSongSnapshot();
+        if (after != before) {
+            mw->endEdit(before, "Pattern edit");
+        }
+    }
     emit patternEdited();
 }
 

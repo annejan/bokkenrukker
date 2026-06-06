@@ -1,5 +1,6 @@
 #pragma once
 #include <QMainWindow>
+#include <QByteArray>
 
 class PatternView;
 class OrderView;
@@ -13,6 +14,7 @@ class QStackedWidget;
 class QLabel;
 class QTimer;
 class QDockWidget;
+class QUndoStack;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -21,6 +23,11 @@ public:
     ~MainWindow() override;
 
     void loadSongFile(const QString &path);
+
+    // Editors call beginEdit() before mutating the song, then endEdit(label)
+    // to push the resulting state onto the undo stack with the given label.
+    QByteArray beginEdit();
+    void endEdit(QByteArray before, const QString &label);
 
 private slots:
     void openSong();
@@ -42,7 +49,12 @@ private slots:
     void cycleEditMode(bool backwards = false);
     void tick();
 
+private slots:
+    void undo();
+    void redo();
+
 private:
+    QUndoStack *undoStack_ = nullptr;
     PatternView *pattern_ = nullptr;
     OrderView *order_ = nullptr;
     InstrumentView *instrument_ = nullptr;

@@ -7,6 +7,8 @@
 #include "OrderMiniMap.h"
 #include "InstrumentQuickList.h"
 #include "StatusStrip.h"
+#include "UndoStack.h"
+#include <QUndoStack>
 
 #include <QDockWidget>
 #include <QFileDialog>
@@ -65,8 +67,9 @@ void nextmultiplier(void);
 }
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
+    undoStack_ = new QUndoStack(this);
+    undoStack_->setUndoLimit(64);
     buildUi();
-    // Restore last-used directories so File dialogs reopen where the user left off.
     QSettings s("goattracker2-qt", "goattracker2-qt");
     QByteArray sp = s.value("songpath").toString().toLocal8Bit();
     QByteArray ip = s.value("instrpath").toString().toLocal8Bit();
@@ -154,6 +157,15 @@ void MainWindow::buildUi() {
     auto *quitA = fileMenu->addAction("&Quit");
     quitA->setShortcut(Qt::CTRL | Qt::Key_Q);
     connect(quitA, &QAction::triggered, this, &QMainWindow::close);
+
+    // Edit menu — undo / redo
+    auto *editMenu = menuBar()->addMenu("&Edit");
+    auto *undoA = editMenu->addAction("&Undo");
+    undoA->setShortcut(QKeySequence::Undo);
+    connect(undoA, &QAction::triggered, this, &MainWindow::undo);
+    auto *redoA = editMenu->addAction("&Redo");
+    redoA->setShortcut(QKeySequence::Redo);
+    connect(redoA, &QAction::triggered, this, &MainWindow::redo);
 
     auto *modeMenu = menuBar()->addMenu("&Mode");
     auto addMode = [&](const QString &label, int mode, Qt::Key shortcut) {
@@ -439,4 +451,35 @@ void MainWindow::tick() {
     if (stack_->currentIndex() == EDIT_PATTERN) pattern_->refresh();
     if (isplaying()) orderMap_->refresh();
     statusStrip_->refresh();
+}
+
+QByteArray MainWindow::beginEdit() {
+    return captureSongSnapshot();
+}
+
+void MainWindow::endEdit(QByteArray before, const QString &label) {
+    auto *cmd = new SongSnapshotCommand(std::move(before), label);
+    undoStack_->push(cmd);
+}
+
+void MainWindow::undo() {
+    if (!undoStack_->canUndo()) {
+        statusStrip_->showMessage("Nothing to undo");
+        return;
+    }
+    QString label = undoStack_->undoText();
+    undoStack_->undo();
+    statusStrip_->showMessage(QString("Undo: %1").arg(label));
+    refreshAll();
+}
+
+void MainWindow::redo() {
+    if (!undoStack_->canRedo()) {
+        statusStrip_->showMessage("Nothing to redo");
+        return;
+    }
+    QString label = undoStack_->redoText();
+    undoStack_->redo();
+    statusStrip_->showMessage(QString("Redo: %1").arg(label));
+    refreshAll();
 }

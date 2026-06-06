@@ -22,9 +22,7 @@ extern "C" {
 int clockrate;
 int samplerate;
 unsigned char sidreg[NUMSIDREGS];
-#ifdef GOATTRK2_STEREO
 unsigned char sidreg2[NUMSIDREGS];
-#endif
 unsigned char sidorder[] =
   {0x15,0x16,0x18,0x17,
    0x05,0x06,0x02,0x03,0x00,0x01,0x04,
@@ -54,11 +52,11 @@ FILTERPARAMS filterparams =
 extern unsigned residdelay;
 extern unsigned adparam;
 
-/* Single (mono) or paired (stereo) libresidfp instances. */
+/* SID1 always exists; SID2 lazy-instantiated when the runtime stereo_mode
+ * flag flips on. extern reference here, defined in qt_globals.c. */
+extern "C" int stereo_mode;
 static reSIDfp::residfp *sid = 0;
-#ifdef GOATTRK2_STEREO
 static reSIDfp::residfp *sid2 = 0;
-#endif
 
 void sid_init(int speed, unsigned m, unsigned ntsc, unsigned interpolate, unsigned customclockrate, unsigned usefp)
 {
@@ -75,25 +73,21 @@ void sid_init(int speed, unsigned m, unsigned ntsc, unsigned interpolate, unsign
 
   if (!sid)
     sid = new reSIDfp::residfp();
-#ifdef GOATTRK2_STEREO
-  if (!sid2)
+  if (stereo_mode && !sid2)
     sid2 = new reSIDfp::residfp();
-#endif
 
-  /* Chip model: SID1 follows the caller's m, SID2 follows a second global
-   * `sid2model` so users can run e.g. SID1=6581 + SID2=8580 for hybrid
-   * mixes. Default sid2model = m (matching pair). */
+  /* Chip model: SID1 follows m, SID2 follows sid2model independently. */
   if (m == 1)
     sid->setChipModel(reSIDfp::CSG8580);
   else
     sid->setChipModel(reSIDfp::MOS6581);
-#ifdef GOATTRK2_STEREO
-  extern unsigned sid2model;
-  if (sid2model == 1)
-    sid2->setChipModel(reSIDfp::CSG8580);
-  else
-    sid2->setChipModel(reSIDfp::MOS6581);
-#endif
+  if (sid2) {
+    extern unsigned sid2model;
+    if (sid2model == 1)
+      sid2->setChipModel(reSIDfp::CSG8580);
+    else
+      sid2->setChipModel(reSIDfp::MOS6581);
+  }
 
   /*
    * interpolate values used by the old code:
@@ -110,17 +104,15 @@ void sid_init(int speed, unsigned m, unsigned ntsc, unsigned interpolate, unsign
   sid->setSamplingParameters((double)clockrate, method, (double)speed);
   sid->reset();
   sid->enableFilter(true);
-#ifdef GOATTRK2_STEREO
-  sid2->setSamplingParameters((double)clockrate, method, (double)speed);
-  sid2->reset();
-  sid2->enableFilter(true);
-#endif
+  if (sid2) {
+    sid2->setSamplingParameters((double)clockrate, method, (double)speed);
+    sid2->reset();
+    sid2->enableFilter(true);
+  }
   for (c = 0; c < NUMSIDREGS; c++)
   {
     sidreg[c] = 0x00;
-#ifdef GOATTRK2_STEREO
     sidreg2[c] = 0x00;
-#endif
   }
 }
 
@@ -134,22 +126,16 @@ unsigned char sid_getorder(unsigned char index)
 
 void sid_getlevels(unsigned char *out)
 {
-  if (!sid) {
-    for (int i = 0; i < MAX_CHN; i++) out[i] = 0;
-    return;
-  }
+  for (int i = 0; i < MAX_CHN; i++) out[i] = 0;
+  if (!sid) return;
   out[0] = sid->envelopeLevel(0);
   out[1] = sid->envelopeLevel(1);
   out[2] = sid->envelopeLevel(2);
-#ifdef GOATTRK2_STEREO
   if (sid2) {
     out[3] = sid2->envelopeLevel(0);
     out[4] = sid2->envelopeLevel(1);
     out[5] = sid2->envelopeLevel(2);
-  } else {
-    out[3] = out[4] = out[5] = 0;
   }
-#endif
 }
 
 /*

@@ -62,6 +62,9 @@ extern int followplay;
 extern int einum;
 extern int epchn;
 extern unsigned sidmodel;
+extern unsigned sid2model;
+extern int stereo_mode;
+extern int song_channels;
 extern unsigned multiplier;
 extern unsigned keypreset;
 extern unsigned b, mr, writer, hardsid, ntsc, catweasel, interpolate, customclockrate;
@@ -288,6 +291,23 @@ void MainWindow::buildUi() {
     addKey("Protracker (default)", &MainWindow::setKeyPresetTracker, keypreset == KEY_TRACKER);
     addKey("DMC",                  &MainWindow::setKeyPresetDmc,     keypreset == KEY_DMC);
     addKey("Janko / isomorphic",   &MainWindow::setKeyPresetJanko,   keypreset == KEY_JANKO);
+
+    settingsMenu->addSeparator();
+    auto *audioMenu = settingsMenu->addMenu("&Audio engine");
+    auto *stereoA = audioMenu->addAction("Stereo mode (2× SID, 6 channels)");
+    stereoA->setCheckable(true);
+    stereoA->setChecked(stereo_mode != 0);
+    stereoA->setToolTip("Toggle between mono (3-channel, single SID) and stereo "
+                        "(6-channel, dual SID). On-disk .sng format is still 3 "
+                        "channels until stereo file support lands; mode mostly "
+                        "affects live playback + the editor's view of ch4-6.");
+    connect(stereoA, &QAction::toggled, this, &MainWindow::toggleStereoMode);
+    auto *sid2A = audioMenu->addAction("Second SID is 8580 (else 6581)");
+    sid2A->setCheckable(true);
+    sid2A->setChecked(sid2model != 0);
+    sid2A->setToolTip("Pick the second SID's chip model independently of SID1. "
+                      "Only takes effect in stereo mode.");
+    connect(sid2A, &QAction::toggled, this, &MainWindow::toggleSid2Model);
 
     auto *playMenu = menuBar()->addMenu("&Play");
     auto *playA = playMenu->addAction(QString::fromUtf8("⏮  Play from &beginning"));
@@ -605,6 +625,27 @@ void MainWindow::muteCurrentChannel() {
 
 void MainWindow::prevMultiplierSlot() { prevmultiplier(); refreshAll(); }
 void MainWindow::nextMultiplierSlot() { nextmultiplier(); refreshAll(); }
+void MainWindow::toggleStereoMode(bool on) {
+    stereo_mode = on ? 1 : 0;
+    // Rebuild the audio engine so SID2 is instantiated (or detached) immediately.
+    sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
+               catweasel, interpolate, customclockrate);
+    statusStrip_->showMessage(on
+        ? "Stereo mode ON — 6 channels, dual SID"
+        : "Stereo mode OFF — 3 channels, single SID");
+    refreshAll();
+}
+
+void MainWindow::toggleSid2Model() {
+    sid2model ^= 1;
+    if (stereo_mode) {
+        sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
+                   catweasel, interpolate, customclockrate);
+    }
+    statusStrip_->showMessage(sid2model ? "SID2 → 8580" : "SID2 → 6581");
+    refreshAll();
+}
+
 void MainWindow::toggleSidModel() {
     sidmodel ^= 1;
     sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,

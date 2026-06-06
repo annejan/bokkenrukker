@@ -111,53 +111,8 @@ target_link_libraries(goattrk2-qt PRIVATE
     m pthread
 )
 
-# ---------------------------------------------------------------------------
-# goattrk2-qt-stereo — dual-SID / 6-channel variant.
-#
-# Same source tree as the mono build, conditionally compiled via the
-# GOATTRK2_STEREO define. gcommon.h widens MAX_CHN to 6, gsid.cpp keeps a
-# second reSIDfp::residfp alongside the first, and sid_getlevels reports
-# levels for all six voices. Audio path is currently mono-output of SID1
-# only — SID2 envelopes show up in the VU meters and the editor sees 6
-# channels, but sound rendering still single SID. That gap is the next
-# follow-up commit. Stereo songs that contain channel-4..6 data will
-# survive a round-trip through load+save.
-# ---------------------------------------------------------------------------
-
-add_executable(goattrk2-qt-stereo
-    ${QT_SRC}
-    ${CORE_SRC}
-    ${RESIDFP_SRC}
-    ${ASM_SRC}
-    ${BME_SRC}
-)
-
-target_include_directories(goattrk2-qt-stereo PRIVATE
-    ${SRC_DIR}
-    ${SRC_DIR}/bme
-    ${SRC_DIR}/asm
-    ${SRC_DIR}/residfp
-    ${SRC_DIR}/residfp/residfp
-    ${SDL_INCLUDE_DIRS}
-    ${JACK_INCLUDE_DIRS}
-)
-
-target_compile_options(goattrk2-qt-stereo PRIVATE
-    -fcommon
-    -Wno-write-strings
-    -Wno-narrowing
-    ${SDL_CFLAGS_OTHER}
-    ${JACK_CFLAGS_OTHER}
-)
-
-target_compile_definitions(goattrk2-qt-stereo PRIVATE GOATTRK2_STEREO=1)
-
-target_link_libraries(goattrk2-qt-stereo PRIVATE
-    Qt6::Core Qt6::Gui Qt6::Widgets
-    ${SDL_LIBRARIES}
-    ${JACK_LIBRARIES}
-    m pthread
-)
+# Stereo support is now a runtime flag (stereo_mode global) inside the single
+# goattrk2-qt binary above. The separate goattrk2-qt-stereo target is gone.
 
 # ---------------------------------------------------------------------------
 # gt2reloc — standalone commandline relocator/packer (backport from v2.73)

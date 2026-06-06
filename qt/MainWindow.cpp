@@ -554,6 +554,10 @@ void MainWindow::toggleFollowPlay() {
     refreshAll();
 }
 
+QWidget *MainWindow::activeEditorWidget() const {
+    return stack_ ? stack_->currentWidget() : nullptr;
+}
+
 void MainWindow::tick() {
     pattern_->tickScope();
     if (stack_->currentIndex() == EDIT_PATTERN) pattern_->refresh();

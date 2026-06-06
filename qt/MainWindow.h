@@ -32,6 +32,7 @@ public:
     // Exposed to the RPC layer so a test harness can drive time forward
     // deterministically instead of waiting on the 50 Hz QTimer.
     void tickOnce() { tick(); }
+    QWidget *activeEditorWidget() const;
 
 private slots:
     void openSong();

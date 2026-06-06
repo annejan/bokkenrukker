@@ -261,15 +261,25 @@ QJsonObject Rpc::cmdKey(const QJsonObject &c) {
             else if (s == "meta")   mods |= Qt::MetaModifier;
         }
     }
-    QWidget *focus = QApplication::focusWidget();
-    if (!focus) focus = mw_;
+    // In offscreen mode there's no focus widget. Default the target to the
+    // currently visible editor widget so the keystroke reaches PatternView /
+    // OrderView / etc. The caller can override with widget=<objectName>.
+    QString w = c.value("widget").toString();
+    QWidget *target = nullptr;
+    if (!w.isEmpty()) target = mw_->findChild<QWidget*>(w);
+    if (!target) target = QApplication::focusWidget();
+    if (!target) target = mw_->activeEditorWidget();
+    if (!target) target = mw_;
+    target->setFocus(Qt::OtherFocusReason);
+
     Qt::Key qkey = qtKeyFor(sym);
     QString text;
-    if (sym < 128) text = QChar((char)sym);
+    if (sym < 128 && sym >= 32 && (mods & Qt::ShiftModifier) == 0)
+        text = QChar((char)sym);
     QKeyEvent ev(QEvent::KeyPress, qkey, mods, text);
-    QApplication::sendEvent(focus, &ev);
+    QApplication::sendEvent(target, &ev);
     QKeyEvent rev(QEvent::KeyRelease, qkey, mods, text);
-    QApplication::sendEvent(focus, &rev);
+    QApplication::sendEvent(target, &rev);
     (void)shiftLike;
     return {{"sent", sym}};
 }

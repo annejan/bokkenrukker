@@ -43,11 +43,12 @@ public:
             const qint64 chunk = std::min<qint64>(sampleAccum_, frames - produced);
             const int got = sid_fillbuffer(out + produced, (int)chunk);
             if (got <= 0) {
-                // libresidfp didn't produce any output for the requested
-                // cycles (resampler internal state). Skip ahead by chunk so
-                // the playroutine can advance — better to drop samples than
-                // spin until the audio thread starves.
-                std::memset(out + produced, 0, chunk * 2);
+                // libresidfp held back samples. Don't memset to zero — that
+                // is exactly the tick / click the user is hearing. Hold the
+                // last sample instead so the waveform stays continuous; the
+                // next playroutine tick will refill genuine data.
+                short hold = (produced > 0) ? out[produced - 1] : 0;
+                for (qint64 i = 0; i < chunk; i++) out[produced + i] = hold;
                 produced += chunk;
                 sampleAccum_ -= chunk;
                 continue;
@@ -81,11 +82,13 @@ bool QtAudio::start(int sampleRate) {
                  "QtMultimedia will resample.");
     }
     sink_ = std::make_unique<QAudioSink>(out, fmt);
-    // ~100 ms of mono Int16. Smaller buffers triggered constant underruns
-    // through the Qt6 Pulse / PipeWire backends — readData was being called
-    // hundreds of times a second with chunks too small to amortise the
-    // libresidfp clock() overhead.
-    sink_->setBufferSize(sampleRate * 100 / 1000 * 2);
+    // ~200 ms. The Qt6 Pulse / PipeWire backends call readData with chunks
+    // sized to a fraction of the buffer; bigger buffer → fewer + larger
+    // readData calls → fewer chances for the libresidfp resampler to
+    // underrun and stitch zero-padded chunks together (audible as the
+    // 'ticks' on transients the user reported).
+    sink_->setBufferSize(sampleRate * 200 / 1000 * 2);
+    sink_->setVolume(1.0);
     device_ = new PullDevice(sampleRate, this);
     sink_->start(device_);
     qInfo() << "QtAudio: device=" << out.description()

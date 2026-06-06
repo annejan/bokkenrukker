@@ -50,8 +50,11 @@ int main(int argc, char **argv) {
 
     initchannels();
     songinit = PLAY_STOPPED;
-    // Initialise libresidfp directly (skip bme/SDL audio init).
-    sid_init((int)mr, sidmodel, ntsc, interpolate, customclockrate, 1);
+    // Initialise libresidfp directly (skip bme/SDL audio init). Force the
+    // resampler to RESAMPLE (sinc) — the default DECIMATE mode aliases
+    // hard at the C64 1 MHz / 44 kHz ratio and produces audible 'tick'
+    // artefacts on every transient.
+    sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/1, customclockrate, 1);
 
     QtAudio audio;
     if (!audio.start((int)mr)) {

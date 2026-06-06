@@ -49,6 +49,10 @@ extern int einum;
 extern int epchn;
 extern unsigned sidmodel;
 extern unsigned multiplier;
+extern unsigned b, mr, writer, hardsid, ntsc, catweasel, interpolate, customclockrate;
+int sound_init(unsigned b, unsigned mr, unsigned writer, unsigned hardsid,
+               unsigned m, unsigned ntsc, unsigned multiplier,
+               unsigned catweasel, unsigned interpolate, unsigned customclockrate);
 int savesong(void);
 int saveinstrument(void);
 void loadinstrument(void);
@@ -90,6 +94,8 @@ void MainWindow::buildUi() {
 
     statusStrip_ = new StatusStrip(centralWrap);
     centralLay->addWidget(statusStrip_);
+    connect(statusStrip_, &StatusStrip::sidClicked, this, &MainWindow::toggleSidModel);
+    connect(statusStrip_, &StatusStrip::followClicked, this, &MainWindow::toggleFollowPlay);
 
     setCentralWidget(centralWrap);
 
@@ -364,6 +370,11 @@ void MainWindow::prevMultiplierSlot() { prevmultiplier(); refreshAll(); }
 void MainWindow::nextMultiplierSlot() { nextmultiplier(); refreshAll(); }
 void MainWindow::toggleSidModel() {
     sidmodel ^= 1;
+    // Actually re-init the libresidfp backend so the change takes effect
+    sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
+               catweasel, interpolate, customclockrate);
+    statusStrip_->showMessage(sidmodel ? "Switched to 8580 SID"
+                                       : "Switched to 6581 SID");
     refreshAll();
 }
 void MainWindow::toggleFollowPlay() {

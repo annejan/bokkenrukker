@@ -5,6 +5,22 @@
 #include <QLabel>
 #include <QFrame>
 #include <QTimer>
+#include <QMouseEvent>
+
+class ClickableLabel : public QLabel {
+    Q_OBJECT
+public:
+    using QLabel::QLabel;
+signals:
+    void clicked();
+protected:
+    void mousePressEvent(QMouseEvent *e) override {
+        if (e->button() == Qt::LeftButton) emit clicked();
+        QLabel::mousePressEvent(e);
+    }
+};
+
+#include "StatusStrip.moc"
 
 extern "C" {
 #include "gcommon.h"
@@ -39,6 +55,18 @@ static QLabel *makeSegment(const QString &init, const QColor &fg, QWidget *paren
     return l;
 }
 
+static ClickableLabel *makeClickable(const QString &init, const QColor &fg, QWidget *parent) {
+    auto *l = new ClickableLabel(init, parent);
+    l->setFont(Theme::monoFont(10));
+    QPalette p = l->palette();
+    p.setColor(QPalette::WindowText, fg);
+    l->setPalette(p);
+    l->setContentsMargins(8, 0, 8, 0);
+    l->setMinimumHeight(22);
+    l->setCursor(Qt::PointingHandCursor);
+    return l;
+}
+
 StatusStrip::StatusStrip(QWidget *parent) : QFrame(parent) {
     setFrameShape(QFrame::NoFrame);
     setAutoFillBackground(true);
@@ -56,8 +84,12 @@ StatusStrip::StatusStrip(QWidget *parent) : QFrame(parent) {
     tempo_     = makeSegment("Spd 1x", Theme::C::text, this);
     octave_    = makeSegment("Oct 2", Theme::C::text, this);
     instr_     = makeSegment("Ins 01", Theme::C::instr, this);
-    sid_       = makeSegment("6581", Theme::C::highlight, this);
-    follow_    = makeSegment("Follow off", Theme::C::textDim, this);
+    sid_       = makeClickable("6581", Theme::C::highlight, this);
+    sid_->setToolTip("Click to toggle SID model (6581 ↔ 8580). Also: Shift+F8.");
+    connect(sid_, &ClickableLabel::clicked, this, &StatusStrip::sidClicked);
+    follow_    = makeClickable("Follow off", Theme::C::textDim, this);
+    follow_->setToolTip("Click to toggle follow-play. Also: Ctrl+F.");
+    connect(follow_, &ClickableLabel::clicked, this, &StatusStrip::followClicked);
     message_   = makeSegment("", Theme::C::textDim, this);
 
     auto addSep = [&]() {

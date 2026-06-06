@@ -26,11 +26,11 @@
 #define MAX_FILT 64
 #define MAX_STR 32
 #define MAX_INSTR 64
-#ifdef GOATTRK2_STEREO
+// Always 6 channels in memory. Runtime stereo_mode flag picks whether SID2 is
+// actually instantiated + the editor shows ch3..5. Mono songs ignore the
+// extra channels in load + save; stereo songs use all six.
 #define MAX_CHN 6
-#else
-#define MAX_CHN 3
-#endif
+#define MAX_AUDIO_CHN 3   // channels per SID
 #define MAX_PATT 208
 #define MAX_TABLES 4
 #define MAX_TABLELEN 255

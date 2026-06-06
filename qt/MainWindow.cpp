@@ -25,6 +25,10 @@
 #include <QDir>
 #include <QSettings>
 #include <QCloseEvent>
+#include <QProcess>
+#include <QMessageBox>
+#include <QCoreApplication>
+#include <QFile>
 #include <QStatusBar>
 #include <QWidget>
 #include <QVBoxLayout>
@@ -50,12 +54,19 @@ extern char instrpath[];
 extern char songname[MAX_STR];
 extern char authorname[MAX_STR];
 extern char copyrightname[MAX_STR];
+extern int eppos, epcolumn, epchn, eschn;
+extern int espos[MAX_CHN];
 extern int esnum;
+extern unsigned char songorder[MAX_SONGS][MAX_CHN][MAX_SONGLEN+2];
+extern int songlen[MAX_SONGS][MAX_CHN];
 extern int editmode;
 extern int followplay;
 extern int einum;
 extern int epchn;
 extern unsigned sidmodel;
+extern unsigned sid2model;
+extern int stereo_mode;
+extern int song_channels;
 extern unsigned multiplier;
 extern unsigned keypreset;
 extern unsigned b, mr, writer, hardsid, ntsc, catweasel, interpolate, customclockrate;
@@ -166,6 +177,10 @@ void MainWindow::buildUi() {
     auto *saveAsA = fileMenu->addAction("Save &As…");
     saveAsA->setShortcut(Qt::CTRL | Qt::SHIFT | Qt::Key_S);
     connect(saveAsA, &QAction::triggered, this, &MainWindow::saveSongAs);
+    auto *packA = fileMenu->addAction("&Pack to PRG / SID / BIN…");
+    packA->setShortcut(Qt::Key_F9);
+    packA->setToolTip("Run gt2reloc to produce a C64-loadable PRG, PSID file, or raw BIN");
+    connect(packA, &QAction::triggered, this, &MainWindow::packAndRelocate);
     fileMenu->addSeparator();
     auto *loadInsA = fileMenu->addAction("Load &Instrument…");
     connect(loadInsA, &QAction::triggered, this, &MainWindow::loadInstrument);
@@ -278,6 +293,22 @@ void MainWindow::buildUi() {
     addKey("Protracker (default)", &MainWindow::setKeyPresetTracker, keypreset == KEY_TRACKER);
     addKey("DMC",                  &MainWindow::setKeyPresetDmc,     keypreset == KEY_DMC);
     addKey("Janko / isomorphic",   &MainWindow::setKeyPresetJanko,   keypreset == KEY_JANKO);
+
+    settingsMenu->addSeparator();
+    auto *audioMenu = settingsMenu->addMenu("&Audio engine");
+    auto *stereoA = audioMenu->addAction("Dual-SID / 6-channel mode");
+    stereoA->setCheckable(true);
+    stereoA->setChecked(stereo_mode != 0);
+    stereoA->setToolTip("UNCHECKED = single SID, 3 channels (default mono).\n"
+                        "CHECKED   = dual SID, 6 channels.\n"
+                        "Toggle anytime — uncheck to return to single SID.");
+    connect(stereoA, &QAction::toggled, this, &MainWindow::toggleStereoMode);
+    auto *sid2A = audioMenu->addAction("Second SID is 8580 (else 6581)");
+    sid2A->setCheckable(true);
+    sid2A->setChecked(sid2model != 0);
+    sid2A->setToolTip("Pick the second SID's chip model independently of SID1. "
+                      "Only takes effect in stereo mode.");
+    connect(sid2A, &QAction::toggled, this, &MainWindow::toggleSid2Model);
 
     auto *playMenu = menuBar()->addMenu("&Play");
     auto *playA = playMenu->addAction(QString::fromUtf8("⏮  Play from &beginning"));
@@ -402,14 +433,33 @@ static void rememberDir(const QString &filePath, char *pathSlot, int slotSize) {
     pathSlot[slotSize - 1] = 0;
 }
 
+static QString titleForSong(const QString &path) {
+    if (path.isEmpty()) return "GoatTracker Qt";
+    return QString("GoatTracker Qt — %1").arg(QFileInfo(path).fileName());
+}
+
 void MainWindow::loadSongFile(const QString &path) {
     QByteArray ba = path.toLocal8Bit();
     std::strncpy(songfilename, ba.constData(), MAX_FILENAME - 1);
     songfilename[MAX_FILENAME - 1] = 0;
     rememberDir(path, songpath, MAX_PATHNAME);
+    setWindowTitle(titleForSong(path));
+    // Reset editor cursors so the views point at row 0 of pattern 0 — any
+    // stale eppos from a previously edited song would land past the end of
+    // the new song's patterns and the grid would look empty.
+    eppos = 0;
+    epcolumn = 0;
+    epchn = 0;
+    eschn = 0;
+    for (int c = 0; c < MAX_CHN; c++) espos[c] = 0;
     loadsong();
     countpatternlengths();
+    undoStack_->clear();   // loaded state starts a fresh history
     refreshAll();
+    // Force a full repaint on the active editor — Qt skips paint events when
+    // the scroll range didn't change between the previous song and the new
+    // one, which can leave the pattern grid showing the prior song's rows.
+    if (auto *w = activeEditorWidget()) w->update();
     statusStrip_->showMessage(QString("Loaded: %1").arg(path));
 }
 
@@ -443,8 +493,59 @@ void MainWindow::mergeSong() {
 
 void MainWindow::saveSong() {
     if (!songfilename[0]) { saveSongAs(); return; }
-    if (savesong()) statusStrip_->showMessage(QString("Saved: %1").arg(songfilename));
-    else statusStrip_->showMessage("Save failed");
+    if (savesong()) {
+        statusStrip_->showMessage(QString("Saved: %1").arg(songfilename));
+        setWindowTitle(titleForSong(QString::fromLocal8Bit(songfilename)));
+    } else statusStrip_->showMessage("Save failed");
+}
+
+void MainWindow::packAndRelocate() {
+    if (!songfilename[0]) {
+        statusStrip_->showMessage("Save the .sng first, then pack");
+        return;
+    }
+    // Suggest output next to the current .sng with a sane extension.
+    QString songDir = QFileInfo(QString::fromLocal8Bit(songfilename)).absolutePath();
+    QString stem = QFileInfo(QString::fromLocal8Bit(songfilename)).baseName();
+    QString outPath = QFileDialog::getSaveFileName(this,
+        "Pack && Relocate", songDir + "/" + stem + ".sid",
+        "C64 PRG (*.prg);;PSID (*.sid);;Raw BIN (*.bin)");
+    if (outPath.isEmpty()) return;
+
+    // Save the song first to make sure the gt2reloc subprocess sees the
+    // current state, including any unsaved edits.
+    int r = savesong();
+    if (!r) {
+        statusStrip_->showMessage("Save before pack failed");
+        return;
+    }
+
+    // gt2reloc lives next to our binary.
+    QString tool = QCoreApplication::applicationDirPath() + "/gt2reloc";
+    if (!QFile::exists(tool)) {
+        statusStrip_->showMessage("gt2reloc not found at " + tool);
+        return;
+    }
+
+    QProcess proc;
+    QStringList args;
+    args << QString::fromLocal8Bit(songfilename) << outPath;
+    proc.setProcessChannelMode(QProcess::MergedChannels);
+    proc.start(tool, args);
+    if (!proc.waitForFinished(15000)) {
+        statusStrip_->showMessage("gt2reloc timed out");
+        proc.kill();
+        return;
+    }
+    QString out = QString::fromLocal8Bit(proc.readAll());
+    if (proc.exitCode() != 0) {
+        QMessageBox::warning(this, "Pack failed",
+            QString("gt2reloc exit %1\n\n%2").arg(proc.exitCode()).arg(out));
+        return;
+    }
+    QFileInfo fi(outPath);
+    statusStrip_->showMessage(QString("Packed: %1 (%2 bytes)")
+                              .arg(outPath).arg(fi.size()));
 }
 
 void MainWindow::saveSongAs() {
@@ -501,16 +602,30 @@ void MainWindow::refreshAll() {
 
 void MainWindow::playFromBeginning() { followplay = 1; initsong(esnum, PLAY_BEGINNING); }
 void MainWindow::playFromPos() {
-    // Toggle: stop if currently playing, otherwise resume from order cursor.
     if (isplaying()) {
         stopsong();
         statusStrip_->showMessage("Paused");
     } else {
         followplay = 1;
+        // Sync each channel's song pointer to where the user's cursor sits
+        // in the order list. Without this, PLAY_POS replays from wherever
+        // the last initsong left chn[c].songptr — usually the beginning.
+        for (int c = 0; c < MAX_CHN; c++) chn[c].songptr = espos[c];
         initsong(esnum, PLAY_POS);
     }
 }
-void MainWindow::playPattern()       { followplay = 1; initsong(esnum, PLAY_PATTERN); }
+void MainWindow::playPattern() {
+    followplay = 1;
+    // initsong(PLAY_PATTERN) replays whatever chn[c].pattnum currently holds;
+    // sync to the user's selected pattern in each channel (epnum[c]) and
+    // reset pattptr so playback starts at the top of that pattern.
+    for (int c = 0; c < MAX_CHN; c++) {
+        chn[c].pattnum = epnum[c];
+        chn[c].pattptr = 0;
+        chn[c].songptr = espos[c];
+    }
+    initsong(esnum, PLAY_PATTERN);
+}
 void MainWindow::stopSong()          { stopsong(); }
 
 void MainWindow::muteCurrentChannel() {
@@ -519,6 +634,41 @@ void MainWindow::muteCurrentChannel() {
 
 void MainWindow::prevMultiplierSlot() { prevmultiplier(); refreshAll(); }
 void MainWindow::nextMultiplierSlot() { nextmultiplier(); refreshAll(); }
+void MainWindow::toggleStereoMode(bool on) {
+    stereo_mode = on ? 1 : 0;
+    // When promoting an existing mono song to stereo, channels 4-6 normally
+    // have songlen=0 (nothing loaded for them) — the order map would render
+    // them black. Seed each empty extra channel with a single pattern slot
+    // pointing at a fresh pattern + RST endmark so the user has something
+    // to edit on without dropping into Insert key spam first.
+    if (on) {
+        for (int c = 3; c < MAX_CHN; c++) {
+            if (songlen[esnum][c] == 0) {
+                songorder[esnum][c][0] = c;       // pattern N
+                songorder[esnum][c][1] = LOOPSONG;
+                songorder[esnum][c][2] = 0;        // restart at 0
+                songlen[esnum][c] = 1;
+            }
+        }
+    }
+    sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
+               catweasel, interpolate, customclockrate);
+    statusStrip_->showMessage(on
+        ? "Stereo ON — 6 channels, dual SID"
+        : "Stereo OFF — 3 channels, single SID");
+    refreshAll();
+}
+
+void MainWindow::toggleSid2Model() {
+    sid2model ^= 1;
+    if (stereo_mode) {
+        sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
+                   catweasel, interpolate, customclockrate);
+    }
+    statusStrip_->showMessage(sid2model ? "SID2 → 8580" : "SID2 → 6581");
+    refreshAll();
+}
+
 void MainWindow::toggleSidModel() {
     sidmodel ^= 1;
     sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
@@ -566,10 +716,10 @@ void MainWindow::tick() {
     // Re-label the Pos toolbar button between ▶ Pos and ⏸ Pause as transport
     // state changes, so the button always shows the action it will perform.
     if (playPosAction_) {
-        const QList<QWidget*> widgets = playPosAction_->associatedWidgets();
-        for (QWidget *w : widgets) {
-            if (auto *btn = qobject_cast<QToolButton*>(w)) {
-                const QString desired = isplaying() ? "⏸ Pause" : "▶ Pos";
+        const QString desired = isplaying() ? "⏸ Pause" : "▶ Pos";
+        const QList<QObject*> objs = playPosAction_->associatedObjects();
+        for (QObject *o : objs) {
+            if (auto *btn = qobject_cast<QToolButton*>(o)) {
                 if (btn->text() != desired) btn->setText(desired);
             }
         }

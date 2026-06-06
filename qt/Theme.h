@@ -48,6 +48,20 @@ inline const QColor vuBg       {0x0E, 0x11, 0x17};
 inline const QColor peakTick   {0xF0, 0xF6, 0xFC};
 }
 
+// Stylesheet snippet applied to QTableView so the focused cell carries a
+// white border (the agent/user UX request: "around input cells in the
+// track editor there should be a white border when active").
+inline QString tableViewSheet() {
+    return QString(
+        "QTableView { background:%1; gridline-color:%2; }"
+        "QTableView::item:focus { border: 1px solid #FFFFFF; outline: none; }"
+        "QTableView::item:selected { background:%3; color:%4; }"
+    ).arg(C::bgBase.name())
+     .arg(C::sep.name())
+     .arg(C::editRow.name())
+     .arg(C::text.name());
+}
+
 inline void applyDarkPalette(QWidget *w) {
     w->setAutoFillBackground(true);
     QPalette pal = w->palette();

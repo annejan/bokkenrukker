@@ -245,7 +245,10 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     presetBox_->addItem("Organ — full sustain, no release");
     presetBox_->addItem("Bell — instant attack, long decay");
     presetBox_->addItem("Strings — soft attack, full sustain");
-    presetBox_->addItem("Drum — instant decay");
+    presetBox_->addItem("Drum kit: Kick");
+    presetBox_->addItem("Drum kit: Snare");
+    presetBox_->addItem("Drum kit: Closed hat");
+    presetBox_->addItem("Drum kit: Open hat");
     auto *applyBtn = new QPushButton("Apply", this);
     applyBtn->setToolTip("Overwrite this instrument's envelope with the "
                          "selected preset.");
@@ -601,7 +604,13 @@ static const Preset kPresets[] = {
     {"Organ — full sustain",   0x00, 0xF0, 0x09, "Organ"},
     {"Bell — long decay",      0x0B, 0x00, 0x09, "Bell"},
     {"Strings — soft sus",     0x88, 0xCA, 0x09, "Strings"},
-    {"Drum — instant decay",   0x00, 0x00, 0x09, "Drum"},
+    // Drum kit — sensible ADSR seeds. Wavetable still needs to be wired by
+    // hand (kick: pitch slide + noise burst; snare: noise+pulse; hat: noise).
+    // docs/sid-composition.md §3 covers the wavetable programs.
+    {"Drum kit: Kick",         0x00, 0x09, 0x09, "Kick"},
+    {"Drum kit: Snare",        0x00, 0x05, 0x09, "Snare"},
+    {"Drum kit: Closed hat",   0x00, 0x02, 0x09, "Hat-cl"},
+    {"Drum kit: Open hat",     0x00, 0x07, 0x09, "Hat-op"},
 };
 }
 

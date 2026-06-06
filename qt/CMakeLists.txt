@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Multimedia)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SDL REQUIRED sdl)
 pkg_check_modules(JACK REQUIRED jack)
@@ -87,6 +87,7 @@ set(QT_SRC
     StatusStrip.cpp
     UndoStack.cpp
     RpcServer.cpp
+    QtAudio.cpp
     qt_globals.c
     qt_stubs.c
 )
@@ -123,66 +124,20 @@ target_compile_options(goattrk2-qt PRIVATE
 )
 
 target_link_libraries(goattrk2-qt PRIVATE
-    Qt6::Core Qt6::Gui Qt6::Widgets
+    Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Multimedia
     ${SDL_LIBRARIES}
     ${JACK_LIBRARIES}
     m pthread
 )
 
-# ---------------------------------------------------------------------------
-# goattrk2-qt-stereo — dual-SID / 6-channel variant.
-#
-# Same source tree as the mono build, conditionally compiled via the
-# GOATTRK2_STEREO define. gcommon.h widens MAX_CHN to 6, gsid.cpp keeps a
-# second reSIDfp::residfp alongside the first, and sid_getlevels reports
-# levels for all six voices. Audio path is currently mono-output of SID1
-# only — SID2 envelopes show up in the VU meters and the editor sees 6
-# channels, but sound rendering still single SID. That gap is the next
-# follow-up commit. Stereo songs that contain channel-4..6 data will
-# survive a round-trip through load+save.
-# ---------------------------------------------------------------------------
-
-add_executable(goattrk2-qt-stereo
-    ${QT_SRC}
-    ${CORE_SRC}
-    ${RESIDFP_SRC}
-    ${ASM_SRC}
-    ${BME_SRC}
-)
-
-target_include_directories(goattrk2-qt-stereo PRIVATE
-    ${SRC_DIR}
-    ${SRC_DIR}/bme
-    ${SRC_DIR}/asm
-    ${SRC_DIR}/residfp
-    ${SRC_DIR}/residfp/residfp
-    ${SDL_INCLUDE_DIRS}
-    ${JACK_INCLUDE_DIRS}
-)
-
-target_compile_options(goattrk2-qt-stereo PRIVATE
-    -fcommon
-    -Wno-write-strings
-    -Wno-narrowing
-    ${SDL_CFLAGS_OTHER}
-    ${JACK_CFLAGS_OTHER}
-)
-
-target_compile_definitions(goattrk2-qt-stereo PRIVATE GOATTRK2_STEREO=1)
-
-target_link_libraries(goattrk2-qt-stereo PRIVATE
-    Qt6::Core Qt6::Gui Qt6::Widgets
-    ${SDL_LIBRARIES}
-    ${JACK_LIBRARIES}
-    m pthread
-)
+# Stereo support is now a runtime flag (stereo_mode global) inside the single
+# goattrk2-qt binary above. The separate goattrk2-qt-stereo target is gone.
 
 # Qt may build Windows executables for the GUI subsystem (entry point WinMain).
 # This app keeps a plain main() (see main.cpp), so force the console subsystem
 # on Windows; the linker then uses main() as the entry point.
 if(WIN32)
     target_link_options(goattrk2-qt PRIVATE -Wl,-subsystem,console)
-    target_link_options(goattrk2-qt-stereo PRIVATE -Wl,-subsystem,console)
 endif()
 
 # ---------------------------------------------------------------------------
@@ -196,7 +151,6 @@ endif()
 
 set(GT2RELOC_SRC
     ${SRC_DIR}/gt2reloc.c
-    ${SRC_DIR}/goatdata.c
     ${SRC_DIR}/gsong.c
     ${SRC_DIR}/gorder.c
     ${SRC_DIR}/gpattern.c
@@ -222,11 +176,11 @@ set(BME_FULL_SRC
     ${SRC_DIR}/bme/bme_kbd.c
 )
 
-# goatdata.c is a generated data blob from the upstream build and is not
-# vendored here, so only configure gt2reloc when it is actually present.
-if(EXISTS ${SRC_DIR}/goatdata.c)
+# gt2reloc needs only the empty datafile[] symbol; everything else
+# (editstring, resettime, etc.) comes from the SDL files it already links.
 add_executable(gt2reloc
     ${GT2RELOC_SRC}
+    gt2reloc_stub.c
     ${RESIDFP_SRC}
     ${ASM_SRC}
     ${BME_FULL_SRC}
@@ -255,4 +209,3 @@ target_link_libraries(gt2reloc PRIVATE
     ${JACK_LIBRARIES}
     m pthread
 )
-endif()

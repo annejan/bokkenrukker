@@ -267,8 +267,9 @@ TablesView::TablesView(QWidget *parent) : QWidget(parent) {
         hh->setSectionResizeMode(2, QHeaderView::ResizeToContents);
         hh->setSectionResizeMode(3, QHeaderView::Stretch);
         views_[t]->verticalHeader()->setDefaultSectionSize(22);
-        views_[t]->setSelectionBehavior(QAbstractItemView::SelectRows);
+        views_[t]->setSelectionBehavior(QAbstractItemView::SelectItems);
         views_[t]->setSelectionMode(QAbstractItemView::SingleSelection);
+        views_[t]->setStyleSheet(Theme::tableViewSheet());
         connect(views_[t]->selectionModel(), &QItemSelectionModel::currentChanged,
                 this, [this](const QModelIndex &, const QModelIndex &){ onCellSelectionChanged(); });
         tabs_->addTab(views_[t], tableName[t]);

@@ -39,6 +39,7 @@ private slots:
     void mergeSong();
     void saveSong();
     void saveSongAs();
+    void packAndRelocate();
     void loadInstrument();
     void saveInstrument();
     void playFromBeginning();
@@ -73,6 +74,8 @@ private slots:
     void setKeyPresetTracker();
     void setKeyPresetDmc();
     void setKeyPresetJanko();
+    void toggleStereoMode(bool on);
+    void toggleSid2Model();
 
 private:
     QUndoStack *undoStack_ = nullptr;

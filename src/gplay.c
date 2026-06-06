@@ -6,6 +6,17 @@
 
 #include "goattrk2.h"
 
+// Stereo register routing. SID1 gets channels 0..2 (offsets 0/7/14), SID2
+// gets channels 3..5 routed to its own register shadow at offsets 0/7/14.
+// Filter / mastervol writes use the per-SID base (0x15..0x18).
+extern unsigned char sidreg2[NUMSIDREGS];
+static inline unsigned char *sidreg_of(int chan) {
+    return (chan < 3) ? sidreg : sidreg2;
+}
+static inline int voice_off(int chan) { return (chan < 3) ? chan : chan - 3; }
+#define SREG(c, off)  (sidreg_of(c)[(off) + 7 * voice_off(c)])
+#define SREG_GLOBAL(c, off)  (sidreg_of(c)[(off)])
+
 unsigned char freqtbllo[] = {
   0x17,0x27,0x39,0x4b,0x5f,0x74,0x8a,0xa1,0xba,0xd4,0xf0,0x0e,
   0x2d,0x4e,0x71,0x96,0xbe,0xe8,0x14,0x43,0x74,0xa9,0xe1,0x1c,
@@ -129,8 +140,8 @@ void playtestnote(int note, int ins, int chnnum)
     chn[chnnum].gate = 0xfe; // Keyoff
     if (!(instr[ins].gatetimer & 0x80))
     {
-      sidreg[0x5+chnnum*7] = adparam>>8; // Hardrestart
-      sidreg[0x6+chnnum*7] = adparam&0xff;
+      SREG(chnnum, 0x5) = adparam>>8; // Hardrestart
+      SREG(chnnum, 0x6) = adparam&0xff;
     }
   }
 
@@ -182,7 +193,16 @@ void playroutine(void)
          songinit = 0x01;
     }
 
-    for (c = 0; c < MAX_CHN; c++)
+    // Walk only as many channels as the song actually has on disk
+    // (song_channels = 3 for mono, 6 for stereo). The in-memory arrays
+    // size for 6, but driving the playroutine over channels 4-6 in a
+    // mono song would double-play patterns and could leave those
+    // channels racing the real ones to the end-of-pattern early-stop
+    // check below.
+    extern int song_channels;
+    int active_chn = song_channels;
+    if (active_chn > MAX_CHN) active_chn = MAX_CHN;
+    for (c = 0; c < active_chn; c++)
     {
       cptr->songptr = 0;
       cptr->command = 0;
@@ -296,12 +316,27 @@ void playroutine(void)
       }
     }
     FILTERSTOP:
+    // Global filter / mastervol — mirror to both SIDs in stereo so SID2's
+    // filter follows SID1 (per-SID filter targeting is a follow-up).
+    extern int stereo_mode;
     sidreg[0x15] = 0x00;
     sidreg[0x16] = filtercutoff;
     sidreg[0x17] = filterctrl;
     sidreg[0x18] = filtertype | masterfader;
+    if (stereo_mode) {
+        sidreg2[0x15] = 0x00;
+        sidreg2[0x16] = filtercutoff;
+        sidreg2[0x17] = filterctrl;
+        sidreg2[0x18] = filtertype | masterfader;
+    }
 
-    for (c = 0; c < MAX_CHN; c++)
+    // Main per-tick loop also bound to song_channels, matching the song-init
+    // loop above. Avoids walking phantom ch4-6 in a mono song.
+    {
+        extern int song_channels;
+        int main_chn = song_channels;
+        if (main_chn > MAX_CHN) main_chn = MAX_CHN;
+    for (c = 0; c < main_chn; c++)
     {
       iptr = &instr[cptr->instr];
 
@@ -394,8 +429,8 @@ void playroutine(void)
                 stopsong();
             }
           }
-          sidreg[0x5+7*c] = iptr->ad;
-          sidreg[0x6+7*c] = iptr->sr;
+          SREG(c, 0x5) = iptr->ad;
+          SREG(c, 0x6) = iptr->sr;
         }
       }
 
@@ -422,11 +457,11 @@ void playroutine(void)
         break;
 
         case CMD_SETAD:
-        sidreg[0x5+7*c] = cptr->newcmddata;
+        SREG(c, 0x5) = cptr->newcmddata;
         break;
 
         case CMD_SETSR:
-        sidreg[0x6+7*c] = cptr->newcmddata;
+        SREG(c, 0x6) = cptr->newcmddata;
         break;
 
         case CMD_SETWAVE:
@@ -644,11 +679,11 @@ void playroutine(void)
               break;
 
               case CMD_SETAD:
-              sidreg[0x5+7*c] = param;
+              SREG(c, 0x5) = param;
               break;
 
               case CMD_SETSR:
-              sidreg[0x6+7*c] = param;;
+              SREG(c, 0x6) = param;;
               break;
 
               case CMD_SETWAVE:
@@ -932,8 +967,8 @@ void playroutine(void)
               cptr->gate = 0xfe;
               if (!(instr[cptr->instr].gatetimer & 0x80))
               {
-                sidreg[0x5+7*c] = adparam>>8;
-                sidreg[0x6+7*c] = adparam&0xff;
+                SREG(c, 0x5) = adparam>>8;
+                SREG(c, 0x6) = adparam&0xff;
               }
             }
           }
@@ -941,17 +976,18 @@ void playroutine(void)
       }
       NEXTCHN:
       if (cptr->mute)
-        sidreg[0x4+7*c] = cptr->wave = 0x08;
+        SREG(c, 0x4) = cptr->wave = 0x08;
       else
       {
-        sidreg[0x0+7*c] = cptr->freq & 0xff;
-        sidreg[0x1+7*c] = cptr->freq >> 8;
-        sidreg[0x2+7*c] = cptr->pulse & 0xfe;
-        sidreg[0x3+7*c] = cptr->pulse >> 8;
-        sidreg[0x4+7*c] = cptr->wave & cptr->gate;
+        SREG(c, 0x0) = cptr->freq & 0xff;
+        SREG(c, 0x1) = cptr->freq >> 8;
+        SREG(c, 0x2) = cptr->pulse & 0xfe;
+        SREG(c, 0x3) = cptr->pulse >> 8;
+        SREG(c, 0x4) = cptr->wave & cptr->gate;
       }
       cptr++;
     }
+    }  // close active_chn bounding block
   }
   if (songinit != PLAY_STOPPED) incrementtime();
 }

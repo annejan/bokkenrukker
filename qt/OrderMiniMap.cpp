@@ -12,9 +12,13 @@ extern int songlen[MAX_SONGS][MAX_CHN];
 extern int esnum;
 extern int espos[MAX_CHN];
 extern int eschn;
+extern int lastsonginit;
+extern int stereo_mode;
 extern CHN chn[MAX_CHN];
 int isplaying(void);
 }
+
+static int activeChannels() { return stereo_mode ? MAX_CHN : 3; }
 
 OrderMiniMap::OrderMiniMap(QWidget *parent) : QWidget(parent) {
     setMinimumWidth(120);
@@ -25,12 +29,13 @@ OrderMiniMap::OrderMiniMap(QWidget *parent) : QWidget(parent) {
 void OrderMiniMap::paintEvent(QPaintEvent *) {
     QPainter p(this);
     int W = width(), H = height();
+    int nc = activeChannels();
     int maxLen = 0;
-    for (int c = 0; c < MAX_CHN; c++)
+    for (int c = 0; c < nc; c++)
         if (songlen[esnum][c] > maxLen) maxLen = songlen[esnum][c];
     if (maxLen == 0) maxLen = 1;
     int rowH = qMax(2, H / qMax(maxLen, 1));
-    int colW = (W - 8) / MAX_CHN;
+    int colW = (W - 8) / nc;
 
     p.setPen(Theme::C::textDim);
     QFont f = font(); f.setPointSize(8); p.setFont(f);
@@ -41,10 +46,16 @@ void OrderMiniMap::paintEvent(QPaintEvent *) {
     int startY = 18;
     for (int c = 0; c < MAX_CHN; c++) {
         int x = 4 + c * colW;
-        // chn[c].songptr is the *next* slot to fetch; the one being played
-        // is the slot before it.
-        int playRow = playing ? (int)chn[c].songptr - 1 : -1;
-        if (playRow < 0) playRow = 0;
+        // chn[c].songptr is the *next* slot to fetch in song-play modes; the
+        // one currently playing is the slot before. In PLAY_PATTERN mode
+        // initsong wipes songptr to 0, so use the user-selected espos[c]
+        // instead — that's the orderlist row the user clicked to play.
+        int playRow = -1;
+        if (playing) {
+            if (lastsonginit == PLAY_PATTERN) playRow = espos[c];
+            else                              playRow = (int)chn[c].songptr - 1;
+            if (playRow < 0) playRow = 0;
+        }
         for (int r = 0; r < songlen[esnum][c]; r++) {
             unsigned char v = songorder[esnum][c][r];
             int y = startY + r * rowH;
@@ -81,30 +92,44 @@ extern int eseditpos;
 
 void OrderMiniMap::mousePressEvent(QMouseEvent *e) {
     int W = width();
-    int colW = (W - 8) / MAX_CHN;
+    int nc = activeChannels();
+    int colW = (W - 8) / nc;
     int x = e->pos().x() - 4;
     if (x < 0) return;
     int c = x / colW;
-    if (c < 0 || c >= MAX_CHN) return;
+    if (c < 0 || c >= nc) return;
     int maxLen = 0;
-    for (int cc = 0; cc < MAX_CHN; cc++)
+    for (int cc = 0; cc < nc; cc++)
         if (songlen[esnum][cc] > maxLen) maxLen = songlen[esnum][cc];
     int rowH = qMax(2, height() / qMax(maxLen, 1));
     int r = (e->pos().y() - 18) / rowH;
-    if (r < 0 || r >= songlen[esnum][c]) return;
+    if (r < 0) return;
 
-    // Move the order-edit cursor
-    eschn = c;
-    espos[c] = r;
-    eseditpos = r;
+    // Ctrl-click = only the clicked channel (per-track navigation).
+    // Plain click  = move all channels to the same orderlist row so
+    // play-pattern hits the synchronized 3-channel pattern combination.
+    bool ctrlMod = (e->modifiers() & Qt::ControlModifier) != 0;
 
-    // Also move the pattern editor to the pattern that the clicked
-    // orderlist slot points at (for that channel), and zero its row.
-    unsigned char v = songorder[esnum][c][r];
-    if (v < REPEAT) {        // skip RST/transpose/repeat entries
-        epnum[c] = v;
+    auto apply = [&](int channel) {
+        if (r >= songlen[esnum][channel]) return;
+        espos[channel] = r;
+        unsigned char v = songorder[esnum][channel][r];
+        if (v < REPEAT) { // skip RST/transpose/repeat
+            epnum[channel] = v;
+            eppos = 0;
+        }
+    };
+
+    if (ctrlMod) {
+        apply(c);
+        eschn = c;
         epchn = c;
-        eppos = 0;
+        eseditpos = r;
+    } else {
+        for (int cc = 0; cc < nc; cc++) apply(cc);
+        eschn = c;
+        epchn = c;
+        eseditpos = r;
     }
     update();
     emit positionChanged();

@@ -9,6 +9,8 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <vector>
+#include <algorithm>
 
 #include "residfp/residfp.h"
 #include "residfp/residfp_defs.h"
@@ -22,9 +24,7 @@ extern "C" {
 int clockrate;
 int samplerate;
 unsigned char sidreg[NUMSIDREGS];
-#ifdef GOATTRK2_STEREO
 unsigned char sidreg2[NUMSIDREGS];
-#endif
 unsigned char sidorder[] =
   {0x15,0x16,0x18,0x17,
    0x05,0x06,0x02,0x03,0x00,0x01,0x04,
@@ -54,11 +54,11 @@ FILTERPARAMS filterparams =
 extern unsigned residdelay;
 extern unsigned adparam;
 
-/* Single (mono) or paired (stereo) libresidfp instances. */
+/* SID1 always exists; SID2 lazy-instantiated when the runtime stereo_mode
+ * flag flips on. extern reference here, defined in qt_globals.c. */
+extern "C" int stereo_mode;
 static reSIDfp::residfp *sid = 0;
-#ifdef GOATTRK2_STEREO
 static reSIDfp::residfp *sid2 = 0;
-#endif
 
 void sid_init(int speed, unsigned m, unsigned ntsc, unsigned interpolate, unsigned customclockrate, unsigned usefp)
 {
@@ -75,22 +75,26 @@ void sid_init(int speed, unsigned m, unsigned ntsc, unsigned interpolate, unsign
 
   if (!sid)
     sid = new reSIDfp::residfp();
-#ifdef GOATTRK2_STEREO
-  if (!sid2)
-    sid2 = new reSIDfp::residfp();
-#endif
+  if (stereo_mode) {
+    if (!sid2) sid2 = new reSIDfp::residfp();
+  } else if (sid2) {
+    // Tear down SID2 when stereo flips off so audio actually returns to a
+    // single-SID mix and CPU load drops.
+    delete sid2;
+    sid2 = 0;
+  }
 
-  /* Pick chip model first - resampler setup is independent. */
-  if (m == 1) {
+  /* Chip model: SID1 follows m, SID2 follows sid2model independently. */
+  if (m == 1)
     sid->setChipModel(reSIDfp::CSG8580);
-#ifdef GOATTRK2_STEREO
-    sid2->setChipModel(reSIDfp::CSG8580);
-#endif
-  } else {
+  else
     sid->setChipModel(reSIDfp::MOS6581);
-#ifdef GOATTRK2_STEREO
-    sid2->setChipModel(reSIDfp::MOS6581);
-#endif
+  if (sid2) {
+    extern unsigned sid2model;
+    if (sid2model == 1)
+      sid2->setChipModel(reSIDfp::CSG8580);
+    else
+      sid2->setChipModel(reSIDfp::MOS6581);
   }
 
   /*
@@ -108,17 +112,15 @@ void sid_init(int speed, unsigned m, unsigned ntsc, unsigned interpolate, unsign
   sid->setSamplingParameters((double)clockrate, method, (double)speed);
   sid->reset();
   sid->enableFilter(true);
-#ifdef GOATTRK2_STEREO
-  sid2->setSamplingParameters((double)clockrate, method, (double)speed);
-  sid2->reset();
-  sid2->enableFilter(true);
-#endif
+  if (sid2) {
+    sid2->setSamplingParameters((double)clockrate, method, (double)speed);
+    sid2->reset();
+    sid2->enableFilter(true);
+  }
   for (c = 0; c < NUMSIDREGS; c++)
   {
     sidreg[c] = 0x00;
-#ifdef GOATTRK2_STEREO
     sidreg2[c] = 0x00;
-#endif
   }
 }
 
@@ -132,22 +134,16 @@ unsigned char sid_getorder(unsigned char index)
 
 void sid_getlevels(unsigned char *out)
 {
-  if (!sid) {
-    for (int i = 0; i < MAX_CHN; i++) out[i] = 0;
-    return;
-  }
+  for (int i = 0; i < MAX_CHN; i++) out[i] = 0;
+  if (!sid) return;
   out[0] = sid->envelopeLevel(0);
   out[1] = sid->envelopeLevel(1);
   out[2] = sid->envelopeLevel(2);
-#ifdef GOATTRK2_STEREO
   if (sid2) {
     out[3] = sid2->envelopeLevel(0);
     out[4] = sid2->envelopeLevel(1);
     out[5] = sid2->envelopeLevel(2);
-  } else {
-    out[3] = out[4] = out[5] = 0;
   }
-#endif
 }
 
 /*
@@ -161,15 +157,19 @@ void sid_getlevels(unsigned char *out)
  * we run small bursts between writes, accumulate produced samples,
  * and only top up at the end if the requested count was not yet hit.
  */
-int sid_fillbuffer(short *ptr, int samples)
-{
+// Render one SID instance into `ptr` for `samples` mono samples. Body is the
+// historical sid_fillbuffer logic parameterised over the residfp instance
+// and the register shadow array, so we can drive SID2 the same way for the
+// stereo mix path below.
+static int render_sid(reSIDfp::residfp *s, const unsigned char *regs,
+                      short *ptr, int samples) {
   int tdelta;
   int tdelta2;
   int result = 0;
   int total = 0;
   int c;
 
-  if (!sid) return 0;
+  if (!s) return 0;
 
   int badline = rand() % NUMSIDREGS;
 
@@ -186,7 +186,7 @@ int sid_fillbuffer(short *ptr, int samples)
       tdelta2 = SIDWAVEDELAY;
       if (samples > 0)
       {
-        result = sid->clock((unsigned)tdelta2, ptr);
+        result = s->clock((unsigned)tdelta2, ptr);
         if (result > samples) result = samples;
         total += result;
         ptr += result;
@@ -194,7 +194,7 @@ int sid_fillbuffer(short *ptr, int samples)
       }
       else
       {
-        sid->clockSilent((unsigned)tdelta2);
+        s->clockSilent((unsigned)tdelta2);
       }
       tdelta -= SIDWAVEDELAY;
     }
@@ -205,7 +205,7 @@ int sid_fillbuffer(short *ptr, int samples)
       tdelta2 = (int)residdelay;
       if (samples > 0)
       {
-        result = sid->clock((unsigned)tdelta2, ptr);
+        result = s->clock((unsigned)tdelta2, ptr);
         if (result > samples) result = samples;
         total += result;
         ptr += result;
@@ -213,17 +213,17 @@ int sid_fillbuffer(short *ptr, int samples)
       }
       else
       {
-        sid->clockSilent((unsigned)tdelta2);
+        s->clockSilent((unsigned)tdelta2);
       }
       tdelta -= (int)residdelay;
     }
 
-    sid->write(o, sidreg[o]);
+    s->write(o, regs[o]);
 
     tdelta2 = SIDWRITEDELAY;
     if (samples > 0)
     {
-      result = sid->clock((unsigned)tdelta2, ptr);
+      result = s->clock((unsigned)tdelta2, ptr);
       if (result > samples) result = samples;
       total += result;
       ptr += result;
@@ -231,7 +231,7 @@ int sid_fillbuffer(short *ptr, int samples)
     }
     else
     {
-      sid->clockSilent((unsigned)tdelta2);
+      s->clockSilent((unsigned)tdelta2);
     }
     tdelta -= SIDWRITEDELAY;
 
@@ -240,7 +240,7 @@ int sid_fillbuffer(short *ptr, int samples)
 
   if (tdelta > 0 && samples > 0)
   {
-    result = sid->clock((unsigned)tdelta, ptr);
+    result = s->clock((unsigned)tdelta, ptr);
     if (result > samples) result = samples;
     total += result;
     ptr += result;
@@ -253,20 +253,27 @@ int sid_fillbuffer(short *ptr, int samples)
     tdelta = clockrate * samples / samplerate;
     if (tdelta <= 0) return total;
 
-    result = sid->clock((unsigned)tdelta, ptr);
+    result = s->clock((unsigned)tdelta, ptr);
     if (result > samples) result = samples;
-    if (result <= 0)
-    {
-      /* Safety: avoid an infinite loop if the resampler refuses to
-         emit samples for the requested cycles. */
-      break;
-    }
+    if (result <= 0) break;
     total += result;
     ptr += result;
     samples -= result;
   }
 
   return total;
+}
+
+int sid_fillbuffer(short *ptr, int samples)
+{
+  if (!sid) return 0;
+  // Per user request: revert to the original mono mixing path. The stereo
+  // audio mix needs a proper rewrite (cycle-accurate dual-SID render + true
+  // L/R output through the SDL audio spec); the experimental mix-down was
+  // hurting quality. SID2 still receives register writes via the playroutine
+  // in stereo mode so the envelopes / VU meters update, but the audio
+  // callback only reads SID1's output. Stereo audio output stays a TODO.
+  return render_sid(sid, sidreg, ptr, samples);
 }
 
 }

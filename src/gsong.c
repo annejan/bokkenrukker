@@ -9,6 +9,10 @@
 INSTR instr[MAX_INSTR];
 unsigned char ltable[MAX_TABLES][MAX_TABLELEN];
 unsigned char rtable[MAX_TABLES][MAX_TABLELEN];
+// On-disk channel count. Defaults to 3 (mono .sng format, the historic
+// goattracker2 file layout). Set to 6 when loading or saving a stereo song;
+// MAX_CHN itself is the in-memory cap and stays 6 regardless.
+int song_channels = 3;
 unsigned char songorder[MAX_SONGS][MAX_CHN][MAX_SONGLEN+2];
 unsigned char pattern[MAX_PATT][MAX_PATTROWS*4+4];
 char songname[MAX_STR];
@@ -75,7 +79,7 @@ int savesong(void)
     // Write songorderlists
     for (d = 0; d < amount; d++)
     {
-      for (c = 0; c < MAX_CHN; c++)
+      for (c = 0; c < song_channels; c++)
       {
         length = songlen[d][c]+1;
         fwrite8(handle, length);
@@ -204,7 +208,7 @@ void loadsong(void)
       amount = fread8(handle);
       for (d = 0; d < amount; d++)
       {
-        for (c = 0; c < MAX_CHN; c++)
+        for (c = 0; c < song_channels; c++)
         {
           length = fread8(handle);
           loadsize = length;
@@ -264,7 +268,7 @@ void loadsong(void)
       amount = fread8(handle);
       for (d = 0; d < amount; d++)
       {
-        for (c = 0; c < MAX_CHN; c++)
+        for (c = 0; c < song_channels; c++)
         {
           length = fread8(handle);
           loadsize = length;
@@ -356,7 +360,7 @@ void loadsong(void)
       amount = fread8(handle);
       for (d = 0; d < amount; d++)
       {
-        for (c = 0; c < MAX_CHN; c++)
+        for (c = 0; c < song_channels; c++)
         {
           length = fread8(handle);
           loadsize = length;
@@ -1337,7 +1341,7 @@ void countpatternlengths(void)
 
   for (e = 0; e < MAX_SONGS; e++)
   {
-    for (c = 0; c < MAX_CHN; c++)
+    for (c = 0; c < song_channels; c++)
     {
       for (d = 0; d < MAX_SONGLEN; d++)
       {
@@ -1639,7 +1643,7 @@ void mergesong(void)
         goto ABORT;
       for (d = 0; d < amount; d++)
       {
-        for (c = 0; c < MAX_CHN; c++)
+        for (c = 0; c < song_channels; c++)
         {
           length = fread8(handle);
           loadsize = length;

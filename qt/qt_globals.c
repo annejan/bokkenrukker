@@ -26,6 +26,9 @@ int fileformat = 0;
 int zeropageadr = 0xfc;
 int playeradr = 0x1000;
 unsigned sidmodel = 0;
+unsigned sid2model = 0;  // Second SID chip (stereo mode only).
+int stereo_mode = 0;     // 0 = mono (3 channels, SID1 only). 1 = stereo
+                         // (6 channels, SID1 + SID2). Runtime-switchable.
 unsigned multiplier = 1;
 unsigned adparam = 0x0f00;
 unsigned ntsc = 0;

@@ -637,10 +637,10 @@ void MainWindow::tick() {
     // Re-label the Pos toolbar button between ▶ Pos and ⏸ Pause as transport
     // state changes, so the button always shows the action it will perform.
     if (playPosAction_) {
-        const QList<QWidget*> widgets = playPosAction_->associatedWidgets();
-        for (QWidget *w : widgets) {
-            if (auto *btn = qobject_cast<QToolButton*>(w)) {
-                const QString desired = isplaying() ? "⏸ Pause" : "▶ Pos";
+        const QString desired = isplaying() ? "⏸ Pause" : "▶ Pos";
+        const QList<QObject*> objs = playPosAction_->associatedObjects();
+        for (QObject *o : objs) {
+            if (auto *btn = qobject_cast<QToolButton*>(o)) {
                 if (btn->text() != desired) btn->setText(desired);
             }
         }

@@ -11,6 +11,13 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(SDL REQUIRED sdl)
 pkg_check_modules(JACK REQUIRED jack)
 
+# Some SDL 1.2 pkg-config files (notably macOS sdl12-compat) list -lSDLmain,
+# which hijacks main() and may not even exist as a separate library. This app
+# provides its own main() (via Qt), so drop SDLmain when present.
+if(SDL_LIBRARIES)
+    list(REMOVE_ITEM SDL_LIBRARIES SDLmain)
+endif()
+
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../src)
 
 # Core data + edit logic (no rendering calls verified by grep)

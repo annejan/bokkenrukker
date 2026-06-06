@@ -23,6 +23,8 @@ extern int songlen[MAX_SONGS][MAX_CHN];
 extern unsigned sidmodel;
 extern unsigned multiplier;
 extern CHN chn[MAX_CHN];
+extern INSTR instr[MAX_INSTR];
+extern unsigned char pattern[MAX_PATT][MAX_PATTROWS*4+4];
 int isplaying(void);
 }
 
@@ -85,6 +87,23 @@ StatusStrip::StatusStrip(QWidget *parent) : QFrame(parent) {
     layout->addWidget(message_, 1);
 }
 
+// Lightweight validation: scan current instrument + pattern cell for the
+// well-known goattracker footguns documented in docs/in-app-help-spec.md.
+static QString warningFor(int einumLocal) {
+    INSTR &ins = instr[einumLocal];
+    int A = (ins.ad >> 4) & 0xf;
+    int R = ins.sr & 0xf;
+    if (A == 0 && R == 1)
+        return "warn: A=0 R=1 can ADSR-bug; try Attack=$F alt write order";
+    int S = (ins.sr >> 4) & 0xf;
+    if (S == 0 && R == 0 && A == 0 && ins.ad == 0)
+        return "warn: all ADSR zero → silent click only";
+    int gate = ins.gatetimer & 0x3f;
+    if (gate == 0 && (ins.gatetimer & 0xC0) == 0)
+        return "warn: gate timer 0 with HR enabled — undefined";
+    return QString();
+}
+
 void StatusStrip::refresh() {
     bool playing = isplaying() != 0;
     transport_->setText(playing ? "▶ PLAYING" : "■ STOPPED");
@@ -110,6 +129,21 @@ void StatusStrip::refresh() {
     QPalette fp = follow_->palette();
     fp.setColor(QPalette::WindowText, followplay ? Theme::C::highlight : Theme::C::textDim);
     follow_->setPalette(fp);
+
+    // Soft validation warning in the message slot (only when it stays put —
+    // showMessage() with a timeout will clear and override us anyway).
+    QString warn = warningFor(einum);
+    if (!warn.isEmpty() && message_->text().isEmpty()) {
+        QPalette mp = message_->palette();
+        mp.setColor(QPalette::WindowText, Theme::C::vuOrange);
+        message_->setPalette(mp);
+        message_->setText(warn);
+    } else if (warn.isEmpty()) {
+        QPalette mp = message_->palette();
+        mp.setColor(QPalette::WindowText, Theme::C::textDim);
+        message_->setPalette(mp);
+        if (message_->text().startsWith("warn:")) message_->setText("");
+    }
 }
 
 void StatusStrip::showMessage(const QString &t, int ms) {

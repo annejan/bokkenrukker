@@ -210,17 +210,29 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     name_ = new QLineEdit(this);
     name_->setMaxLength(MAX_INSTRNAMELEN - 1);
     name_->setFont(Theme::monoFont(11));
+    name_->setToolTip("Display name (max 16 chars). Saved with the .sng and "
+                      "shown in the instrument list.");
     nameRow->addWidget(nameLbl);
     nameRow->addWidget(name_, 1);
     center->addLayout(nameRow);
     connect(name_, &QLineEdit::textEdited, this, &InstrumentView::onNameChanged);
 
     auto *envBox = new QGroupBox("Envelope (ADSR)", this);
+    envBox->setToolTip("SID envelope shape. $0 is fastest, $F is slowest. "
+                       "Attack 0 can make the first wavetable row silent.");
     auto *envForm = new QFormLayout(envBox);
     attack_ = makeNybbleSpin(envBox);
+    attack_->setToolTip("Attack rate ($0 fastest = 2ms, $F slowest = 8s). "
+                        "Set high on pads/strings, low on bass/lead.");
     decay_ = makeNybbleSpin(envBox);
+    decay_->setToolTip("Decay rate from peak to sustain level. "
+                       "$0 = 6ms, $F = 24s. Controls how fast the note 'rings down'.");
     sustain_ = makeNybbleSpin(envBox);
+    sustain_->setToolTip("Sustain level ($0 silent, $F loudest). "
+                         "Held while gate is on. Set to 0 for pluck/percussive.");
     release_ = makeNybbleSpin(envBox);
+    release_->setToolTip("Release rate after key-off ($0 fastest, $F slowest). "
+                         "Watch out: A=0, R=1 can ADSR-bug on some chips.");
     envForm->addRow("Attack", attack_);
     envForm->addRow("Decay", decay_);
     envForm->addRow("Sustain", sustain_);
@@ -232,11 +244,21 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     center->addWidget(envBox);
 
     auto *tblBox = new QGroupBox("Table pointers", this);
+    tblBox->setToolTip("Start-position pointers into the four shared tables. "
+                       "$00 means 'no execution' (except Wave, where $00 is unusable).");
     auto *tblForm = new QFormLayout(tblBox);
     wave_ = makeHexSpin(tblBox);
+    wave_->setToolTip("Wavetable start step. Drives waveform + arpeggio + "
+                      "drum programs. Must be ≥ $01.");
     pulse_ = makeHexSpin(tblBox);
+    pulse_->setToolTip("Pulsetable start step. $00 = leave pulse execution "
+                       "alone. Used for PWM sweeps.");
     filter_ = makeHexSpin(tblBox);
+    filter_->setToolTip("Filtertable start step. $00 = leave filter alone. "
+                        "Only one channel should drive the filter at a time.");
     vibParam_ = makeHexSpin(tblBox);
+    vibParam_->setToolTip("Speedtable index for instrument vibrato. $00 = no "
+                          "vibrato. Vibrato delay sets how many ticks before it starts.");
 
     auto wrapJump = [this, tblBox](QSpinBox *s, void (InstrumentView::*slot)()) {
         auto *row = new QHBoxLayout();
@@ -260,8 +282,16 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     auto *miscBox = new QGroupBox("Misc", this);
     auto *miscForm = new QFormLayout(miscBox);
     vibDelay_ = makeHexSpin(miscBox);
+    vibDelay_->setToolTip("Ticks before instrument vibrato kicks in. "
+                          "$00 disables vibrato entirely.");
     gateTimer_ = makeHexSpin(miscBox);
+    gateTimer_->setToolTip("Hard-restart / gate-off length in ticks. "
+                           "Must be < tempo or playback halts. "
+                           "Bit $80 disables hard restart, $40 disables gate-off.");
     firstWave_ = makeHexSpin(miscBox);
+    firstWave_->setToolTip("Waveform written on the very first frame of a note. "
+                           "$09 = gate+test (default). $00/$FE/$FF special-case "
+                           "the gate behaviour for legato instruments.");
     miscForm->addRow("Vibrato Delay", vibDelay_);
     miscForm->addRow("HR/Gate Timer", gateTimer_);
     miscForm->addRow("1stFrame Wave", firstWave_);
@@ -272,7 +302,10 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
 
     auto *btnRow = new QHBoxLayout();
     auto *testBtn = new QPushButton("Play test note", this);
+    testBtn->setToolTip("Play C of the current octave through this instrument "
+                        "on the current channel.");
     auto *stopBtn = new QPushButton("Silence", this);
+    stopBtn->setToolTip("Release the test note on the current channel.");
     connect(testBtn, &QPushButton::clicked, this, &InstrumentView::onTestNote);
     connect(stopBtn, &QPushButton::clicked, this, &InstrumentView::onSilenceTestNote);
     btnRow->addWidget(testBtn);

@@ -264,25 +264,69 @@ static int render_sid(reSIDfp::residfp *s, const unsigned char *regs,
   return total;
 }
 
+// Stereo path: drive SID1 and SID2 in lockstep so their resampler state stays
+// aligned sample-for-sample. Doing two independent render_sid calls drifts
+// over hundreds of buffers and produces audible glitches; this version writes
+// the same register to both SIDs and runs the same clock cycles, then sums
+// the two output streams with attenuation (so 6 voices can sit inside the
+// int16 range without constant clipping).
+static int render_pair(short *ptr, int samples) {
+  static std::vector<short> tmp;
+  if ((int)tmp.size() < samples) tmp.resize(samples);
+  short *p1 = ptr;
+  short *p2 = tmp.data();
+  int s1 = samples, s2 = samples;
+  int total1 = 0, total2 = 0;
+  int c;
+  int badline = rand() % NUMSIDREGS;
+  int tdelta = clockrate * samples / samplerate;
+  if (tdelta <= 0) return 0;
+
+  auto step = [&](int cycles) {
+    if (cycles <= 0) return;
+    int r1 = sid->clock((unsigned)cycles, p1);
+    if (r1 > s1) r1 = s1;
+    int r2 = sid2->clock((unsigned)cycles, p2);
+    if (r2 > s2) r2 = s2;
+    p1 += r1; s1 -= r1; total1 += r1;
+    p2 += r2; s2 -= r2; total2 += r2;
+  };
+
+  for (c = 0; c < NUMSIDREGS; c++) {
+    unsigned char o = sid_getorder(c);
+    if (o == 4 || o == 11 || o == 18) { step(SIDWAVEDELAY); tdelta -= SIDWAVEDELAY; }
+    if (badline == c && residdelay)   { step((int)residdelay); tdelta -= residdelay; }
+    sid ->write(o, sidreg [o]);
+    sid2->write(o, sidreg2[o]);
+    step(SIDWRITEDELAY);
+    tdelta -= SIDWRITEDELAY;
+    if (tdelta <= 0 && s1 <= 0 && s2 <= 0) break;
+  }
+  if (tdelta > 0) step(tdelta);
+  while (s1 > 0 || s2 > 0) {
+    int more = clockrate * std::max(s1, s2) / samplerate;
+    if (more <= 0) break;
+    int prev1 = total1, prev2 = total2;
+    step(more);
+    if (total1 == prev1 && total2 == prev2) break;
+  }
+
+  int n = std::min(total1, total2);
+  // Mix at 0.625x each to give a 6-voice peak of ~1.25× int16, then clip.
+  // Pure x0.5 leaves stereo material noticeably quieter than mono.
+  for (int i = 0; i < n; i++) {
+    int v = ((int)ptr[i] * 5 / 8) + ((int)tmp[i] * 5 / 8);
+    if (v > 32767) v = 32767; else if (v < -32768) v = -32768;
+    ptr[i] = (short)v;
+  }
+  return n;
+}
+
 int sid_fillbuffer(short *ptr, int samples)
 {
   if (!sid) return 0;
   if (!sid2) return render_sid(sid, sidreg, ptr, samples);
-
-  // Stereo mix: render both SIDs and sum to mono with clipping.
-  static std::vector<short> tmp;
-  if ((int)tmp.size() < samples) tmp.resize(samples);
-
-  int n1 = render_sid(sid, sidreg, ptr, samples);
-  int n2 = render_sid(sid2, sidreg2, tmp.data(), samples);
-  int n = std::min(n1, n2);
-  for (int i = 0; i < n; i++) {
-    int s = (int)ptr[i] + (int)tmp[i];
-    if (s > 32767) s = 32767;
-    else if (s < -32768) s = -32768;
-    ptr[i] = (short)s;
-  }
-  return n;
+  return render_pair(ptr, samples);
 }
 
 }

@@ -57,6 +57,8 @@ extern char copyrightname[MAX_STR];
 extern int eppos, epcolumn, epchn, eschn;
 extern int espos[MAX_CHN];
 extern int esnum;
+extern unsigned char songorder[MAX_SONGS][MAX_CHN][MAX_SONGLEN+2];
+extern int songlen[MAX_SONGS][MAX_CHN];
 extern int editmode;
 extern int followplay;
 extern int einum;
@@ -627,12 +629,26 @@ void MainWindow::prevMultiplierSlot() { prevmultiplier(); refreshAll(); }
 void MainWindow::nextMultiplierSlot() { nextmultiplier(); refreshAll(); }
 void MainWindow::toggleStereoMode(bool on) {
     stereo_mode = on ? 1 : 0;
-    // Rebuild the audio engine so SID2 is instantiated (or detached) immediately.
+    // When promoting an existing mono song to stereo, channels 4-6 normally
+    // have songlen=0 (nothing loaded for them) — the order map would render
+    // them black. Seed each empty extra channel with a single pattern slot
+    // pointing at a fresh pattern + RST endmark so the user has something
+    // to edit on without dropping into Insert key spam first.
+    if (on) {
+        for (int c = 3; c < MAX_CHN; c++) {
+            if (songlen[esnum][c] == 0) {
+                songorder[esnum][c][0] = c;       // pattern N
+                songorder[esnum][c][1] = LOOPSONG;
+                songorder[esnum][c][2] = 0;        // restart at 0
+                songlen[esnum][c] = 1;
+            }
+        }
+    }
     sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
                catweasel, interpolate, customclockrate);
     statusStrip_->showMessage(on
-        ? "Stereo mode ON — 6 channels, dual SID"
-        : "Stereo mode OFF — 3 channels, single SID");
+        ? "Stereo ON — 6 channels, dual SID"
+        : "Stereo OFF — 3 channels, single SID");
     refreshAll();
 }
 

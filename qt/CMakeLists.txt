@@ -18,6 +18,11 @@ if(SDL_LIBRARIES)
     list(REMOVE_ITEM SDL_LIBRARIES SDLmain)
 endif()
 
+# SDL/JACK are linked by name (-lSDL, -ljack); make sure their pkg-config
+# library directories are on the linker search path (needed on macOS where
+# Homebrew lives outside the default search paths).
+link_directories(${SDL_LIBRARY_DIRS} ${JACK_LIBRARY_DIRS})
+
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../src)
 
 # Core data + edit logic (no rendering calls verified by grep)
@@ -165,6 +170,13 @@ target_link_libraries(goattrk2-qt-stereo PRIVATE
     ${JACK_LIBRARIES}
     m pthread
 )
+
+# On Windows, Qt's GUI startup expects a WinMain; Qt6::EntryPoint provides the
+# WinMain -> main() bridge. It is a no-op / unneeded elsewhere.
+if(WIN32)
+    target_link_libraries(goattrk2-qt PRIVATE Qt6::EntryPoint)
+    target_link_libraries(goattrk2-qt-stereo PRIVATE Qt6::EntryPoint)
+endif()
 
 # ---------------------------------------------------------------------------
 # gt2reloc — standalone commandline relocator/packer (backport from v2.73)

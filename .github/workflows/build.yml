@@ -26,7 +26,7 @@ jobs:
         run: cmake -S qt -B qt/build -G Ninja -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: cmake --build qt/build -j"$(nproc)"
+        run: cmake --build qt/build --target goattrk2-qt -j"$(nproc)"
 
       - name: Collect artifacts
         run: |
@@ -63,7 +63,7 @@ jobs:
             -DCMAKE_CXX_FLAGS="-I$BREW/include"
 
       - name: Build
-        run: cmake --build qt/build -j"$(sysctl -n hw.ncpu)"
+        run: cmake --build qt/build --target goattrk2-qt -j"$(sysctl -n hw.ncpu)"
 
       - name: Collect artifacts
         run: |
@@ -105,7 +105,7 @@ jobs:
         run: cmake -S qt -B qt/build -G Ninja -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: cmake --build qt/build -j
+        run: cmake --build qt/build --target goattrk2-qt -j
 
       - name: Collect artifacts and bundle DLLs
         run: |

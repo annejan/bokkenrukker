@@ -56,9 +56,9 @@ PatternView::PatternView(QWidget *parent) : QAbstractScrollArea(parent) {
     QFontMetrics fm(mono);
     rowHeight = fm.height() + 3;
     colWidth = fm.horizontalAdvance('0');
-    rowNumW_ = 5 * colWidth;
-    chnW_ = 12 * colWidth;
-    vuStripH_ = 14;          // VU bar + small padding
+    rowNumW_ = 6 * colWidth;
+    chnW_ = 16 * colWidth;   // widened so header (Ch P L M) fits without overlap
+    vuStripH_ = 14;
     scopeStripH_ = 32;
     headerStripH_ = rowHeight + 4;
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -160,7 +160,7 @@ void PatternView::mousePressEvent(QMouseEvent *e) {
         int c = channelAtX(e->pos().x());
         if (c >= 0) {
             int xInChan = e->pos().x() - (rowNumW_ + c * chnW_);
-            int muteX = chnW_ - 24;
+            int muteX = chnW_ - 32;
             if (xInChan >= muteX) {
                 mutechannel(c);
                 refresh();
@@ -273,31 +273,34 @@ void PatternView::paintEvent(QPaintEvent *) {
 
     // ---- Channel header strip -------------------------------------------
     int headerY = vuStripH_ + scopeStripH_;
+    const int muteW = 24;
+    const int muteGap = 8;
     for (int c = 0; c < MAX_CHN; c++) {
-        int x = rowNumW_ + c * chnW_ + 2;
+        int x = rowNumW_ + c * chnW_ + 4;
         bool active = (c == epchn);
-        QRect headRect(x - 2, headerY + 2, chnW_ - 4, headerStripH_ - 4);
+        QRect headRect(x - 4, headerY + 2, chnW_ - 4, headerStripH_ - 4);
         if (active) p.fillRect(headRect, Theme::C::bgAlt);
+
+        // Reserve right side for the mute toggle so the labels never collide.
+        int muteX = rowNumW_ + (c + 1) * chnW_ - muteW - muteGap;
 
         p.setPen(active ? Theme::C::highlight : Theme::C::textDim);
         QFont hf = font();
         hf.setBold(active);
         p.setFont(hf);
-        p.drawText(QPoint(x + 4, headerY + headerStripH_ - 6),
+        p.drawText(QPoint(x, headerY + headerStripH_ - 6),
                    QString("Ch%1").arg(c + 1));
         p.setFont(font());
 
-        // Pattern number (clickable)
         p.setPen(Theme::C::instr);
         p.drawText(QPoint(x + 4 * colWidth, headerY + headerStripH_ - 6),
                    QString("P%1").arg(epnum[c], 2, 16, QLatin1Char('0')).toUpper());
-        // Length
+
         p.setPen(Theme::C::textDim);
-        p.drawText(QPoint(x + 7 * colWidth + 4, headerY + headerStripH_ - 6),
+        p.drawText(QPoint(x + 8 * colWidth, headerY + headerStripH_ - 6),
                    QString("L%1").arg(pattlen[epnum[c]], 2, 16, QLatin1Char('0')).toUpper());
-        // Mute toggle area
-        int muteX = x + chnW_ - 28;
-        QRect muteRect(muteX, headerY + 4, 22, headerStripH_ - 8);
+
+        QRect muteRect(muteX, headerY + 4, muteW, headerStripH_ - 8);
         p.setPen(chn[c].mute ? Theme::C::vuRed : Theme::C::vuGreen);
         p.drawRect(muteRect);
         p.drawText(muteRect, Qt::AlignCenter, chn[c].mute ? "M" : "·");

@@ -109,3 +109,71 @@ target_link_libraries(goattrk2-qt PRIVATE
     ${JACK_LIBRARIES}
     m pthread
 )
+
+# ---------------------------------------------------------------------------
+# gt2reloc — standalone commandline relocator/packer (backport from v2.73)
+#
+# Plain CLI tool, no Qt. Reuses the core tracker objects (gsong, greloc, ...)
+# plus the bme and reSIDfp backends so the same loadsong() / relocator() code
+# paths run headlessly. The GT2RELOC #define stubs out the interactive UI
+# code paths inside greloc.c.
+# ---------------------------------------------------------------------------
+
+set(GT2RELOC_SRC
+    ${SRC_DIR}/gt2reloc.c
+    ${SRC_DIR}/goatdata.c
+    ${SRC_DIR}/gsong.c
+    ${SRC_DIR}/gorder.c
+    ${SRC_DIR}/gpattern.c
+    ${SRC_DIR}/ginstr.c
+    ${SRC_DIR}/gtable.c
+    ${SRC_DIR}/gplay.c
+    ${SRC_DIR}/gdisplay.c
+    ${SRC_DIR}/gfile.c
+    ${SRC_DIR}/ghelp.c
+    ${SRC_DIR}/gsound.c
+    ${SRC_DIR}/gconsole.c
+    ${SRC_DIR}/gsid.cpp
+)
+
+set(BME_FULL_SRC
+    ${SRC_DIR}/bme/bme.c
+    ${SRC_DIR}/bme/bme_snd.c
+    ${SRC_DIR}/bme/bme_io.c
+    ${SRC_DIR}/bme/bme_end.c
+    ${SRC_DIR}/bme/bme_gfx.c
+    ${SRC_DIR}/bme/bme_win.c
+    ${SRC_DIR}/bme/bme_mou.c
+    ${SRC_DIR}/bme/bme_kbd.c
+)
+
+add_executable(gt2reloc
+    ${GT2RELOC_SRC}
+    ${RESIDFP_SRC}
+    ${ASM_SRC}
+    ${BME_FULL_SRC}
+)
+
+target_include_directories(gt2reloc PRIVATE
+    ${SRC_DIR}
+    ${SRC_DIR}/bme
+    ${SRC_DIR}/asm
+    ${SRC_DIR}/residfp
+    ${SRC_DIR}/residfp/residfp
+    ${SDL_INCLUDE_DIRS}
+    ${JACK_INCLUDE_DIRS}
+)
+
+target_compile_options(gt2reloc PRIVATE
+    -fcommon
+    -fgnu89-inline
+    -Wno-write-strings
+    -Wno-narrowing
+    ${SDL_CFLAGS_OTHER}
+)
+
+target_link_libraries(gt2reloc PRIVATE
+    ${SDL_LIBRARIES}
+    ${JACK_LIBRARIES}
+    m pthread
+)

@@ -29,5 +29,6 @@ void deletepattern(int p);
 void findusedpatterns(void);
 void findduplicatepatterns(void);
 void optimizeeverything(int oi, int ot);
+void mergesong(void);
 
 #endif

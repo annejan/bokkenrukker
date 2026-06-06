@@ -124,15 +124,19 @@ protected:
             if (idx < 0 || idx >= MAX_TABLELEN) continue;
             unsigned char L = ltable[WTBL][idx];
             QColor c = Theme::C::textDim;
-            if (L == 0xff) c = Theme::C::rst;            // jump
-            else if (L >= 0xf0) c = Theme::C::cmdDigit;  // command exec
-            else if (L >= 0xe0) c = Theme::C::textDim;   // inaudible
-            else if (L >= 0x80) c = QColor(0xC0, 0x70, 0xC0); // noise
-            else if (L >= 0x40) c = QColor(0x6F, 0xA6, 0xCE); // pulse
-            else if (L >= 0x20) c = QColor(0xE0, 0xA8, 0x4A); // saw
-            else if (L >= 0x10) c = QColor(0xA1, 0xC1, 0x81); // triangle
-            else if (L >= 0x01) c = Theme::C::transpose;     // delay
-            QRect r(i * cellW + 1, 2, cellW - 2, H - 6);
+            if (L == 0xff) c = Theme::C::rst;
+            else if (L >= 0xf0) c = Theme::C::cmdDigit;
+            else if (L >= 0xe0) c = Theme::C::textDim;
+            else if (L >= 0x80) c = QColor(0xC0, 0x70, 0xC0);
+            else if (L >= 0x40) c = QColor(0x6F, 0xA6, 0xCE);
+            else if (L >= 0x20) c = QColor(0xE0, 0xA8, 0x4A);
+            else if (L >= 0x10) c = QColor(0xA1, 0xC1, 0x81);
+            else if (L >= 0x01) c = Theme::C::transpose;
+            // Reserve bottom strip for the legend; cells live above it.
+            const int legendH = 12;
+            int cellsTop = 2;
+            int cellsH = qMax(8, H - legendH - 2);
+            QRect r(i * cellW + 1, cellsTop, cellW - 2, cellsH);
             p.fillRect(r, c);
             p.setPen(Theme::C::sep);
             p.drawRect(r);
@@ -141,7 +145,10 @@ protected:
         QFont f = font();
         f.setPointSize(8);
         p.setFont(f);
-        p.drawText(QPoint(4, H - 1), "wavetable starting at this instr's wave-ptr");
+        // Bottom-aligned legend, in its own reserved strip (no cell overlap)
+        p.drawText(QRect(4, H - 12, W - 8, 12),
+                   Qt::AlignVCenter,
+                   "noise=purple  pulse=blue  saw=orange  tri=green  cmd=red  jump=orange");
     }
 private:
     int start_ = 1;
@@ -333,13 +340,19 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     right->addWidget(waveHdr);
 
     wavePrev_ = new WavetablePreview(this);
+    wavePrev_->setMinimumHeight(40);
     right->addWidget(wavePrev_);
 
+    // Compact summary card — fits in its own bordered frame, kept short.
     summary_ = new QLabel(this);
     summary_->setWordWrap(true);
-    summary_->setMinimumHeight(60);
+    summary_->setTextFormat(Qt::RichText);
+    summary_->setMinimumHeight(80);
+    summary_->setContentsMargins(10, 8, 10, 8);
+    summary_->setAutoFillBackground(true);
     QPalette sp = summary_->palette();
-    sp.setColor(QPalette::WindowText, Theme::C::textDim);
+    sp.setColor(QPalette::Window, Theme::C::bgAlt);
+    sp.setColor(QPalette::WindowText, Theme::C::text);
     summary_->setPalette(sp);
     right->addWidget(summary_);
 
@@ -392,20 +405,31 @@ void InstrumentView::readFromGlobals() {
     adsr_->setAdsr(attack_->value(), decay_->value(),
                    sustain_->value(), release_->value());
     wavePrev_->setStart(ins.ptr[WTBL]);
+
+    QString fwDesc;
+    if (ins.firstwave == 0x09)      fwDesc = "gate+test (std)";
+    else if (ins.firstwave == 0x00) fwDesc = "legato (no gate change)";
+    else if (ins.firstwave == 0xfe) fwDesc = "gate off";
+    else if (ins.firstwave == 0xff) fwDesc = "gate on";
+    else                            fwDesc = "custom";
+
+    bool hrDisabled = (ins.gatetimer & 0x80) != 0;
+    bool gateOffDisabled = (ins.gatetimer & 0x40) != 0;
+    int gateTicks = ins.gatetimer & 0x3f;
+    QString gateDesc = QString("%1 ticks").arg(gateTicks);
+    if (hrDisabled) gateDesc += ", no HR";
+    if (gateOffDisabled) gateDesc += ", no gate-off";
+
     summary_->setText(QString(
-        "Instr $%1 — A%2 D%3 S%4 R%5\n"
-        "Wave ptr $%6   Pulse ptr $%7   Filter ptr $%8\n"
-        "Vib param $%9  delay $%10   Gate $%11   1stWave $%12")
+        "<b style='color:#FFD93D'>Instrument $%1</b><br>"
+        "ADSR = A%2 D%3 S%4 R%5"
+        "<br>1stFrame Wave $%6 — %7"
+        "<br>Gate/HR timer $%8 — %9")
         .arg(einum, 2, 16, QLatin1Char('0'))
         .arg(attack_->value(), 1, 16).arg(decay_->value(), 1, 16)
         .arg(sustain_->value(), 1, 16).arg(release_->value(), 1, 16)
-        .arg(ins.ptr[WTBL], 2, 16, QLatin1Char('0'))
-        .arg(ins.ptr[PTBL], 2, 16, QLatin1Char('0'))
-        .arg(ins.ptr[FTBL], 2, 16, QLatin1Char('0'))
-        .arg(ins.ptr[STBL], 2, 16, QLatin1Char('0'))
-        .arg(ins.vibdelay, 2, 16, QLatin1Char('0'))
-        .arg(ins.gatetimer, 2, 16, QLatin1Char('0'))
-        .arg(ins.firstwave, 2, 16, QLatin1Char('0'))
+        .arg(ins.firstwave, 2, 16, QLatin1Char('0')).arg(fwDesc)
+        .arg(ins.gatetimer, 2, 16, QLatin1Char('0')).arg(gateDesc)
         .toUpper());
     updating_ = false;
 }

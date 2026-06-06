@@ -1,11 +1,19 @@
 #include "TablesView.h"
-#include "SdlKeyMap.h"
 #include "Theme.h"
+#include "SdlKeyMap.h"
 
+#include <QHBoxLayout>
+#include <QVBoxLayout>
+#include <QTabWidget>
+#include <QTableView>
+#include <QHeaderView>
+#include <QPushButton>
+#include <QLabel>
+#include <QGroupBox>
+#include <QStyledItemDelegate>
 #include <QPainter>
 #include <QKeyEvent>
-#include <QFontDatabase>
-#include <QFontMetrics>
+#include <QMenu>
 
 extern "C" {
 #include "gcommon.h"
@@ -16,17 +24,11 @@ extern int etpos;
 extern int etcolumn;
 extern int etview[MAX_TABLES];
 extern int etlock;
+extern INSTR instr[MAX_INSTR];
+extern int key;
+extern int rawkey;
+extern int shiftpressed;
 void tablecommands(void);
-}
-
-TablesView::TablesView(QWidget *parent) : QWidget(parent) {
-    QFont mono = Theme::monoFont(11);
-    setFont(mono);
-    QFontMetrics fm(mono);
-    rowHeight = fm.height() + 2;
-    colWidth = fm.horizontalAdvance('0');
-    Theme::applyDarkPalette(this);
-    setFocusPolicy(Qt::StrongFocus);
 }
 
 static const char *tableName[4] = {"Wave", "Pulse", "Filter", "Speed"};
@@ -37,57 +39,15 @@ static const QColor tableTint[4] = {
     QColor(0xE0, 0xC1, 0x6E)
 };
 
-// Compact per-table legend from readme.txt sections 3.4.1 - 3.4.4.
-// Lines must fit ~22 chars at point 9 font (chnW = 14 * colW @ pt11).
-static const char *legend[4][6] = {
-    {  // Wave (3.4.1)
-        "L 00    no change",
-        "L 01-0F delay 1-15f",
-        "L 10-DF waveform",
-        "L E0-EF inaudible",
-        "L F0-FE exec cmd",
-        "L FF    jump  R=pos",
-    },
-    {  // Pulse (3.4.2)
-        "L 01-7F modulate",
-        "        R=signed spd",
-        "L 8X-FX set pw",
-        "        R=low byte",
-        "L FF    jump  R=pos",
-        "",
-    },
-    {  // Filter (3.4.3)
-        "L 00    cutoff R=val",
-        "L 01-7F modulate",
-        "        R=signed spd",
-        "L 80-F0 set params",
-        "        R=res|mask",
-        "L FF    jump  R=pos",
-    },
-    {  // Speed (3.4.4)
-        "Vibrato:",
-        "  L=spd R=depth",
-        "Portamento:",
-        "  LR=16bit step",
-        "Funktempo:",
-        "  L=evn R=odd",
-    },
-};
-
-static const char *legendR[4] = {
-    "R 00-5F rel  80 hold  81-DF abs",
-    nullptr,
-    nullptr,
-    "L bit $80: note-indep",
-};
-
-// Decode the current cell for the contextual help footer.
+// ---------------------------------------------------------------------------
+// Cell decoder (kept from previous incarnation)
+// ---------------------------------------------------------------------------
 static QString decodeCell(int t, unsigned char L, unsigned char R) {
-    QString line;
     auto hex = [](unsigned v, int w = 2) {
         return QString("%1").arg(v, w, 16, QLatin1Char('0')).toUpper();
     };
-    if (t == 0) { // WAVE
+    QString line;
+    if (t == 0) {
         if (L == 0x00) line = "no change";
         else if (L >= 0x01 && L <= 0x0F) line = QString("delay %1 frames").arg(L);
         else if (L >= 0xE0 && L <= 0xEF) line = QString("inaudible $%1").arg(hex(L - 0xE0));
@@ -106,14 +66,13 @@ static QString decodeCell(int t, unsigned char L, unsigned char R) {
             if (L & 0x01) bits << "gate";
             line = QString("wave $%1 [%2]").arg(hex(L)).arg(bits.join('+'));
         }
-        // Right side decode
         QString rs;
         if (R == 0x80) rs = "hold freq";
         else if (R >= 0x81) rs = QString("abs note %1").arg(R - 0x81);
         else if (R >= 0x60) rs = QString("neg rel %1").arg(R - 0x60);
         else rs = QString("rel +%1").arg(R);
         line += "    note: " + rs;
-    } else if (t == 1) { // PULSE
+    } else if (t == 1) {
         if (L == 0xFF) line = R == 0 ? "stop" : QString("jump to step $%1").arg(hex(R));
         else if (L >= 0x80) {
             int pw = ((L & 0x0F) << 8) | R;
@@ -123,7 +82,7 @@ static QString decodeCell(int t, unsigned char L, unsigned char R) {
             line = QString("modulate %1 ticks @ %2%3").arg(L)
                    .arg(spd >= 0 ? "+" : "").arg(spd);
         }
-    } else if (t == 2) { // FILTER
+    } else if (t == 2) {
         if (L == 0x00) line = QString("set cutoff $%1").arg(hex(R));
         else if (L == 0xFF) line = R == 0 ? "stop" : QString("jump to step $%1").arg(hex(R));
         else if (L >= 0x80) {
@@ -147,7 +106,7 @@ static QString decodeCell(int t, unsigned char L, unsigned char R) {
             line = QString("modulate %1 ticks @ %2%3").arg(L)
                    .arg(spd >= 0 ? "+" : "").arg(spd);
         }
-    } else { // SPEED
+    } else {
         bool noteIndep = (L & 0x80) != 0;
         if (noteIndep) {
             line = QString("note-indep, divisor %1").arg(L & 0x7f);
@@ -162,118 +121,363 @@ static QString decodeCell(int t, unsigned char L, unsigned char R) {
     return line;
 }
 
-void TablesView::paintEvent(QPaintEvent *) {
-    QPainter p(this);
-    p.setFont(font());
-    int x0 = 16, y0 = 12;
-    int colW = 14 * colWidth;
+// ---------------------------------------------------------------------------
+// Model — columns: 0 = index, 1 = left byte, 2 = right byte
+// ---------------------------------------------------------------------------
+SidTableModel::SidTableModel(int tableIndex, QObject *parent)
+    : QAbstractTableModel(parent), t_(tableIndex) {}
 
-    p.setPen(Theme::C::textDim);
-    p.drawText(QPoint(x0, y0 + rowHeight),
-               QString("BACKQUOTE=switch   SHIFT+U=%1 scroll   active: %2")
-                   .arg(etlock ? "lock" : "unlock")
-                   .arg(tableName[etnum]));
+int SidTableModel::rowCount(const QModelIndex &) const { return MAX_TABLELEN; }
+int SidTableModel::columnCount(const QModelIndex &) const { return 3; }
 
-    int headerY = y0 + rowHeight * 2 + 6;
-    for (int t = 0; t < MAX_TABLES; t++) {
-        int x = x0 + t * colW;
-        bool active = (t == etnum);
-        QRect titleRect(x - 4, headerY - rowHeight + 4, colW - 6, rowHeight);
-        if (active) {
-            p.fillRect(titleRect, Theme::C::editRow);
-            p.setPen(QPen(Theme::C::highlight, 2));
-            p.drawRect(titleRect.adjusted(0, 0, -1, -1));
-        }
-        p.setPen(active ? Theme::C::highlight : tableTint[t]);
-        QFont hf = font();
-        hf.setBold(active);
-        p.setFont(hf);
-        p.drawText(QPoint(x, headerY - 2),
-                   QString("%1 table").arg(tableName[t]));
+QVariant SidTableModel::data(const QModelIndex &i, int role) const {
+    if (!i.isValid()) return {};
+    int row = i.row();
+    int col = i.column();
+    unsigned char L = ltable[t_][row];
+    unsigned char R = rtable[t_][row];
+
+    if (role == Qt::DisplayRole || role == Qt::EditRole) {
+        if (col == 0) return QString("%1").arg(row + 1, 2, 16, QLatin1Char('0')).toUpper();
+        if (col == 1) return QString("%1").arg(L, 2, 16, QLatin1Char('0')).toUpper();
+        if (col == 2) return QString("%1").arg(R, 2, 16, QLatin1Char('0')).toUpper();
     }
-    p.setFont(font());
+    if (role == Qt::TextAlignmentRole) return int(Qt::AlignCenter);
+    if (role == Qt::FontRole) return Theme::monoFont(11);
 
-    // Compact per-table legend block under headers
-    QFont small = font(); small.setPointSize(9);
-    p.setFont(small);
-    int legendY = headerY + rowHeight + 4;
-    int legendLines = 6;
-    int legendH = legendLines * (small.pointSize() + 4);
-    for (int t = 0; t < MAX_TABLES; t++) {
-        int x = x0 + t * colW;
-        for (int i = 0; i < legendLines; i++) {
-            p.setPen(t == etnum ? Theme::C::text : Theme::C::textDim);
-            p.drawText(QPoint(x, legendY + i * (small.pointSize() + 4)),
-                       legend[t][i]);
-        }
-        if (legendR[t]) {
-            p.setPen(t == etnum ? Theme::C::text : Theme::C::textDim);
-            p.drawText(QPoint(x, legendY + legendLines * (small.pointSize() + 4)),
-                       legendR[t]);
-        }
+    if (role == Qt::ForegroundRole) {
+        if (col == 0) return QBrush(Theme::C::textDim);
+        if (col == 1) return QBrush(L ? Theme::C::cmdDigit : Theme::C::textDim);
+        if (col == 2) return QBrush(R ? Theme::C::cmdParam : Theme::C::textDim);
     }
-    p.setFont(font());
-
-    int gridY = legendY + legendH + 14;
-    int rows = (height() - gridY - 56) / rowHeight;
-    if (rows < 1) rows = 1;
-    if (rows > MAX_TABLELEN) rows = MAX_TABLELEN;
-
-    for (int t = 0; t < MAX_TABLES; t++) {
-        int x = x0 + t * colW;
-        int view = etlock ? etview[etnum] : etview[t];
-        for (int r = 0; r < rows; r++) {
-            int idx = view + r;
-            if (idx >= MAX_TABLELEN) break;
-            int y = gridY + r * rowHeight;
-            if (r % 4 == 0)
-                p.fillRect(QRect(x - 4, y, colW - 6, rowHeight), Theme::C::beat);
-            bool cursor = (t == etnum && idx == etpos);
-            if (cursor) p.fillRect(QRect(x - 4, y, colW - 6, rowHeight), Theme::C::editRow);
-            p.setPen(Theme::C::textDim);
-            p.drawText(QPoint(x, y + rowHeight - 4),
-                       QString("%1").arg(idx + 1, 2, 16, QLatin1Char('0')).toUpper());
-            unsigned char L = ltable[t][idx];
-            unsigned char R = rtable[t][idx];
-            p.setPen(L ? Theme::C::cmdDigit : Theme::C::textDim);
-            p.drawText(QPoint(x + 4 * colWidth, y + rowHeight - 4),
-                       QString("%1").arg(L, 2, 16, QLatin1Char('0')).toUpper());
-            p.setPen(R ? Theme::C::cmdParam : Theme::C::textDim);
-            p.drawText(QPoint(x + 7 * colWidth, y + rowHeight - 4),
-                       QString("%1").arg(R, 2, 16, QLatin1Char('0')).toUpper());
-        }
-    }
-
-    // Cursor decode footer — what does the active cell mean?
-    unsigned char Lc = ltable[etnum][etpos];
-    unsigned char Rc = rtable[etnum][etpos];
-    int footerY = height() - 40;
-    QRect footRect(8, footerY, width() - 16, 30);
-    p.fillRect(footRect, Theme::C::bgAlt);
-    p.setPen(Theme::C::sep);
-    p.drawRect(footRect);
-    p.setPen(Theme::C::highlight);
-    QFont bf = font(); bf.setBold(true);
-    p.setFont(bf);
-    QString head = QString("%1 step $%2   L=$%3  R=$%4")
-                   .arg(tableName[etnum])
-                   .arg(etpos + 1, 2, 16, QLatin1Char('0'))
-                   .arg(Lc, 2, 16, QLatin1Char('0'))
-                   .arg(Rc, 2, 16, QLatin1Char('0')).toUpper();
-    p.drawText(QPoint(16, footerY + 13), head);
-    p.setFont(font());
-    p.setPen(Theme::C::text);
-    p.drawText(QPoint(16, footerY + 26), "→ " + decodeCell(etnum, Lc, Rc));
-
-    p.setPen(Theme::C::textDim);
-    p.drawText(QPoint(x0, height() - 8),
-               "RET=back to instr   SHIFT+N=negate   SHIFT+O=optimize   SHIFT+L=convert limit→time");
+    return {};
 }
 
-void TablesView::keyPressEvent(QKeyEvent *e) {
-    setGoatKeys(e);
+QVariant SidTableModel::headerData(int section, Qt::Orientation o, int role) const {
+    if (role != Qt::DisplayRole) return {};
+    if (o == Qt::Horizontal) {
+        switch (section) {
+            case 0: return QString("Idx");
+            case 1: return QString("L");
+            case 2: return QString("R");
+        }
+    }
+    return {};
+}
+
+bool SidTableModel::setData(const QModelIndex &i, const QVariant &v, int role) {
+    if (role != Qt::EditRole || !i.isValid()) return false;
+    int col = i.column(); int row = i.row();
+    if (col == 0) return false; // index column not editable
+    bool ok = false;
+    int val = v.toString().toInt(&ok, 16);
+    if (!ok || val < 0 || val > 255) return false;
+    if (col == 1) ltable[t_][row] = (unsigned char)val;
+    else if (col == 2) rtable[t_][row] = (unsigned char)val;
+    emit dataChanged(i, i);
+    return true;
+}
+
+Qt::ItemFlags SidTableModel::flags(const QModelIndex &i) const {
+    if (!i.isValid()) return Qt::NoItemFlags;
+    Qt::ItemFlags f = Qt::ItemIsSelectable | Qt::ItemIsEnabled;
+    if (i.column() != 0) f |= Qt::ItemIsEditable;
+    return f;
+}
+
+void SidTableModel::refresh() {
+    beginResetModel();
+    endResetModel();
+}
+
+// ---------------------------------------------------------------------------
+// Delegate paints semantic backgrounds + cursor
+// ---------------------------------------------------------------------------
+class TableCellDelegate : public QStyledItemDelegate {
+public:
+    TableCellDelegate(int tableIdx, QObject *parent = nullptr)
+        : QStyledItemDelegate(parent), t_(tableIdx) {}
+    void paint(QPainter *p, const QStyleOptionViewItem &opt, const QModelIndex &i) const override {
+        int row = i.row();
+        unsigned char L = ltable[t_][row];
+        QColor bg = Theme::C::bgBase;
+        // Empty rows dim
+        if (L == 0 && rtable[t_][row] == 0) bg = Theme::C::bgBase;
+        else if (L == 0xFF) bg = QColor(70, 30, 25);            // jump
+        else if (L >= 0xF0 && t_ == 0) bg = QColor(70, 45, 20); // wave-cmd exec
+        else if (L >= 0x80 && t_ == 0) bg = QColor(50, 25, 50); // noise
+        else if (L >= 0x40 && t_ == 0) bg = QColor(20, 40, 60); // pulse
+        else if (L >= 0x20 && t_ == 0) bg = QColor(60, 45, 20); // saw
+        else if (L >= 0x10 && t_ == 0) bg = QColor(30, 50, 30); // tri
+        else if (L >= 0x01 && t_ == 0 && L <= 0x0F) bg = QColor(20, 30, 50); // delay
+        else if (t_ == 1 && L >= 0x80 && L < 0xFF) bg = QColor(20, 40, 55); // pulse-pw
+        else if (t_ == 2 && L >= 0x80 && L < 0xFF) bg = QColor(55, 35, 30); // filter params
+        if (row % 4 == 0 && bg == Theme::C::bgBase) bg = Theme::C::beat;
+
+        p->fillRect(opt.rect, bg);
+        // Cursor highlight (matches the global etnum / etpos)
+        if (t_ == etnum && row == etpos) {
+            p->fillRect(opt.rect, Theme::C::editRow);
+        }
+        QStyledItemDelegate::paint(p, opt, i);
+        if (t_ == etnum && row == etpos) {
+            p->setPen(QPen(Theme::C::highlight, 1));
+            p->drawRect(opt.rect.adjusted(0, 0, -1, -1));
+        }
+    }
+private:
+    int t_;
+};
+
+// ---------------------------------------------------------------------------
+// View
+// ---------------------------------------------------------------------------
+TablesView::TablesView(QWidget *parent) : QWidget(parent) {
+    Theme::applyDarkPalette(this);
+
+    auto *root = new QHBoxLayout(this);
+    root->setContentsMargins(12, 12, 12, 12);
+    root->setSpacing(12);
+
+    // ---- Left: tabs containing the 4 tables --------------------------------
+    auto *leftCol = new QVBoxLayout();
+    tabs_ = new QTabWidget(this);
+    tabs_->setDocumentMode(true);
+    for (int t = 0; t < MAX_TABLES; t++) {
+        views_[t]  = new QTableView(this);
+        models_[t] = new SidTableModel(t, this);
+        views_[t]->setModel(models_[t]);
+        views_[t]->setItemDelegate(new TableCellDelegate(t, views_[t]));
+        views_[t]->setShowGrid(false);
+        views_[t]->verticalHeader()->hide();
+        views_[t]->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+        views_[t]->verticalHeader()->setDefaultSectionSize(20);
+        views_[t]->setSelectionBehavior(QAbstractItemView::SelectRows);
+        views_[t]->setSelectionMode(QAbstractItemView::SingleSelection);
+        connect(views_[t]->selectionModel(), &QItemSelectionModel::currentChanged,
+                this, [this](const QModelIndex &, const QModelIndex &){ onCellSelectionChanged(); });
+        tabs_->addTab(views_[t], tableName[t]);
+        // Colour each tab title
+        tabs_->tabBar()->setTabTextColor(t, tableTint[t]);
+    }
+    connect(tabs_, &QTabWidget::currentChanged, this, &TablesView::onTabChanged);
+    leftCol->addWidget(tabs_, 1);
+
+    // Action button row beneath table
+    auto *btnRow = new QHBoxLayout();
+    auto addBtn = [&](const QString &label, const QString &tip, void (TablesView::*slot)()) {
+        auto *b = new QPushButton(label, this);
+        b->setToolTip(tip);
+        b->setMinimumWidth(64);
+        connect(b, &QPushButton::clicked, this, slot);
+        btnRow->addWidget(b);
+        return b;
+    };
+    addBtn("Insert",  "Insert empty row above cursor (INS)",      &TablesView::insertRow);
+    addBtn("Delete",  "Delete row at cursor (DEL)",               &TablesView::deleteRow);
+    addBtn("Clear",   "Clear current cell to zero",               &TablesView::clearCell);
+    addBtn("Negate",  "Negate speed parameter / relative note (Shift+N)", &TablesView::negate);
+    addBtn("Limit→Time","Convert limit-based modulation to time (Shift+L)", &TablesView::limitToTime);
+    addBtn("Optimize","Remove unused entries (Shift+O)",          &TablesView::optimize);
+    addBtn("FF jump", "Set row to FF jump (RST equivalent)",      &TablesView::insertJump);
+    btnRow->addStretch();
+    leftCol->addLayout(btnRow);
+    root->addLayout(leftCol, 3);
+
+    // ---- Right: legend + cursor decoder + used-by --------------------------
+    auto *rightCol = new QVBoxLayout();
+
+    legend_ = new QLabel(this);
+    legend_->setTextFormat(Qt::RichText);
+    legend_->setWordWrap(true);
+    legend_->setMinimumHeight(120);
+    legend_->setAutoFillBackground(true);
+    legend_->setContentsMargins(10, 8, 10, 8);
+    QPalette lp = legend_->palette();
+    lp.setColor(QPalette::Window, Theme::C::bgAlt);
+    legend_->setPalette(lp);
+    rightCol->addWidget(legend_);
+
+    auto *decodeBox = new QGroupBox("Cursor decode", this);
+    auto *dLay = new QVBoxLayout(decodeBox);
+    decode_ = new QLabel(decodeBox);
+    decode_->setWordWrap(true);
+    decode_->setMinimumHeight(60);
+    decode_->setFont(Theme::monoFont(11));
+    QPalette dp = decode_->palette();
+    dp.setColor(QPalette::WindowText, Theme::C::highlight);
+    decode_->setPalette(dp);
+    dLay->addWidget(decode_);
+    rightCol->addWidget(decodeBox);
+
+    auto *usedBox = new QGroupBox("Pointers to this row", this);
+    auto *uLay = new QVBoxLayout(usedBox);
+    usedBy_ = new QLabel(usedBox);
+    usedBy_->setWordWrap(true);
+    usedBy_->setFont(Theme::monoFont(10));
+    QPalette up = usedBy_->palette();
+    up.setColor(QPalette::WindowText, Theme::C::text);
+    usedBy_->setPalette(up);
+    uLay->addWidget(usedBy_);
+    rightCol->addWidget(usedBox);
+
+    rightCol->addStretch();
+    root->addLayout(rightCol, 2);
+
+    refresh();
+}
+
+void TablesView::onTabChanged(int idx) {
+    if (updating_ || idx < 0 || idx >= MAX_TABLES) return;
+    etnum = idx;
+    onCellSelectionChanged();
+    emit edited();
+}
+
+void TablesView::onCellSelectionChanged() {
+    auto *v = views_[etnum];
+    if (!v) return;
+    auto idx = v->currentIndex();
+    if (idx.isValid()) {
+        etpos = idx.row();
+        etcolumn = idx.column() >= 1 ? idx.column() - 1 : 0;
+    }
+    updateDecoder();
+    updateUsedBy();
+    updateLegend();
+}
+
+static QString tableLegendHtml(int t) {
+    switch (t) {
+        case 0: return QString(
+            "<b style='color:#A1C181'>Wave table</b><br>"
+            "<span style='color:#5A6470'>L bytes:</span><br>"
+            "<b>$00</b> no change<br>"
+            "<b>$01-$0F</b> delay 1..15 frames<br>"
+            "<b>$10-$DF</b> waveform value (gate / saw / tri / pulse / noise bits)<br>"
+            "<b>$E0-$EF</b> inaudible waveform $00-$0F<br>"
+            "<b>$F0-$FE</b> execute pattern command 0XY-EXY (R = param)<br>"
+            "<b>$FF</b> jump (R = target step, $00 = stop)<br>"
+            "<span style='color:#5A6470'>R bytes:</span><br>"
+            "<b>$00-$5F</b> relative note +0..+95<br>"
+            "<b>$60-$7F</b> negative relative<br>"
+            "<b>$80</b> hold frequency<br>"
+            "<b>$81-$DF</b> absolute notes C#0..B-7"
+        );
+        case 1: return QString(
+            "<b style='color:#6FA6CE'>Pulse table</b><br>"
+            "<b>$01-$7F</b> modulate L ticks at signed-byte speed R<br>"
+            "<b>$8X-$FX</b> set pulse width X|R (12-bit value $000-$FFF)<br>"
+            "<b>$FF</b> jump (R = target, $00 = stop)"
+        );
+        case 2: return QString(
+            "<b style='color:#D89B8C'>Filter table</b><br>"
+            "<b>$00</b> set cutoff to R<br>"
+            "<b>$01-$7F</b> modulate L ticks at signed-byte speed R<br>"
+            "<b>$80-$F0</b> set filter params: hi-nibble = passband "
+            "(90=LP, A0=BP, C0=HP, etc), R = resonance | channel-mask<br>"
+            "<b>$FF</b> jump (R = target, $00 = stop)"
+        );
+        case 3: return QString(
+            "<b style='color:#E0C16E'>Speed table</b><br>"
+            "Shared by vibrato, portamento, funktempo. No jump opcode.<br>"
+            "<b>Vibrato</b> L=direction-change speed, R=depth per tick<br>"
+            "<b>Portamento</b> LR = signed 16-bit pitch step / tick<br>"
+            "<b>Funktempo</b> L,R = two tempo values alternated per row<br>"
+            "<b>L bit $80</b> enables note-independent vib depth / porta speed; "
+            "R then specifies the divisor."
+        );
+    }
+    return {};
+}
+
+void TablesView::updateLegend() {
+    legend_->setText(tableLegendHtml(etnum));
+}
+
+void TablesView::updateDecoder() {
+    unsigned char L = ltable[etnum][etpos];
+    unsigned char R = rtable[etnum][etpos];
+    decode_->setText(QString("%1 step $%2\nL=$%3  R=$%4\n→ %5")
+        .arg(tableName[etnum])
+        .arg(etpos + 1, 2, 16, QLatin1Char('0'))
+        .arg(L, 2, 16, QLatin1Char('0'))
+        .arg(R, 2, 16, QLatin1Char('0'))
+        .arg(decodeCell(etnum, L, R))
+        .toUpper());
+}
+
+void TablesView::updateUsedBy() {
+    QStringList who;
+    int row = etpos + 1; // table-pointer values are 1-based
+    for (int i = 1; i < MAX_INSTR; i++) {
+        if (instr[i].ptr[etnum] == row)
+            who << QString("ins $%1").arg(i, 2, 16, QLatin1Char('0')).toUpper();
+    }
+    if (who.isEmpty()) usedBy_->setText("(no instruments point here)");
+    else usedBy_->setText(QString("Used by: %1").arg(who.join(", ")));
+}
+
+void TablesView::refresh() {
+    if (updating_) return;
+    updating_ = true;
+    for (int t = 0; t < MAX_TABLES; t++) models_[t]->refresh();
+    if (tabs_->currentIndex() != etnum) tabs_->setCurrentIndex(etnum);
+    auto *v = views_[etnum];
+    if (v) v->setCurrentIndex(models_[etnum]->index(etpos, 1));
+    updateDecoder();
+    updateUsedBy();
+    updateLegend();
+    updating_ = false;
+}
+
+// ---- Actions hook into tablecommands() by setting key/rawkey/shiftpressed --
+static void runTableCommand(int rawkeyVal, int asciiKey, bool shift) {
+    rawkey = rawkeyVal;
+    key = asciiKey;
+    shiftpressed = shift ? 1 : 0;
     tablecommands();
-    clearGoatKeys();
+    rawkey = 0;
+    key = 0;
+    shiftpressed = 0;
+}
+
+#include <SDL/SDL_keysym.h>
+
+void TablesView::insertRow() {
+    runTableCommand(SDLK_INSERT, 0, false);
+    refresh();
+    emit edited();
+}
+void TablesView::deleteRow() {
+    runTableCommand(SDLK_DELETE, 0, false);
+    refresh();
+    emit edited();
+}
+void TablesView::negate() {
+    runTableCommand('n', 'n', true);
+    refresh();
+    emit edited();
+}
+void TablesView::optimize() {
+    runTableCommand('o', 'o', true);
+    refresh();
+    emit edited();
+}
+void TablesView::limitToTime() {
+    runTableCommand('l', 'l', true);
+    refresh();
+    emit edited();
+}
+void TablesView::clearCell() {
+    ltable[etnum][etpos] = 0;
+    rtable[etnum][etpos] = 0;
+    refresh();
+    emit edited();
+}
+void TablesView::insertJump() {
+    ltable[etnum][etpos] = 0xFF;
+    rtable[etnum][etpos] = 0;
     refresh();
     emit edited();
 }

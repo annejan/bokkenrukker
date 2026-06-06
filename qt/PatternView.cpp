@@ -9,6 +9,7 @@
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QInputDialog>
+#include <QLineEdit>
 #include "SdlKeyMap.h"
 #include "Theme.h"
 #include "UndoStack.h"
@@ -41,6 +42,7 @@ int isplaying(void);
 void patterncommands(void);
 void generalcommands(void);
 void mutechannel(int chnnum);
+void countpatternlengths(void);
 extern char *notename[];
 }
 
@@ -187,6 +189,43 @@ void PatternView::mousePressEvent(QMouseEvent *e) {
                     epnum[c] = n;
                     refresh();
                     emit patternEdited();
+                }
+                return;
+            }
+            // Click L## (length) — let user pick a new length in hex.
+            if (xInChan >= 8 * colWidth && xInChan < chnW_ - 32 - 8) {
+                int p = epnum[c];
+                bool ok = false;
+                QString cur = QString("%1").arg(pattlen[p], 0, 16).toUpper();
+                QString s = QInputDialog::getText(this, "Pattern length",
+                    QString("Pattern $%1 length (hex 1..%2):")
+                        .arg(p, 2, 16, QLatin1Char('0')).toUpper()
+                        .arg(MAX_PATTROWS, 0, 16).toUpper(),
+                    QLineEdit::Normal, cur, &ok);
+                if (ok) {
+                    int newLen = s.trimmed().toInt(nullptr, 16);
+                    if (newLen < 1) newLen = 1;
+                    if (newLen > MAX_PATTROWS) newLen = MAX_PATTROWS;
+                    int curLen = pattlen[p];
+                    if (newLen != curLen) {
+                        if (newLen > curLen) {
+                            // Grow: REST-pad current ENDPATT slot through
+                            // newLen-1, then plant ENDPATT at newLen.
+                            for (int r = curLen; r < newLen; r++) {
+                                pattern[p][r*4+0] = REST;
+                                pattern[p][r*4+1] = 0;
+                                pattern[p][r*4+2] = 0;
+                                pattern[p][r*4+3] = 0;
+                            }
+                        }
+                        pattern[p][newLen*4+0] = ENDPATT;
+                        pattern[p][newLen*4+1] = 0;
+                        pattern[p][newLen*4+2] = 0;
+                        pattern[p][newLen*4+3] = 0;
+                        countpatternlengths();
+                        refresh();
+                        emit patternEdited();
+                    }
                 }
                 return;
             }

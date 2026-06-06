@@ -23,6 +23,17 @@ endif()
 # Homebrew lives outside the default search paths).
 link_directories(${SDL_LIBRARY_DIRS} ${JACK_LIBRARY_DIRS})
 
+# SDL 1.2 (and sdl12-compat) #define main SDL_main on macOS/Windows and expect
+# an SDLmain library to supply the real entry point. This app owns its entry
+# point via Qt, so tell SDL to keep its hands off main().
+add_compile_definitions(SDL_MAIN_HANDLED)
+
+# Qt's Windows GUI startup needs a WinMain; the EntryPoint component supplies
+# the WinMain -> main() bridge. Request it explicitly so the target exists.
+if(WIN32)
+    find_package(Qt6 REQUIRED COMPONENTS EntryPoint)
+endif()
+
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../src)
 
 # Core data + edit logic (no rendering calls verified by grep)

@@ -19,6 +19,10 @@
 #include <QLabel>
 #include <QTimer>
 #include <QStandardPaths>
+#include <QFileInfo>
+#include <QDir>
+#include <QSettings>
+#include <QCloseEvent>
 #include <QStatusBar>
 #include <QWidget>
 #include <QVBoxLayout>
@@ -62,12 +66,22 @@ void nextmultiplier(void);
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     buildUi();
+    // Restore last-used directories so File dialogs reopen where the user left off.
+    QSettings s("goattracker2-qt", "goattracker2-qt");
+    QByteArray sp = s.value("songpath").toString().toLocal8Bit();
+    QByteArray ip = s.value("instrpath").toString().toLocal8Bit();
+    if (!sp.isEmpty()) std::strncpy(songpath, sp.constData(), MAX_PATHNAME - 1);
+    if (!ip.isEmpty()) std::strncpy(instrpath, ip.constData(), MAX_PATHNAME - 1);
     timer_ = new QTimer(this);
     connect(timer_, &QTimer::timeout, this, &MainWindow::tick);
     timer_->start(20);
 }
 
-MainWindow::~MainWindow() = default;
+MainWindow::~MainWindow() {
+    QSettings s("goattracker2-qt", "goattracker2-qt");
+    s.setValue("songpath",  QString::fromLocal8Bit(songpath));
+    s.setValue("instrpath", QString::fromLocal8Bit(instrpath));
+}
 
 void MainWindow::buildUi() {
     setWindowTitle("GoatTracker Qt");
@@ -286,10 +300,20 @@ void MainWindow::cycleEditMode(bool backwards) {
     refreshAll();
 }
 
+static void rememberDir(const QString &filePath, char *pathSlot, int slotSize) {
+    QFileInfo fi(filePath);
+    QString dir = fi.absolutePath();
+    if (!dir.endsWith('/')) dir += '/';
+    QByteArray ba = dir.toLocal8Bit();
+    std::strncpy(pathSlot, ba.constData(), slotSize - 1);
+    pathSlot[slotSize - 1] = 0;
+}
+
 void MainWindow::loadSongFile(const QString &path) {
     QByteArray ba = path.toLocal8Bit();
     std::strncpy(songfilename, ba.constData(), MAX_FILENAME - 1);
     songfilename[MAX_FILENAME - 1] = 0;
+    rememberDir(path, songpath, MAX_PATHNAME);
     loadsong();
     countpatternlengths();
     refreshAll();
@@ -311,13 +335,15 @@ void MainWindow::saveSong() {
 }
 
 void MainWindow::saveSongAs() {
-    QString start = songfilename[0] ? QString::fromLocal8Bit(songfilename)
-                                    : QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
+    QString start = songpath[0] ? QString::fromLocal8Bit(songpath)
+                  : songfilename[0] ? QString::fromLocal8Bit(songfilename)
+                  : QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
     QString fn = QFileDialog::getSaveFileName(this, "Save Song", start, "SNG (*.sng)");
     if (fn.isEmpty()) return;
     QByteArray ba = fn.toLocal8Bit();
     std::strncpy(songfilename, ba.constData(), MAX_FILENAME - 1);
     songfilename[MAX_FILENAME - 1] = 0;
+    rememberDir(fn, songpath, MAX_PATHNAME);
     saveSong();
 }
 
@@ -329,19 +355,22 @@ void MainWindow::loadInstrument() {
     QByteArray ba = fn.toLocal8Bit();
     std::strncpy(instrfilename, ba.constData(), MAX_FILENAME - 1);
     instrfilename[MAX_FILENAME - 1] = 0;
+    rememberDir(fn, instrpath, MAX_PATHNAME);
     loadinstrument();
     refreshAll();
     statusStrip_->showMessage(QString("Loaded ins: %1").arg(fn));
 }
 
 void MainWindow::saveInstrument() {
-    QString start = instrfilename[0] ? QString::fromLocal8Bit(instrfilename)
-                                     : QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
+    QString start = instrpath[0] ? QString::fromLocal8Bit(instrpath)
+                  : instrfilename[0] ? QString::fromLocal8Bit(instrfilename)
+                  : QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
     QString fn = QFileDialog::getSaveFileName(this, "Save Instrument", start, "INS (*.ins)");
     if (fn.isEmpty()) return;
     QByteArray ba = fn.toLocal8Bit();
     std::strncpy(instrfilename, ba.constData(), MAX_FILENAME - 1);
     instrfilename[MAX_FILENAME - 1] = 0;
+    rememberDir(fn, instrpath, MAX_PATHNAME);
     if (saveinstrument()) statusStrip_->showMessage(QString("Saved ins: %1").arg(fn));
     else statusStrip_->showMessage("Save instrument failed");
 }

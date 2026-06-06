@@ -26,6 +26,13 @@ void clearsong(int cs, int cp, int ci, int ct, int cn);
 }
 #include "gplay.h" // PLAY_STOPPED
 
+// SDL 1.2 (and sdl12-compat) #define main SDL_main on macOS/Windows so its
+// SDLmain shim can wrap our entry point. This app owns its entry point via
+// Qt, so undo that and keep a real main().
+#ifdef main
+#undef main
+#endif
+
 int main(int argc, char **argv) {
     QApplication app(argc, argv);
 

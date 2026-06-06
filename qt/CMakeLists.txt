@@ -28,11 +28,6 @@ link_directories(${SDL_LIBRARY_DIRS} ${JACK_LIBRARY_DIRS})
 # point via Qt, so tell SDL to keep its hands off main().
 add_compile_definitions(SDL_MAIN_HANDLED)
 
-# Qt's Windows GUI startup needs a WinMain; the EntryPoint component supplies
-# the WinMain -> main() bridge. Request it explicitly so the target exists.
-if(WIN32)
-    find_package(Qt6 REQUIRED COMPONENTS EntryPoint)
-endif()
 
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../src)
 
@@ -182,11 +177,12 @@ target_link_libraries(goattrk2-qt-stereo PRIVATE
     m pthread
 )
 
-# On Windows, Qt's GUI startup expects a WinMain; Qt6::EntryPoint provides the
-# WinMain -> main() bridge. It is a no-op / unneeded elsewhere.
+# Qt may build Windows executables for the GUI subsystem (entry point WinMain).
+# This app keeps a plain main() (see main.cpp), so force the console subsystem
+# on Windows; the linker then uses main() as the entry point.
 if(WIN32)
-    target_link_libraries(goattrk2-qt PRIVATE Qt6::EntryPoint)
-    target_link_libraries(goattrk2-qt-stereo PRIVATE Qt6::EntryPoint)
+    target_link_options(goattrk2-qt PRIVATE -Wl,-subsystem,console)
+    target_link_options(goattrk2-qt-stereo PRIVATE -Wl,-subsystem,console)
 endif()
 
 # ---------------------------------------------------------------------------

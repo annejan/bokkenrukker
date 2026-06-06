@@ -170,7 +170,6 @@ target_link_libraries(goattrk2-qt-stereo PRIVATE
 
 set(GT2RELOC_SRC
     ${SRC_DIR}/gt2reloc.c
-    ${SRC_DIR}/goatdata.c
     ${SRC_DIR}/gsong.c
     ${SRC_DIR}/gorder.c
     ${SRC_DIR}/gpattern.c
@@ -196,8 +195,11 @@ set(BME_FULL_SRC
     ${SRC_DIR}/bme/bme_kbd.c
 )
 
+# gt2reloc needs only the empty datafile[] symbol; everything else
+# (editstring, resettime, etc.) comes from the SDL files it already links.
 add_executable(gt2reloc
     ${GT2RELOC_SRC}
+    gt2reloc_stub.c
     ${RESIDFP_SRC}
     ${ASM_SRC}
     ${BME_FULL_SRC}

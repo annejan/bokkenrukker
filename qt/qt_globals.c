@@ -26,6 +26,7 @@ int fileformat = 0;
 int zeropageadr = 0xfc;
 int playeradr = 0x1000;
 unsigned sidmodel = 0;
+unsigned sid2model = 0;  // Second SID chip in stereo builds.
 unsigned multiplier = 1;
 unsigned adparam = 0x0f00;
 unsigned ntsc = 0;

@@ -80,18 +80,20 @@ void sid_init(int speed, unsigned m, unsigned ntsc, unsigned interpolate, unsign
     sid2 = new reSIDfp::residfp();
 #endif
 
-  /* Pick chip model first - resampler setup is independent. */
-  if (m == 1) {
+  /* Chip model: SID1 follows the caller's m, SID2 follows a second global
+   * `sid2model` so users can run e.g. SID1=6581 + SID2=8580 for hybrid
+   * mixes. Default sid2model = m (matching pair). */
+  if (m == 1)
     sid->setChipModel(reSIDfp::CSG8580);
-#ifdef GOATTRK2_STEREO
-    sid2->setChipModel(reSIDfp::CSG8580);
-#endif
-  } else {
+  else
     sid->setChipModel(reSIDfp::MOS6581);
 #ifdef GOATTRK2_STEREO
+  extern unsigned sid2model;
+  if (sid2model == 1)
+    sid2->setChipModel(reSIDfp::CSG8580);
+  else
     sid2->setChipModel(reSIDfp::MOS6581);
 #endif
-  }
 
   /*
    * interpolate values used by the old code:

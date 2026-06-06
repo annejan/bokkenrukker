@@ -25,6 +25,10 @@
 #include <QDir>
 #include <QSettings>
 #include <QCloseEvent>
+#include <QProcess>
+#include <QMessageBox>
+#include <QCoreApplication>
+#include <QFile>
 #include <QStatusBar>
 #include <QWidget>
 #include <QVBoxLayout>
@@ -166,6 +170,10 @@ void MainWindow::buildUi() {
     auto *saveAsA = fileMenu->addAction("Save &As…");
     saveAsA->setShortcut(Qt::CTRL | Qt::SHIFT | Qt::Key_S);
     connect(saveAsA, &QAction::triggered, this, &MainWindow::saveSongAs);
+    auto *packA = fileMenu->addAction("&Pack to PRG / SID / BIN…");
+    packA->setShortcut(Qt::Key_F9);
+    packA->setToolTip("Run gt2reloc to produce a C64-loadable PRG, PSID file, or raw BIN");
+    connect(packA, &QAction::triggered, this, &MainWindow::packAndRelocate);
     fileMenu->addSeparator();
     auto *loadInsA = fileMenu->addAction("Load &Instrument…");
     connect(loadInsA, &QAction::triggered, this, &MainWindow::loadInstrument);
@@ -447,6 +455,55 @@ void MainWindow::saveSong() {
     else statusStrip_->showMessage("Save failed");
 }
 
+void MainWindow::packAndRelocate() {
+    if (!songfilename[0]) {
+        statusStrip_->showMessage("Save the .sng first, then pack");
+        return;
+    }
+    // Suggest output next to the current .sng with a sane extension.
+    QString songDir = QFileInfo(QString::fromLocal8Bit(songfilename)).absolutePath();
+    QString stem = QFileInfo(QString::fromLocal8Bit(songfilename)).baseName();
+    QString outPath = QFileDialog::getSaveFileName(this,
+        "Pack && Relocate", songDir + "/" + stem + ".sid",
+        "C64 PRG (*.prg);;PSID (*.sid);;Raw BIN (*.bin)");
+    if (outPath.isEmpty()) return;
+
+    // Save the song first to make sure the gt2reloc subprocess sees the
+    // current state, including any unsaved edits.
+    int r = savesong();
+    if (!r) {
+        statusStrip_->showMessage("Save before pack failed");
+        return;
+    }
+
+    // gt2reloc lives next to our binary.
+    QString tool = QCoreApplication::applicationDirPath() + "/gt2reloc";
+    if (!QFile::exists(tool)) {
+        statusStrip_->showMessage("gt2reloc not found at " + tool);
+        return;
+    }
+
+    QProcess proc;
+    QStringList args;
+    args << QString::fromLocal8Bit(songfilename) << outPath;
+    proc.setProcessChannelMode(QProcess::MergedChannels);
+    proc.start(tool, args);
+    if (!proc.waitForFinished(15000)) {
+        statusStrip_->showMessage("gt2reloc timed out");
+        proc.kill();
+        return;
+    }
+    QString out = QString::fromLocal8Bit(proc.readAll());
+    if (proc.exitCode() != 0) {
+        QMessageBox::warning(this, "Pack failed",
+            QString("gt2reloc exit %1\n\n%2").arg(proc.exitCode()).arg(out));
+        return;
+    }
+    QFileInfo fi(outPath);
+    statusStrip_->showMessage(QString("Packed: %1 (%2 bytes)")
+                              .arg(outPath).arg(fi.size()));
+}
+
 void MainWindow::saveSongAs() {
     QString start = songpath[0] ? QString::fromLocal8Bit(songpath)
                   : songfilename[0] ? QString::fromLocal8Bit(songfilename)
@@ -501,16 +558,30 @@ void MainWindow::refreshAll() {
 
 void MainWindow::playFromBeginning() { followplay = 1; initsong(esnum, PLAY_BEGINNING); }
 void MainWindow::playFromPos() {
-    // Toggle: stop if currently playing, otherwise resume from order cursor.
     if (isplaying()) {
         stopsong();
         statusStrip_->showMessage("Paused");
     } else {
         followplay = 1;
+        // Sync each channel's song pointer to where the user's cursor sits
+        // in the order list. Without this, PLAY_POS replays from wherever
+        // the last initsong left chn[c].songptr — usually the beginning.
+        for (int c = 0; c < MAX_CHN; c++) chn[c].songptr = espos[c];
         initsong(esnum, PLAY_POS);
     }
 }
-void MainWindow::playPattern()       { followplay = 1; initsong(esnum, PLAY_PATTERN); }
+void MainWindow::playPattern() {
+    followplay = 1;
+    // initsong(PLAY_PATTERN) replays whatever chn[c].pattnum currently holds;
+    // sync to the user's selected pattern in each channel (epnum[c]) and
+    // reset pattptr so playback starts at the top of that pattern.
+    for (int c = 0; c < MAX_CHN; c++) {
+        chn[c].pattnum = epnum[c];
+        chn[c].pattptr = 0;
+        chn[c].songptr = espos[c];
+    }
+    initsong(esnum, PLAY_PATTERN);
+}
 void MainWindow::stopSong()          { stopsong(); }
 
 void MainWindow::muteCurrentChannel() {

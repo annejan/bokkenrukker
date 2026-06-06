@@ -39,6 +39,7 @@ private slots:
     void mergeSong();
     void saveSong();
     void saveSongAs();
+    void packAndRelocate();
     void loadInstrument();
     void saveInstrument();
     void playFromBeginning();

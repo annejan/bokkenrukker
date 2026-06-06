@@ -38,6 +38,7 @@ extern int espos[MAX_CHN];
 extern int songlen[MAX_SONGS][MAX_CHN];
 extern unsigned sidmodel;
 extern unsigned multiplier;
+extern unsigned ntsc;
 extern CHN chn[MAX_CHN];
 extern INSTR instr[MAX_INSTR];
 extern unsigned char pattern[MAX_PATT][MAX_PATTROWS*4+4];
@@ -81,12 +82,18 @@ StatusStrip::StatusStrip(QWidget *parent) : QFrame(parent) {
 
     transport_ = makeSegment("■ STOPPED", Theme::C::textDim, this);
     position_  = makeSegment("Row --/--", Theme::C::text, this);
-    tempo_     = makeSegment("Spd 1x", Theme::C::text, this);
+    tempo_     = makeClickable("Spd 1x  50Hz", Theme::C::text, this);
+    tempo_->setToolTip("Click to cycle speed multiplier (25Hz/1x/2x/3x/4x). "
+                       "Also: Shift+F5/F6.");
+    connect(tempo_, &ClickableLabel::clicked, this, &StatusStrip::tempoClicked);
     octave_    = makeSegment("Oct 2", Theme::C::text, this);
     instr_     = makeSegment("Ins 01", Theme::C::instr, this);
     sid_       = makeClickable("6581", Theme::C::highlight, this);
     sid_->setToolTip("Click to toggle SID model (6581 ↔ 8580). Also: Shift+F8.");
     connect(sid_, &ClickableLabel::clicked, this, &StatusStrip::sidClicked);
+    ntsc_      = makeClickable("PAL", Theme::C::transpose, this);
+    ntsc_->setToolTip("Click to toggle PAL 50Hz ↔ NTSC 60Hz timing.");
+    connect(ntsc_, &ClickableLabel::clicked, this, &StatusStrip::ntscClicked);
     follow_    = makeClickable("Follow off", Theme::C::textDim, this);
     follow_->setToolTip("Click to toggle follow-play. Also: Ctrl+F.");
     connect(follow_, &ClickableLabel::clicked, this, &StatusStrip::followClicked);
@@ -113,6 +120,8 @@ StatusStrip::StatusStrip(QWidget *parent) : QFrame(parent) {
     layout->addWidget(instr_);
     addSep();
     layout->addWidget(sid_);
+    addSep();
+    layout->addWidget(ntsc_);
     addSep();
     layout->addWidget(follow_);
     addSep();
@@ -153,10 +162,15 @@ void StatusStrip::refresh() {
         .arg(songlen[esnum][epchn], 2, 16, QLatin1Char('0'))
         .toUpper());
 
-    tempo_->setText(QString("Spd %1x").arg(multiplier ? multiplier : 1));
+    int baseHz = ntsc ? 60 : 50;
+    int effHz = multiplier == 0 ? baseHz / 2 : baseHz * multiplier;
+    QString mlabel = (multiplier == 0) ? QString("Spd ½x  %1Hz").arg(effHz)
+                                       : QString("Spd %1x  %2Hz").arg(multiplier).arg(effHz);
+    tempo_->setText(mlabel);
     octave_->setText(QString("Oct %1").arg(epoctave));
     instr_->setText(QString("Ins %1").arg(einum, 2, 16, QLatin1Char('0')).toUpper());
     sid_->setText(sidmodel ? "8580" : "6581");
+    ntsc_->setText(ntsc ? "NTSC" : "PAL");
     follow_->setText(followplay ? "Follow ON" : "Follow off");
     QPalette fp = follow_->palette();
     fp.setColor(QPalette::WindowText, followplay ? Theme::C::highlight : Theme::C::textDim);

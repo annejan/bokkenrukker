@@ -36,6 +36,8 @@ private slots:
     void prevMultiplierSlot();
     void nextMultiplierSlot();
     void toggleSidModel();
+    void toggleNtsc();
+    void cycleMultiplier();
     void toggleFollowPlay();
     void cycleEditMode(bool backwards = false);
     void tick();

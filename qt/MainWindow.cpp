@@ -110,6 +110,8 @@ void MainWindow::buildUi() {
     centralLay->addWidget(statusStrip_);
     connect(statusStrip_, &StatusStrip::sidClicked, this, &MainWindow::toggleSidModel);
     connect(statusStrip_, &StatusStrip::followClicked, this, &MainWindow::toggleFollowPlay);
+    connect(statusStrip_, &StatusStrip::ntscClicked, this, &MainWindow::toggleNtsc);
+    connect(statusStrip_, &StatusStrip::tempoClicked, this, &MainWindow::cycleMultiplier);
 
     setCentralWidget(centralWrap);
 
@@ -399,11 +401,34 @@ void MainWindow::prevMultiplierSlot() { prevmultiplier(); refreshAll(); }
 void MainWindow::nextMultiplierSlot() { nextmultiplier(); refreshAll(); }
 void MainWindow::toggleSidModel() {
     sidmodel ^= 1;
-    // Actually re-init the libresidfp backend so the change takes effect
     sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
                catweasel, interpolate, customclockrate);
     statusStrip_->showMessage(sidmodel ? "Switched to 8580 SID"
                                        : "Switched to 6581 SID");
+    refreshAll();
+}
+
+void MainWindow::toggleNtsc() {
+    ntsc ^= 1;
+    sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
+               catweasel, interpolate, customclockrate);
+    statusStrip_->showMessage(ntsc ? "Switched to NTSC 60Hz"
+                                   : "Switched to PAL 50Hz");
+    refreshAll();
+}
+
+void MainWindow::cycleMultiplier() {
+    // 0 (½x / 25 Hz) → 1 → 2 → 3 → 4 → back to 1
+    if (multiplier == 0)      multiplier = 1;
+    else if (multiplier < 4)  multiplier++;
+    else                       multiplier = 0;
+    sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
+               catweasel, interpolate, customclockrate);
+    int baseHz = ntsc ? 60 : 50;
+    int effHz = multiplier == 0 ? baseHz / 2 : baseHz * multiplier;
+    statusStrip_->showMessage(QString("Speed multiplier %1 → %2 Hz")
+        .arg(multiplier == 0 ? "½x" : QString("%1x").arg(multiplier))
+        .arg(effHz));
     refreshAll();
 }
 void MainWindow::toggleFollowPlay() {

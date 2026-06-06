@@ -6,11 +6,14 @@
 
 extern "C" {
 #include "gcommon.h"
+#include "gplay.h"
 extern unsigned char songorder[MAX_SONGS][MAX_CHN][MAX_SONGLEN+2];
 extern int songlen[MAX_SONGS][MAX_CHN];
 extern int esnum;
 extern int espos[MAX_CHN];
 extern int eschn;
+extern CHN chn[MAX_CHN];
+int isplaying(void);
 }
 
 OrderMiniMap::OrderMiniMap(QWidget *parent) : QWidget(parent) {
@@ -34,9 +37,14 @@ void OrderMiniMap::paintEvent(QPaintEvent *) {
     p.drawText(QRect(0, 0, W, 14), Qt::AlignCenter,
                QString("ORDER %1").arg(esnum + 1));
 
+    bool playing = isplaying() != 0;
     int startY = 18;
     for (int c = 0; c < MAX_CHN; c++) {
         int x = 4 + c * colW;
+        // chn[c].songptr is the *next* slot to fetch; the one being played
+        // is the slot before it.
+        int playRow = playing ? (int)chn[c].songptr - 1 : -1;
+        if (playRow < 0) playRow = 0;
         for (int r = 0; r < songlen[esnum][c]; r++) {
             unsigned char v = songorder[esnum][c][r];
             int y = startY + r * rowH;
@@ -45,11 +53,17 @@ void OrderMiniMap::paintEvent(QPaintEvent *) {
             else if (v >= TRANSDOWN) cell = Theme::C::transpose;
             else if (v >= REPEAT)    cell = Theme::C::repeatCol;
             else {
-                // Pattern-number cell — brightness encodes value
                 int t = qMin(255, 40 + v * 4);
                 cell = QColor(t / 3, t / 2, t);
             }
             p.fillRect(QRect(x, y, colW - 2, rowH - 1), cell);
+            // Playback row — red fill underlay
+            if (playing && r == playRow) {
+                p.fillRect(QRect(x, y, colW - 2, rowH - 1), Theme::C::playRow);
+                p.setPen(QPen(Theme::C::vuRed, 1));
+                p.drawRect(QRect(x, y, colW - 2, rowH - 1));
+            }
+            // Edit cursor — yellow outline
             if (r == espos[c] && c == eschn) {
                 p.setPen(QPen(Theme::C::highlight, 2));
                 p.drawRect(QRect(x, y, colW - 2, rowH - 1));

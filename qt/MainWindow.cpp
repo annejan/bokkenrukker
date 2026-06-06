@@ -375,5 +375,6 @@ void MainWindow::toggleFollowPlay() {
 void MainWindow::tick() {
     pattern_->tickScope();
     if (stack_->currentIndex() == EDIT_PATTERN) pattern_->refresh();
+    if (isplaying()) orderMap_->refresh();
     statusStrip_->refresh();
 }

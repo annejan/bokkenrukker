@@ -7,14 +7,13 @@ This fork keeps full `.sng` and `.ins` file compatibility with the
 original SDL build (v2.77) while replacing the renderer and audio backend
 with native Qt6 widgets and `QAudioSink`. Extends the engine with:
 
-* libresidfp 2.x SID emulator (replaces bundled reSID + reSID-fp)
-* runtime mono ↔ dual-SID / 6-channel toggle, hybrid 6581 + 8580 setups
-* microtonal tuning (12 / 19 / 24-TET, custom N-TET, Scala `.scl` files)
-* Janko isomorphic key layout alongside Protracker / DMC
-* undo / redo, instrument-archetype presets, table-step templates
-* Merge song (Ctrl+M), `gt2reloc` standalone packer / relocator
-* JSON-RPC over stdin/stdout for headless testing + agent automation
-
+- libresidfp 2.x SID emulator (replaces bundled reSID + reSID-fp)
+- runtime mono ↔ dual-SID / 6-channel toggle, hybrid 6581 + 8580 setups
+- microtonal tuning (12 / 19 / 24-TET, custom N-TET, Scala `.scl` files)
+- Janko isomorphic key layout alongside Protracker / DMC
+- undo / redo, instrument-archetype presets, table-step templates
+- Merge song (Ctrl+M), `gt2reloc` standalone packer / relocator
+- JSON-RPC over stdin/stdout for headless testing + agent automation
 
 ## Building
 
@@ -36,12 +35,11 @@ cmake --build build -j
 
 Three binaries land in `build/`:
 
-| binary           | purpose                                                     |
-| ---------------- | ----------------------------------------------------------- |
-| `goattrk2-qt`    | the editor — main app                                       |
-| `gt2reloc`       | CLI packer / relocator (PRG / SID / BIN export)             |
+| binary           | purpose                                                        |
+| ---------------- | -------------------------------------------------------------- |
+| `goattrk2-qt`    | the editor — main app                                          |
+| `gt2reloc`       | CLI packer / relocator (PRG / SID / BIN export)                |
 | (legacy SDL bin) | the original SDL build still lives in `src/`; `cd src && make` |
-
 
 ## Running
 
@@ -62,37 +60,35 @@ For headless / scripted use:
 then pipe JSON one line per command on stdin. The protocol is documented
 in `qt/Rpc.cpp`.
 
-
 ## Editor overview
 
 Five editor screens, switched with `F5`/`F6`/`F7`/`F8` or Tab:
 
-* **Pattern editor** — per-channel VU + envelope scope, beat / downbeat
+- **Pattern editor** — per-channel VU + envelope scope, beat / downbeat
   tints, follow-play center scroll, hex-row numbering, clickable channel
   headers (pattern#, length, mute).
-* **Order / song editor** — QTableView, subtune QSpinBox, RST / Repeat /
+- **Order / song editor** — QTableView, subtune QSpinBox, RST / Repeat /
   Transpose semantic colouring, pattern preview pane.
-* **Instrument editor** — instrument list, ADSR + 1stFrame Wave +
+- **Instrument editor** — instrument list, ADSR + 1stFrame Wave +
   wavetable / pulse / filter / vibrato pointers, live ADSR envelope
   graph, wavetable program preview strip, 14 starter presets
   (Bass / Lead / Pluck / Pad / Brass / Organ / Bell / Strings / Drum kit).
-* **Tables editor** — Wave / Pulse / Filter / Speed in tabs, "What it
+- **Tables editor** — Wave / Pulse / Filter / Speed in tabs, "What it
   does" decoder column, per-table HTML legend, "+ Add step…" template
   menu, pointer-to-row indicator.
-* **Song name** — title / author / copyright fields.
+- **Song name** — title / author / copyright fields.
 
 Side docks:
 
-* **Order map** — vertical strip showing all orderlist entries with the
+- **Order map** — vertical strip showing all orderlist entries with the
   red playback marker. Click = move all-channel cursor + jump the
   pattern editor; **Ctrl+click** = single-channel move.
-* **Instruments** — full list of the 63 instruments, click to switch.
+- **Instruments** — full list of the 63 instruments, click to switch.
 
 Status strip at the bottom shows: transport state, row / pattern /
 order position, speed multiplier, octave, current instrument, SID chip
 model (clickable to toggle 6581 ↔ 8580), PAL/NTSC (clickable),
 follow-play state.
-
 
 ## Key data formats
 
@@ -153,7 +149,6 @@ EXY  funktempo
 FXY  set tempo
 ```
 
-
 ## SID compositional reference
 
 Wavetable left byte:
@@ -206,43 +201,40 @@ Funktempo:  L = even-row tempo, R = odd-row tempo
 L bit $80   enables note-independent calc; R = right-shift divisor
 ```
 
-
 ## Composition workflow
 
 The five docs under `docs/` cover the SID author's path in detail:
 
-* `docs/quickstart.md` — "if you know ProTracker, here's the diff"
-* `docs/sid-composition.md` — 11 instrument archetypes with full
+- `docs/quickstart.md` — "if you know ProTracker, here's the diff"
+- `docs/sid-composition.md` — 11 instrument archetypes with full
   hex recipes, wavetable arpeggio cookbook, PWM / filter idioms,
   6581 vs 8580 cheat sheet, multi-channel arrangement patterns
-* `docs/sid-register-tricks.md` — register-level idioms (combined
+- `docs/sid-register-tricks.md` — register-level idioms (combined
   waveforms, hard-restart patterns, ring/sync wiring, ADSR-bug
   workarounds), 10 UI affordance proposals
-* `docs/tracker-ux-patterns.md` — survey of Renoise / OpenMPT /
+- `docs/tracker-ux-patterns.md` — survey of Renoise / OpenMPT /
   MilkyTracker / FamiStudio / Furnace / DefleMask UX patterns
-* `docs/embedding-guide.md` — packing for use in a homebrew C64
+- `docs/embedding-guide.md` — packing for use in a homebrew C64
   game (IRQ choice, ZP map, `$01 = $35`, SFX engine quirks,
   `gt2reloc` flag cheat sheet)
-* `docs/codebase64-mining.md` — codebase64 SID-programming pages
+- `docs/codebase64-mining.md` — codebase64 SID-programming pages
   ported to instrument-preset and table-template proposals
-
 
 ## Authors
 
-* Original Editor by Lasse Öörni (loorni@gmail.com)
-* HardSID 4U support by Táli Sándor
-* Uses libresidfp / reSIDfp (Leandro Nini's modern fork of Dag Lem's
+- Original Editor by Lasse Öörni (loorni@gmail.com)
+- HardSID 4U support by Táli Sándor
+- Uses libresidfp / reSIDfp (Leandro Nini's modern fork of Dag Lem's
   reSID with Antti Lankila's nonlinear filter improvements)
-* Uses 6510 crossassembler from Exomizer2 by Magnus Lind
-* Patches over the years from Stefan A. Haubenthal, Valerio Cannone,
+- Uses 6510 crossassembler from Exomizer2 by Magnus Lind
+- Patches over the years from Stefan A. Haubenthal, Valerio Cannone,
   Raine M. Ekman, Groepaz, drfiemost
-* GoatTracker icon by Antonio Vera
-* Command quick reference by Simon Bennett
+- GoatTracker icon by Antonio Vera
+- Command quick reference by Simon Bennett
 
 Qt6 frontend, libresidfp port, dual-SID runtime toggle, microtonal,
 Janko, embedded RPC, mining of SID composition docs by Claude Opus 4.7
 in collaboration with the maintainer of this fork.
-
 
 ## License
 

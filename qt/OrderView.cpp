@@ -21,6 +21,7 @@
 extern "C" {
 #include "gcommon.h"
 #include "gorder.h"
+#include "gplay.h"
 extern unsigned char songorder[MAX_SONGS][MAX_CHN][MAX_SONGLEN+2];
 extern int songlen[MAX_SONGS][MAX_CHN];
 extern int esnum;
@@ -33,9 +34,22 @@ extern char songname[MAX_STR];
 extern int epchn;
 extern int epnum[MAX_CHN];
 extern int editmode;
+extern int lastsonginit;
+extern CHN chn[MAX_CHN];
+int isplaying(void);
 void orderlistcommands(void);
 // Shared note-name lookup defined in qt_globals.c.
 extern char *notename[];
+}
+
+// Active playback row per channel — mirrors OrderMiniMap math.
+static int orderPlayRow(int c) {
+    if (!isplaying()) return -1;
+    int r;
+    if (lastsonginit == PLAY_PATTERN) r = espos[c];
+    else                              r = (int)chn[c].songptr - 1;
+    if (r < 0) r = 0;
+    return r;
 }
 
 // ---------------------------------------------------------------------------
@@ -134,11 +148,21 @@ public:
         else if (v >= TRANSDOWN)             p->fillRect(opt.rect, QColor(20, 50, 70));
         else if (v >= REPEAT)                p->fillRect(opt.rect, QColor(70, 60, 20));
         else if (r % 4 == 0)                 p->fillRect(opt.rect, Theme::C::beat);
+        // Playback underlay (red) — drawn before the edit cursor so the
+        // yellow cursor outline still wins when both land on the same cell.
+        int pr = orderPlayRow(c);
+        if (pr == r) {
+            p->fillRect(opt.rect, Theme::C::playRow);
+        }
         // Edit cursor underlay
         if (r == espos[c] && c == eschn) {
             p->fillRect(opt.rect, Theme::C::editRow);
         }
         QStyledItemDelegate::paint(p, o, i);
+        if (pr == r) {
+            p->setPen(QPen(Theme::C::vuRed, 1));
+            p->drawRect(opt.rect.adjusted(0, 0, -1, -1));
+        }
         // Border on cursor
         if (r == espos[c] && c == eschn) {
             p->setPen(QPen(Theme::C::highlight, 2));
@@ -255,6 +279,15 @@ OrderView::OrderView(QWidget *parent) : QWidget(parent) {
         this);
     tip->setStyleSheet(QString("color:%1").arg(Theme::C::textDim.name()));
     root->addWidget(tip);
+
+    // Repaint the table viewport at ~30 Hz so the play-row tint follows
+    // chn[c].songptr advances. Cheap — only the visible viewport is dirtied,
+    // and the delegate is the only thing that consults playback state.
+    playRefresh_.setInterval(33);
+    connect(&playRefresh_, &QTimer::timeout, this, [this]{
+        if (table_) table_->viewport()->update();
+    });
+    playRefresh_.start();
 
     refresh();
 }

@@ -37,6 +37,7 @@
 #include <QInputDialog>
 #include <QActionGroup>
 #include "Theme.h"
+#include "QtAudio.h"
 #include <cstring>
 
 extern "C" {
@@ -443,6 +444,11 @@ static QString titleForSong(const QString &path) {
 }
 
 void MainWindow::loadSongFile(const QString &path) {
+    // The audio thread runs sid_fillbuffer + playroutine and touches chn[],
+    // sidreg[], songorder[] every fill. loadsong / clearsong mutate all of
+    // those — racing the audio thread is the segfault on big songs like
+    // cabrinigreen. Bracket the load with sink suspend / resume.
+    if (auto *a = QtAudio::instance()) a->suspend();
     QByteArray ba = path.toLocal8Bit();
     std::strncpy(songfilename, ba.constData(), MAX_FILENAME - 1);
     songfilename[MAX_FILENAME - 1] = 0;
@@ -460,10 +466,8 @@ void MainWindow::loadSongFile(const QString &path) {
     countpatternlengths();
     undoStack_->clear();   // loaded state starts a fresh history
     refreshAll();
-    // Force a full repaint on the active editor — Qt skips paint events when
-    // the scroll range didn't change between the previous song and the new
-    // one, which can leave the pattern grid showing the prior song's rows.
     if (auto *w = activeEditorWidget()) w->update();
+    if (auto *a = QtAudio::instance()) a->resume();
     statusStrip_->showMessage(QString("Loaded: %1").arg(path));
 }
 

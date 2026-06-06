@@ -65,10 +65,20 @@ private:
     double  sampleAccumF_ = 0.0;
 };
 
-QtAudio::QtAudio(QObject *parent) : QObject(parent) {}
-QtAudio::~QtAudio() { stop(); }
+QtAudio *QtAudio::self_ = nullptr;
+
+QtAudio::QtAudio(QObject *parent) : QObject(parent) { self_ = this; }
+QtAudio::~QtAudio() { stop(); if (self_ == this) self_ = nullptr; }
+
+void QtAudio::suspend() {
+    if (sink_) sink_->suspend();
+}
+void QtAudio::resume() {
+    if (sink_) sink_->resume();
+}
 
 bool QtAudio::start(int sampleRate) {
+    sampleRate_ = sampleRate;
     QAudioFormat fmt;
     fmt.setSampleRate(sampleRate);
     fmt.setChannelCount(1);

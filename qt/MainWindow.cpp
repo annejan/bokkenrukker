@@ -274,9 +274,9 @@ void MainWindow::buildUi() {
 
     addSpacer();
 
-    // View toggles
-    tb->addAction(orderMapDock_->toggleViewAction());
-    tb->addAction(insQuickDock_->toggleViewAction());
+    // Follow-play stays on the toolbar (frequently toggled); the two dock
+    // toggles ("Order map" / "Instruments") live in the View menu only, to
+    // avoid visual collision with the mode switches above.
     tb->addAction(followA);
 
     tb->style()->unpolish(tb);

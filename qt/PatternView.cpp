@@ -38,9 +38,8 @@ extern int songlen[MAX_SONGS][MAX_CHN];
 extern CHN chn[MAX_CHN];
 int isplaying(void);
 void patterncommands(void);
+void generalcommands(void);
 void mutechannel(int chnnum);
-// Shared note-name lookup defined in qt_globals.c. May be remapped at runtime
-// by setspecialnotenames() / readscalatuningfile() for microtonal tunings.
 extern char *notename[];
 }
 
@@ -141,6 +140,10 @@ void PatternView::keyPressEvent(QKeyEvent *e) {
     if (!isNav) before = captureSongSnapshot();
     setGoatKeys(e);
     patterncommands();
+    // generalcommands carries the cross-editor hotkeys: + / - cycle
+    // instrument, * / / cycle octave, ; and ' alternates. Without this the
+    // Qt build couldn't reach any of those from the pattern view.
+    generalcommands();
     clearGoatKeys();
     refresh();
     if (!isNav) pushEditIfChanged(this, std::move(before), "Pattern edit");

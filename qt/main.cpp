@@ -22,6 +22,7 @@ extern char songfilename[];
 extern int songinit;
 void loadsong(void);
 void countpatternlengths(void);
+void clearsong(int cs, int cp, int ci, int ct, int cn);
 }
 #include "gplay.h" // PLAY_STOPPED
 
@@ -47,6 +48,13 @@ int main(int argc, char **argv) {
                     catweasel, interpolate, customclockrate)) {
         qWarning("sound_init failed; running silent.");
     }
+
+    // Start with a fresh empty song so the pattern editor is immediately
+    // usable (default 64-row patterns, RST endmark on each channel). The SDL
+    // build does this implicitly via the main loop init; the Qt build skipped
+    // it and left pattlen[] zeroed.
+    clearsong(1, 1, 1, 1, 1);
+    countpatternlengths();
 
     MainWindow w;
     w.show();

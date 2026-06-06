@@ -56,3 +56,43 @@ void nextmultiplier(void) {
     }
 }
 
+// Minimal subset of generalcommands from src/goattrk2.c — only the
+// editor-relevant hotkeys (instrument advance, octave shift). F-keys and
+// transport are wired through Qt actions instead.
+#include "goattrk2.h"
+#include "ginstr.h"
+extern int epoctave;
+extern int editmode;
+void generalcommands(void) {
+    switch (key) {
+        case '?':
+        case '-':
+            if (editmode != EDIT_NAMES && editmode != EDIT_ORDERLIST) {
+                if (!(editmode == EDIT_INSTRUMENT && eipos == 9)) previnstr();
+            }
+            break;
+        case '+':
+        case '_':
+            if (editmode != EDIT_NAMES && editmode != EDIT_ORDERLIST) {
+                if (!(editmode == EDIT_INSTRUMENT && eipos >= 9)) nextinstr();
+            }
+            break;
+        case '*':
+            if (editmode != EDIT_NAMES) {
+                if (!(editmode == EDIT_INSTRUMENT && eipos >= 9)) {
+                    if (epoctave < 7) epoctave++;
+                }
+            }
+            break;
+        case '/':
+        case '\'':
+            if (editmode != EDIT_NAMES) {
+                if (!(editmode == EDIT_INSTRUMENT && eipos >= 9)) {
+                    if (epoctave > 0) epoctave--;
+                }
+            }
+            break;
+    }
+}
+
+

@@ -30,3 +30,11 @@ private:
 // Helper that returns a captured snapshot the caller can hand to
 // SongSnapshotCommand later (after the edit).
 inline QByteArray beginSongEdit() { return captureSongSnapshot(); }
+
+class MainWindow;
+class QWidget;
+
+// Walks up the parent chain of `w` to find the MainWindow and asks it to push
+// an undo command if the song state changed between the before-snapshot and
+// the current state. Used from the editor slots.
+void pushEditIfChanged(QWidget *w, QByteArray before, const QString &label);

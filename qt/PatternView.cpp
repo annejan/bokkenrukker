@@ -146,18 +146,12 @@ void PatternView::keyPressEvent(QKeyEvent *e) {
                   || k == Qt::Key_Home || k == Qt::Key_End
                   || k == Qt::Key_Tab || k == Qt::Key_Backtab);
     QByteArray before;
-    auto *mw = qobject_cast<MainWindow*>(window());
-    if (!isNav && mw) before = mw->beginEdit();
+    if (!isNav) before = captureSongSnapshot();
     setGoatKeys(e);
     patterncommands();
     clearGoatKeys();
     refresh();
-    if (!isNav && mw && !before.isEmpty()) {
-        QByteArray after = captureSongSnapshot();
-        if (after != before) {
-            mw->endEdit(before, "Pattern edit");
-        }
-    }
+    if (!isNav) pushEditIfChanged(this, std::move(before), "Pattern edit");
     emit patternEdited();
 }
 

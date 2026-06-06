@@ -1,5 +1,6 @@
 #include "InstrumentView.h"
 #include "Theme.h"
+#include "UndoStack.h"
 
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -443,12 +444,12 @@ void InstrumentView::onListChanged(int row) {
 
 void InstrumentView::onNameChanged(const QString &t) {
     if (updating_) return;
+    QByteArray before = captureSongSnapshot();
     QByteArray ba = t.toLocal8Bit();
     INSTR &ins = instr[einum];
     int n = qMin<int>(MAX_INSTRNAMELEN - 1, ba.size());
     std::memcpy(ins.name, ba.constData(), n);
     for (int i = n; i < MAX_INSTRNAMELEN; i++) ins.name[i] = 0;
-    // Update list label without full refresh
     char buf[MAX_INSTRNAMELEN + 1];
     std::memcpy(buf, ins.name, MAX_INSTRNAMELEN);
     buf[MAX_INSTRNAMELEN] = 0;
@@ -456,6 +457,7 @@ void InstrumentView::onNameChanged(const QString &t) {
     if (name.isEmpty()) name = "—";
     list_->item(einum - 1)->setText(
         QString("%1  %2").arg(einum, 2, 16, QLatin1Char('0')).toUpper().arg(name));
+    pushEditIfChanged(this, std::move(before), "Instrument name");
     emit edited();
 }
 
@@ -468,41 +470,59 @@ void InstrumentView::writeSr() {
 
 void InstrumentView::onAdChanged(int) {
     if (updating_) return;
+    QByteArray before = captureSongSnapshot();
     writeAd();
     adsr_->setAdsr(attack_->value(), decay_->value(),
                    sustain_->value(), release_->value());
+    pushEditIfChanged(this, std::move(before), "Instrument ADSR");
     emit edited();
 }
 void InstrumentView::onSrChanged(int) {
     if (updating_) return;
+    QByteArray before = captureSongSnapshot();
     writeSr();
     adsr_->setAdsr(attack_->value(), decay_->value(),
                    sustain_->value(), release_->value());
+    pushEditIfChanged(this, std::move(before), "Instrument ADSR");
     emit edited();
 }
 void InstrumentView::onWtChanged(int v) {
     if (updating_) return;
+    QByteArray before = captureSongSnapshot();
     instr[einum].ptr[WTBL] = v;
     wavePrev_->setStart(v);
+    pushEditIfChanged(this, std::move(before), "Instrument param");
     emit edited();
 }
 void InstrumentView::onPtChanged(int v) {
-    if (updating_) return; instr[einum].ptr[PTBL] = v; emit edited();
+    if (updating_) return;
+    QByteArray b = captureSongSnapshot(); instr[einum].ptr[PTBL] = v;
+    pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
 }
 void InstrumentView::onFtChanged(int v) {
-    if (updating_) return; instr[einum].ptr[FTBL] = v; emit edited();
+    if (updating_) return;
+    QByteArray b = captureSongSnapshot(); instr[einum].ptr[FTBL] = v;
+    pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
 }
 void InstrumentView::onVibParamChanged(int v) {
-    if (updating_) return; instr[einum].ptr[STBL] = v; emit edited();
+    if (updating_) return;
+    QByteArray b = captureSongSnapshot(); instr[einum].ptr[STBL] = v;
+    pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
 }
 void InstrumentView::onVibDelayChanged(int v) {
-    if (updating_) return; instr[einum].vibdelay = v; emit edited();
+    if (updating_) return;
+    QByteArray b = captureSongSnapshot(); instr[einum].vibdelay = v;
+    pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
 }
 void InstrumentView::onGateChanged(int v) {
-    if (updating_) return; instr[einum].gatetimer = v; emit edited();
+    if (updating_) return;
+    QByteArray b = captureSongSnapshot(); instr[einum].gatetimer = v;
+    pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
 }
 void InstrumentView::onFirstWaveChanged(int v) {
-    if (updating_) return; instr[einum].firstwave = v; emit edited();
+    if (updating_) return;
+    QByteArray b = captureSongSnapshot(); instr[einum].firstwave = v;
+    pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
 }
 
 void InstrumentView::onGotoWaveTable() {

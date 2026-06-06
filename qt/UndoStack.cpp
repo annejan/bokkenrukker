@@ -1,4 +1,6 @@
 #include "UndoStack.h"
+#include "MainWindow.h"
+#include <QWidget>
 #include <cstring>
 
 extern "C" {
@@ -75,9 +77,22 @@ void SongSnapshotCommand::redo() {
 
 bool SongSnapshotCommand::mergeWith(const QUndoCommand *other) {
     const auto *o = static_cast<const SongSnapshotCommand*>(other);
-    // Coalesce runs of edits with the same description (e.g. successive note
-    // entries within the pattern editor) so a single Ctrl+Z reverts a phrase.
     if (o->text() != text()) return false;
     after_ = o->after_;
     return true;
+}
+
+void pushEditIfChanged(QWidget *w, QByteArray before, const QString &label) {
+    if (!w) return;
+    QWidget *p = w;
+    while (p) {
+        if (auto *mw = qobject_cast<MainWindow*>(p)) {
+            QByteArray after = captureSongSnapshot();
+            if (after != before) {
+                mw->endEdit(std::move(before), label);
+            }
+            return;
+        }
+        p = p->parentWidget();
+    }
 }

@@ -1,6 +1,7 @@
 #include "OrderView.h"
 #include "Theme.h"
 #include "SdlKeyMap.h"
+#include "UndoStack.h"
 
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -359,10 +360,12 @@ void OrderView::writeAtCursor(unsigned char v) {
     auto idx = table_->currentIndex();
     if (!idx.isValid()) return;
     int c = idx.column(); int r = idx.row();
+    QByteArray before = captureSongSnapshot();
     songorder[esnum][c][r] = v;
     if (r >= songlen[esnum][c]) songlen[esnum][c] = r + 1;
     model_->refresh();
     syncCursorFromGlobal();
+    pushEditIfChanged(this, std::move(before), "Order edit");
     emit edited();
 }
 
@@ -371,12 +374,14 @@ void OrderView::insertRow() {
     if (!idx.isValid()) return;
     int c = idx.column(); int r = idx.row();
     if (songlen[esnum][c] >= MAX_SONGLEN) return;
+    QByteArray before = captureSongSnapshot();
     for (int i = songlen[esnum][c]; i > r; i--)
         songorder[esnum][c][i] = songorder[esnum][c][i - 1];
     songorder[esnum][c][r] = 0;
     songlen[esnum][c]++;
     model_->refresh();
     syncCursorFromGlobal();
+    pushEditIfChanged(this, std::move(before), "Insert order row");
     emit edited();
 }
 
@@ -385,12 +390,14 @@ void OrderView::deleteRow() {
     if (!idx.isValid()) return;
     int c = idx.column(); int r = idx.row();
     if (songlen[esnum][c] <= 1) return;
+    QByteArray before = captureSongSnapshot();
     for (int i = r; i < songlen[esnum][c] - 1; i++)
         songorder[esnum][c][i] = songorder[esnum][c][i + 1];
     songlen[esnum][c]--;
     if (espos[c] >= songlen[esnum][c]) espos[c] = songlen[esnum][c] - 1;
     model_->refresh();
     syncCursorFromGlobal();
+    pushEditIfChanged(this, std::move(before), "Delete order row");
     emit edited();
 }
 

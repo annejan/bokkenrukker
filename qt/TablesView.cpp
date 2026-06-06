@@ -1,6 +1,7 @@
 #include "TablesView.h"
 #include "Theme.h"
 #include "SdlKeyMap.h"
+#include "UndoStack.h"
 
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -522,39 +523,53 @@ static void runTableCommand(int rawkeyVal, int asciiKey, bool shift) {
 #include <SDL/SDL_keysym.h>
 
 void TablesView::insertRow() {
+    QByteArray b = captureSongSnapshot();
     runTableCommand(SDLK_INSERT, 0, false);
     refresh();
+    pushEditIfChanged(this, std::move(b), "Insert table row");
     emit edited();
 }
 void TablesView::deleteRow() {
+    QByteArray b = captureSongSnapshot();
     runTableCommand(SDLK_DELETE, 0, false);
     refresh();
+    pushEditIfChanged(this, std::move(b), "Delete table row");
     emit edited();
 }
 void TablesView::negate() {
+    QByteArray b = captureSongSnapshot();
     runTableCommand('n', 'n', true);
     refresh();
+    pushEditIfChanged(this, std::move(b), "Negate");
     emit edited();
 }
 void TablesView::optimize() {
+    QByteArray b = captureSongSnapshot();
     runTableCommand('o', 'o', true);
     refresh();
+    pushEditIfChanged(this, std::move(b), "Optimize table");
     emit edited();
 }
 void TablesView::limitToTime() {
+    QByteArray b = captureSongSnapshot();
     runTableCommand('l', 'l', true);
     refresh();
+    pushEditIfChanged(this, std::move(b), "Limit→Time");
     emit edited();
 }
 void TablesView::clearCell() {
+    QByteArray b = captureSongSnapshot();
     ltable[etnum][etpos] = 0;
     rtable[etnum][etpos] = 0;
     refresh();
+    pushEditIfChanged(this, std::move(b), "Clear cell");
     emit edited();
 }
 void TablesView::insertJump() {
+    QByteArray b = captureSongSnapshot();
     ltable[etnum][etpos] = 0xFF;
     rtable[etnum][etpos] = 0;
     refresh();
+    pushEditIfChanged(this, std::move(b), "Insert FF jump");
     emit edited();
 }

@@ -433,11 +433,17 @@ static void rememberDir(const QString &filePath, char *pathSlot, int slotSize) {
     pathSlot[slotSize - 1] = 0;
 }
 
+static QString titleForSong(const QString &path) {
+    if (path.isEmpty()) return "GoatTracker Qt";
+    return QString("GoatTracker Qt — %1").arg(QFileInfo(path).fileName());
+}
+
 void MainWindow::loadSongFile(const QString &path) {
     QByteArray ba = path.toLocal8Bit();
     std::strncpy(songfilename, ba.constData(), MAX_FILENAME - 1);
     songfilename[MAX_FILENAME - 1] = 0;
     rememberDir(path, songpath, MAX_PATHNAME);
+    setWindowTitle(titleForSong(path));
     // Reset editor cursors so the views point at row 0 of pattern 0 — any
     // stale eppos from a previously edited song would land past the end of
     // the new song's patterns and the grid would look empty.
@@ -487,8 +493,10 @@ void MainWindow::mergeSong() {
 
 void MainWindow::saveSong() {
     if (!songfilename[0]) { saveSongAs(); return; }
-    if (savesong()) statusStrip_->showMessage(QString("Saved: %1").arg(songfilename));
-    else statusStrip_->showMessage("Save failed");
+    if (savesong()) {
+        statusStrip_->showMessage(QString("Saved: %1").arg(songfilename));
+        setWindowTitle(titleForSong(QString::fromLocal8Bit(songfilename)));
+    } else statusStrip_->showMessage("Save failed");
 }
 
 void MainWindow::packAndRelocate() {

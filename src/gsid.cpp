@@ -267,13 +267,29 @@ static int render_sid(reSIDfp::residfp *s, const unsigned char *regs,
 int sid_fillbuffer(short *ptr, int samples)
 {
   if (!sid) return 0;
-  // Per user request: revert to the original mono mixing path. The stereo
-  // audio mix needs a proper rewrite (cycle-accurate dual-SID render + true
-  // L/R output through the SDL audio spec); the experimental mix-down was
-  // hurting quality. SID2 still receives register writes via the playroutine
-  // in stereo mode so the envelopes / VU meters update, but the audio
-  // callback only reads SID1's output. Stereo audio output stays a TODO.
-  return render_sid(sid, sidreg, ptr, samples);
+  if (!sid2) return render_sid(sid, sidreg, ptr, samples);
+
+  // Stereo mix path. Two independent render_sid calls — the per-SID tail
+  // top-up gives matching sample counts in practice. Mix to mono at half
+  // gain per source so the worst-case six-voice sum stays inside int16
+  // without clipping.
+  static std::vector<short> tmp;
+  if ((int)tmp.size() < samples) tmp.resize(samples);
+  std::fill(tmp.begin(), tmp.begin() + samples, 0);
+
+  int n1 = render_sid(sid,  sidreg,  ptr,         samples);
+  int n2 = render_sid(sid2, sidreg2, tmp.data(),  samples);
+  int n  = std::min(n1, n2);
+
+  for (int i = 0; i < n; i++) {
+    int v = ((int)ptr[i] + (int)tmp[i]) >> 1;
+    ptr[i] = (short)v;
+  }
+  // If SID2 produced fewer samples than SID1 (or vice versa), the tail of
+  // ptr still holds raw SID1 output beyond n — keep it as-is; halving it
+  // would make the tail noticeably quieter than the mixed head. Drop-out
+  // is rare since both SIDs use identical sampling parameters.
+  return std::max(n1, n2);
 }
 
 }

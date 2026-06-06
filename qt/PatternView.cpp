@@ -41,6 +41,7 @@ extern int stereo_mode;
 int isplaying(void);
 void patterncommands(void);
 void generalcommands(void);
+void converthex(void);
 void mutechannel(int chnnum);
 void countpatternlengths(void);
 extern char *notename[];
@@ -144,6 +145,7 @@ void PatternView::keyPressEvent(QKeyEvent *e) {
     QByteArray before;
     if (!isNav) before = captureSongSnapshot();
     setGoatKeys(e);
+    converthex();
     patterncommands();
     // generalcommands carries the cross-editor hotkeys: + / - cycle
     // instrument, * / / cycle octave, ; and ' alternates. Without this the

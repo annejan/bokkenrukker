@@ -85,7 +85,33 @@ char packedpath[MAX_PATHNAME];
 char *programname = "GoatTracker Qt";
 char textbuffer[MAX_PATHNAME];
 
-unsigned char hexkeytbl[16] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
+/* converthex() compares tolower(key) against this table, so it must hold
+ * the ASCII chars '0'..'9','a'..'f' — not raw nibble values. The previous
+ * raw-int table never matched anything, so hexnybble stayed at -1 and the
+ * pattern instr / cmd / param digits in the editor were unwritable. */
+unsigned char hexkeytbl[16] = {'0','1','2','3','4','5','6','7',
+                               '8','9','a','b','c','d','e','f'};
+
+/* Re-implementation of the SDL build's converthex() — pulled in so the Qt
+ * keypress handler can resolve a hex key into a nibble before calling
+ * patterncommands(). Body matches src/goattrk2.c:575. */
+#include <ctype.h>
+extern int hexnybble;
+extern int key;
+extern int shiftpressed;
+void converthex(void) {
+    int c;
+    hexnybble = -1;
+    for (c = 0; c < 16; c++) {
+        if (tolower(key) == hexkeytbl[c]) {
+            if (c >= 10) {
+                if (!shiftpressed) hexnybble = c;
+            } else {
+                hexnybble = c;
+            }
+        }
+    }
+}
 
 /* ----- Microtonal helpers (backport from v2.75) -----
    These live here for the Qt build because src/goattrk2.c (where they

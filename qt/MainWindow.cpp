@@ -244,6 +244,12 @@ void MainWindow::buildUi() {
     followA->setCheckable(true);
     connect(followA, &QAction::triggered, this, &MainWindow::toggleFollowPlay);
 
+    auto *blinkA = viewMenu->addAction("&Blink active instruments");
+    blinkA->setCheckable(true);
+    blinkA->setChecked(false);
+    connect(blinkA, &QAction::toggled, this,
+            [this](bool on){ insQuick_->setBlinkEnabled(on); });
+
     // ---- Settings menu (microtonal / tuning / keypreset) ---------------
     auto *settingsMenu = menuBar()->addMenu("&Settings");
 

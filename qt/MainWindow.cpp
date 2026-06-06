@@ -64,6 +64,7 @@ extern int editmode;
 extern int followplay;
 extern int einum;
 extern int epchn;
+extern int songinit;
 extern unsigned sidmodel;
 extern unsigned sid2model;
 extern int stereo_mode;
@@ -446,11 +447,15 @@ static QString titleForSong(const QString &path) {
 }
 
 void MainWindow::loadSongFile(const QString &path) {
-    // The audio thread runs sid_fillbuffer + playroutine and touches chn[],
-    // sidreg[], songorder[] every fill. loadsong / clearsong mutate all of
-    // those — racing the audio thread is the segfault on big songs like
-    // cabrinigreen. Bracket the load with sink suspend / resume.
+    // Bracket the load with sink suspend / resume so the audio thread parks
+    // while loadsong / clearsong rewrite chn[], songorder[], etc.
     if (auto *a = QtAudio::instance()) a->suspend();
+    // Hard-stop the playroutine before the load, so the next audio fill that
+    // wakes up after resume() doesn't fire playroutine() against the
+    // half-mutated state the load is about to install.
+    stopsong();
+    songinit = PLAY_STOPPED;
+
     QByteArray ba = path.toLocal8Bit();
     std::strncpy(songfilename, ba.constData(), MAX_FILENAME - 1);
     songfilename[MAX_FILENAME - 1] = 0;
@@ -530,10 +535,23 @@ void MainWindow::packAndRelocate() {
         return;
     }
 
-    // gt2reloc lives next to our binary.
-    QString tool = QCoreApplication::applicationDirPath() + "/gt2reloc";
-    if (!QFile::exists(tool)) {
-        statusStrip_->showMessage("gt2reloc not found at " + tool);
+    // gt2reloc may live next to our binary (single-tree build), one directory
+    // up under qt/ (top-level cmake adds qt/ as a subdir, gt2reloc lands at
+    // build/qt/gt2reloc while the wrapper goattrk2-qt lands at build/qt/),
+    // or in PATH (install).
+    QStringList candidates = {
+        QCoreApplication::applicationDirPath() + "/gt2reloc",
+        QCoreApplication::applicationDirPath() + "/qt/gt2reloc",
+        QCoreApplication::applicationDirPath() + "/../qt/gt2reloc",
+        "gt2reloc"
+    };
+    QString tool;
+    for (const QString &c : candidates) {
+        if (QFile::exists(c)) { tool = c; break; }
+    }
+    if (tool.isEmpty()) {
+        statusStrip_->showMessage("gt2reloc not found (tried: "
+            + candidates.join(", ") + ")");
         return;
     }
 

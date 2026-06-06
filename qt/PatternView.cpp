@@ -117,9 +117,9 @@ void PatternView::refresh() {
 }
 
 void PatternView::tickScope() {
-    unsigned char levels[3] = {0, 0, 0};
+    unsigned char levels[MAX_CHN] = {0};
     sid_getlevels(levels);
-    for (int c = 0; c < 3; c++) scope_[c][scopeHead_] = levels[c];
+    for (int c = 0; c < MAX_CHN; c++) scope_[c][scopeHead_] = levels[c];
     scopeHead_ = (scopeHead_ + 1) % kScopeLen;
     viewport()->update();
 }
@@ -223,7 +223,7 @@ void PatternView::paintEvent(QPaintEvent *) {
     // ---- VU bars strip --------------------------------------------------
     const int vuPad = 4;
     const int vuH = vuStripH_ - vuPad * 2;
-    unsigned char levels[3] = {0, 0, 0};
+    unsigned char levels[MAX_CHN] = {0};
     sid_getlevels(levels);
     for (int c = 0; c < MAX_CHN; c++) {
         int x = rowNumW_ + c * chnW_ + 2;

@@ -15,12 +15,16 @@
 
 extern "C" {
 
+#include "gcommon.h"
 #include "gsid.h"
 #include "gsound.h"
 
 int clockrate;
 int samplerate;
 unsigned char sidreg[NUMSIDREGS];
+#ifdef GOATTRK2_STEREO
+unsigned char sidreg2[NUMSIDREGS];
+#endif
 unsigned char sidorder[] =
   {0x15,0x16,0x18,0x17,
    0x05,0x06,0x02,0x03,0x00,0x01,0x04,
@@ -50,8 +54,11 @@ FILTERPARAMS filterparams =
 extern unsigned residdelay;
 extern unsigned adparam;
 
-/* Single libresidfp instance. The C wrappers below own it. */
+/* Single (mono) or paired (stereo) libresidfp instances. */
 static reSIDfp::residfp *sid = 0;
+#ifdef GOATTRK2_STEREO
+static reSIDfp::residfp *sid2 = 0;
+#endif
 
 void sid_init(int speed, unsigned m, unsigned ntsc, unsigned interpolate, unsigned customclockrate, unsigned usefp)
 {
@@ -68,12 +75,23 @@ void sid_init(int speed, unsigned m, unsigned ntsc, unsigned interpolate, unsign
 
   if (!sid)
     sid = new reSIDfp::residfp();
+#ifdef GOATTRK2_STEREO
+  if (!sid2)
+    sid2 = new reSIDfp::residfp();
+#endif
 
   /* Pick chip model first - resampler setup is independent. */
-  if (m == 1)
+  if (m == 1) {
     sid->setChipModel(reSIDfp::CSG8580);
-  else
+#ifdef GOATTRK2_STEREO
+    sid2->setChipModel(reSIDfp::CSG8580);
+#endif
+  } else {
     sid->setChipModel(reSIDfp::MOS6581);
+#ifdef GOATTRK2_STEREO
+    sid2->setChipModel(reSIDfp::MOS6581);
+#endif
+  }
 
   /*
    * interpolate values used by the old code:
@@ -88,15 +106,20 @@ void sid_init(int speed, unsigned m, unsigned ntsc, unsigned interpolate, unsign
       (interpolate == 0) ? reSIDfp::DECIMATE : reSIDfp::RESAMPLE;
 
   sid->setSamplingParameters((double)clockrate, method, (double)speed);
-
   sid->reset();
+  sid->enableFilter(true);
+#ifdef GOATTRK2_STEREO
+  sid2->setSamplingParameters((double)clockrate, method, (double)speed);
+  sid2->reset();
+  sid2->enableFilter(true);
+#endif
   for (c = 0; c < NUMSIDREGS; c++)
   {
     sidreg[c] = 0x00;
+#ifdef GOATTRK2_STEREO
+    sidreg2[c] = 0x00;
+#endif
   }
-
-  /* Filter on by default - same effective behaviour as old engine. */
-  sid->enableFilter(true);
 }
 
 unsigned char sid_getorder(unsigned char index)
@@ -109,10 +132,22 @@ unsigned char sid_getorder(unsigned char index)
 
 void sid_getlevels(unsigned char *out)
 {
-  if (!sid) { out[0] = out[1] = out[2] = 0; return; }
+  if (!sid) {
+    for (int i = 0; i < MAX_CHN; i++) out[i] = 0;
+    return;
+  }
   out[0] = sid->envelopeLevel(0);
   out[1] = sid->envelopeLevel(1);
   out[2] = sid->envelopeLevel(2);
+#ifdef GOATTRK2_STEREO
+  if (sid2) {
+    out[3] = sid2->envelopeLevel(0);
+    out[4] = sid2->envelopeLevel(1);
+    out[5] = sid2->envelopeLevel(2);
+  } else {
+    out[3] = out[4] = out[5] = 0;
+  }
+#endif
 }
 
 /*

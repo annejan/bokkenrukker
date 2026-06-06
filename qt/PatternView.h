@@ -2,6 +2,9 @@
 #include <QAbstractScrollArea>
 #include <array>
 #include <deque>
+extern "C" {
+#include "gcommon.h"
+}
 
 class PatternView : public QAbstractScrollArea {
     Q_OBJECT
@@ -29,9 +32,10 @@ private:
     int gridTopOffset() const;
     void updateScrollRange();
 
-    // Per-channel envelope ring buffer (~60 frames)
+    // Per-channel envelope ring buffer (~60 frames). MAX_CHN comes from the
+    // C side via gcommon.h — 3 for mono, 6 for the stereo build.
     static constexpr int kScopeLen = 64;
-    std::array<std::array<unsigned char, kScopeLen>, 3> scope_{};
+    std::array<std::array<unsigned char, kScopeLen>, MAX_CHN> scope_{};
     int scopeHead_ = 0;
 
     // Layout constants computed at construction

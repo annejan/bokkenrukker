@@ -26,7 +26,11 @@
 #define MAX_FILT 64
 #define MAX_STR 32
 #define MAX_INSTR 64
+#ifdef GOATTRK2_STEREO
+#define MAX_CHN 6
+#else
 #define MAX_CHN 3
+#endif
 #define MAX_PATT 208
 #define MAX_TABLES 4
 #define MAX_TABLELEN 255

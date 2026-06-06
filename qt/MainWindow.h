@@ -29,6 +29,10 @@ public:
     QByteArray beginEdit();
     void endEdit(QByteArray before, const QString &label);
 
+    // Exposed to the RPC layer so a test harness can drive time forward
+    // deterministically instead of waiting on the 50 Hz QTimer.
+    void tickOnce() { tick(); }
+
 private slots:
     void openSong();
     void mergeSong();

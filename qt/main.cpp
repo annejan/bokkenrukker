@@ -1,8 +1,10 @@
 #include <QApplication>
 #include <QTimer>
+#include <QStringList>
 #include <SDL/SDL.h>
 #include <cstring>
 #include "MainWindow.h"
+#include "Rpc.h"
 
 extern "C" {
 #include "gcommon.h"
@@ -26,13 +28,21 @@ void countpatternlengths(void);
 int main(int argc, char **argv) {
     QApplication app(argc, argv);
 
+    // Filter our own flags so Qt's platform parser doesn't choke.
+    bool rpcMode = false;
+    QString songArg;
+    QStringList args = app.arguments();
+    for (int i = 1; i < args.size(); i++) {
+        if (args[i] == "--rpc") rpcMode = true;
+        else if (!args[i].startsWith("-")) songArg = args[i];
+    }
+
     if (SDL_Init(SDL_INIT_AUDIO) < 0) {
         qWarning("SDL_Init audio failed: %s", SDL_GetError());
     }
 
     initchannels();
-    songinit = PLAY_STOPPED;  // gplay.c defaults this to 0, which makes
-                              // isplaying() return true at startup.
+    songinit = PLAY_STOPPED;
     if (!sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
                     catweasel, interpolate, customclockrate)) {
         qWarning("sound_init failed; running silent.");
@@ -40,13 +50,14 @@ int main(int argc, char **argv) {
 
     MainWindow w;
     w.show();
+    if (!songArg.isEmpty()) w.loadSongFile(songArg);
 
-    if (argc > 1) {
-        w.loadSongFile(QString::fromLocal8Bit(argv[1]));
-    }
+    Rpc *rpc = nullptr;
+    if (rpcMode) rpc = new Rpc(&w);
 
     int rc = app.exec();
 
+    delete rpc;
     sound_uninit();
     SDL_Quit();
     return rc;

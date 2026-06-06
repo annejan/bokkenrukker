@@ -17,9 +17,11 @@ void sound_uninit(void);
 extern unsigned b, mr, writer, hardsid, sidmodel, ntsc, multiplier;
 extern unsigned catweasel, interpolate, customclockrate;
 extern char songfilename[];
+extern int songinit;
 void loadsong(void);
 void countpatternlengths(void);
 }
+#include "gplay.h" // PLAY_STOPPED
 
 int main(int argc, char **argv) {
     QApplication app(argc, argv);
@@ -29,6 +31,8 @@ int main(int argc, char **argv) {
     }
 
     initchannels();
+    songinit = PLAY_STOPPED;  // gplay.c defaults this to 0, which makes
+                              // isplaying() return true at startup.
     if (!sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
                     catweasel, interpolate, customclockrate)) {
         qWarning("sound_init failed; running silent.");

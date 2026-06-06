@@ -91,20 +91,33 @@ void OrderMiniMap::mousePressEvent(QMouseEvent *e) {
         if (songlen[esnum][cc] > maxLen) maxLen = songlen[esnum][cc];
     int rowH = qMax(2, height() / qMax(maxLen, 1));
     int r = (e->pos().y() - 18) / rowH;
-    if (r < 0 || r >= songlen[esnum][c]) return;
+    if (r < 0) return;
 
-    // Move the order-edit cursor
-    eschn = c;
-    espos[c] = r;
-    eseditpos = r;
+    // Ctrl-click = only the clicked channel (per-track navigation).
+    // Plain click  = move all channels to the same orderlist row so
+    // play-pattern hits the synchronized 3-channel pattern combination.
+    bool ctrlMod = (e->modifiers() & Qt::ControlModifier) != 0;
 
-    // Also move the pattern editor to the pattern that the clicked
-    // orderlist slot points at (for that channel), and zero its row.
-    unsigned char v = songorder[esnum][c][r];
-    if (v < REPEAT) {        // skip RST/transpose/repeat entries
-        epnum[c] = v;
+    auto apply = [&](int channel) {
+        if (r >= songlen[esnum][channel]) return;
+        espos[channel] = r;
+        unsigned char v = songorder[esnum][channel][r];
+        if (v < REPEAT) { // skip RST/transpose/repeat
+            epnum[channel] = v;
+            eppos = 0;
+        }
+    };
+
+    if (ctrlMod) {
+        apply(c);
+        eschn = c;
         epchn = c;
-        eppos = 0;
+        eseditpos = r;
+    } else {
+        for (int cc = 0; cc < MAX_CHN; cc++) apply(cc);
+        eschn = c;
+        epchn = c;
+        eseditpos = r;
     }
     update();
     emit positionChanged();

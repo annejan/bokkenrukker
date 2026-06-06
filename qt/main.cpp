@@ -9,6 +9,7 @@
 #include "Rpc.h"
 #include "QtAudio.h"
 #include "Theme.h"
+#include "Log.h"
 
 extern "C" {
 #include "gcommon.h"
@@ -34,6 +35,9 @@ void sid_init(int speed, unsigned m, unsigned ntsc, unsigned interpolate,
 
 int main(int argc, char **argv) {
     QApplication app(argc, argv);
+    Log::init();
+    qInfo("argv: argc=%d", argc);
+    for (int i = 0; i < argc; i++) qInfo("  argv[%d]=%s", i, argv[i]);
 
     // Force Fusion style + an app-wide dark palette so the editor looks the
     // same across Linux / Windows / macOS. Native Windows style was

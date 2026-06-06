@@ -447,6 +447,7 @@ static QString titleForSong(const QString &path) {
 }
 
 void MainWindow::loadSongFile(const QString &path) {
+    qInfo("load: path=%s", qPrintable(path));
     // Bracket the load with sink suspend / resume so the audio thread parks
     // while loadsong / clearsong rewrite chn[], songorder[], etc.
     if (auto *a = QtAudio::instance()) a->suspend();
@@ -470,6 +471,8 @@ void MainWindow::loadSongFile(const QString &path) {
     eschn = 0;
     for (int c = 0; c < MAX_CHN; c++) espos[c] = 0;
     loadsong();
+    qInfo("load: done patterns=%d instr=%d song_channels=%d",
+          highestusedpattern, highestusedinstr, song_channels);
     countpatternlengths();
     undoStack_->clear();   // loaded state starts a fresh history
     refreshAll();
@@ -515,8 +518,10 @@ void MainWindow::saveSong() {
 }
 
 void MainWindow::packAndRelocate() {
+    qInfo("pack: songfilename=%s", songfilename[0] ? songfilename : "(empty)");
     if (!songfilename[0]) {
         statusStrip_->showMessage("Save the .sng first, then pack");
+        qWarning("pack: no songfilename — aborting");
         return;
     }
     // Suggest output next to the current .sng with a sane extension.
@@ -525,13 +530,16 @@ void MainWindow::packAndRelocate() {
     QString outPath = QFileDialog::getSaveFileName(this,
         "Pack && Relocate", songDir + "/" + stem + ".sid",
         "C64 PRG (*.prg);;PSID (*.sid);;Raw BIN (*.bin)");
-    if (outPath.isEmpty()) return;
+    qInfo("pack: outPath=%s", qPrintable(outPath));
+    if (outPath.isEmpty()) { qInfo("pack: user cancelled"); return; }
 
     // Save the song first to make sure the gt2reloc subprocess sees the
     // current state, including any unsaved edits.
     int r = savesong();
+    qInfo("pack: savesong()=%d", r);
     if (!r) {
         statusStrip_->showMessage("Save before pack failed");
+        qWarning("pack: savesong failed — aborting");
         return;
     }
 
@@ -547,13 +555,16 @@ void MainWindow::packAndRelocate() {
     };
     QString tool;
     for (const QString &c : candidates) {
+        qInfo("pack: candidate tool=%s exists=%d", qPrintable(c), QFile::exists(c));
         if (QFile::exists(c)) { tool = c; break; }
     }
     if (tool.isEmpty()) {
         statusStrip_->showMessage("gt2reloc not found (tried: "
             + candidates.join(", ") + ")");
+        qWarning("pack: gt2reloc not found in any candidate path");
         return;
     }
+    qInfo("pack: tool=%s", qPrintable(tool));
 
     // gt2reloc uses bme/io_open which falls back to fopen() against the
     // current working directory to find player.s / altplayer.s. Run it
@@ -566,8 +577,11 @@ void MainWindow::packAndRelocate() {
     };
     QString workDir;
     for (const QString &d : srcDirs) {
-        if (QFile::exists(d + "/player.s")) { workDir = d; break; }
+        bool ok = QFile::exists(d + "/player.s");
+        qInfo("pack: srcDir candidate=%s player.s=%d", qPrintable(d), ok);
+        if (ok) { workDir = d; break; }
     }
+    qInfo("pack: workDir=%s", qPrintable(workDir));
     QProcess proc;
     if (!workDir.isEmpty()) proc.setWorkingDirectory(workDir);
     QStringList args;
@@ -575,22 +589,37 @@ void MainWindow::packAndRelocate() {
     // to the workingDirectory we just changed into.
     args << QFileInfo(QString::fromLocal8Bit(songfilename)).absoluteFilePath()
          << QFileInfo(outPath).absoluteFilePath();
+    qInfo("pack: args=[%s]", qPrintable(args.join(" | ")));
     proc.setProcessChannelMode(QProcess::MergedChannels);
     proc.start(tool, args);
+    if (!proc.waitForStarted(5000)) {
+        QMessageBox::warning(this, "Pack failed",
+            QString("gt2reloc could not start\ntool: %1\ncwd: %2\nerror: %3")
+                .arg(tool).arg(workDir).arg(proc.errorString()));
+        return;
+    }
     if (!proc.waitForFinished(15000)) {
-        statusStrip_->showMessage("gt2reloc timed out");
+        QMessageBox::warning(this, "Pack failed",
+            QString("gt2reloc timed out\ntool: %1\ncwd: %2\nargs: %3")
+                .arg(tool).arg(workDir).arg(args.join(" ")));
         proc.kill();
         return;
     }
     QString out = QString::fromLocal8Bit(proc.readAll());
-    if (proc.exitCode() != 0) {
+    QString absOut = QFileInfo(outPath).absoluteFilePath();
+    QFileInfo fi(absOut);
+    qInfo("pack: exit=%d absOut=%s exists=%d size=%lld",
+          proc.exitCode(), qPrintable(absOut), fi.exists(), (long long)fi.size());
+    qInfo("pack: gt2reloc output:\n%s", qPrintable(out));
+    if (proc.exitCode() != 0 || !fi.exists()) {
         QMessageBox::warning(this, "Pack failed",
-            QString("gt2reloc exit %1\n\n%2").arg(proc.exitCode()).arg(out));
+            QString("gt2reloc exit %1\ntool: %2\ncwd: %3\nargs: %4\noutput exists: %5\n\n--- gt2reloc output ---\n%6")
+                .arg(proc.exitCode()).arg(tool).arg(workDir)
+                .arg(args.join(" ")).arg(fi.exists() ? "yes" : "no").arg(out));
         return;
     }
-    QFileInfo fi(outPath);
     statusStrip_->showMessage(QString("Packed: %1 (%2 bytes)")
-                              .arg(outPath).arg(fi.size()));
+                              .arg(absOut).arg(fi.size()));
 }
 
 void MainWindow::saveSongAs() {

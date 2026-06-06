@@ -72,6 +72,13 @@ void OrderMiniMap::paintEvent(QPaintEvent *) {
     }
 }
 
+extern "C" {
+extern int epchn;
+extern int epnum[MAX_CHN];
+extern int eppos;
+extern int eseditpos;
+}
+
 void OrderMiniMap::mousePressEvent(QMouseEvent *e) {
     int W = width();
     int colW = (W - 8) / MAX_CHN;
@@ -85,8 +92,20 @@ void OrderMiniMap::mousePressEvent(QMouseEvent *e) {
     int rowH = qMax(2, height() / qMax(maxLen, 1));
     int r = (e->pos().y() - 18) / rowH;
     if (r < 0 || r >= songlen[esnum][c]) return;
+
+    // Move the order-edit cursor
     eschn = c;
     espos[c] = r;
+    eseditpos = r;
+
+    // Also move the pattern editor to the pattern that the clicked
+    // orderlist slot points at (for that channel), and zero its row.
+    unsigned char v = songorder[esnum][c][r];
+    if (v < REPEAT) {        // skip RST/transpose/repeat entries
+        epnum[c] = v;
+        epchn = c;
+        eppos = 0;
+    }
     update();
     emit positionChanged();
 }

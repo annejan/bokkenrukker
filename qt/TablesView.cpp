@@ -9,12 +9,14 @@
 #include <QTableView>
 #include <QHeaderView>
 #include <QPushButton>
+#include <QToolButton>
 #include <QLabel>
 #include <QGroupBox>
 #include <QStyledItemDelegate>
 #include <QPainter>
 #include <QKeyEvent>
 #include <QMenu>
+#include <functional>
 
 extern "C" {
 #include "gcommon.h"
@@ -129,7 +131,7 @@ SidTableModel::SidTableModel(int tableIndex, QObject *parent)
     : QAbstractTableModel(parent), t_(tableIndex) {}
 
 int SidTableModel::rowCount(const QModelIndex &) const { return MAX_TABLELEN; }
-int SidTableModel::columnCount(const QModelIndex &) const { return 3; }
+int SidTableModel::columnCount(const QModelIndex &) const { return 4; }
 
 QVariant SidTableModel::data(const QModelIndex &i, int role) const {
     if (!i.isValid()) return {};
@@ -142,14 +144,21 @@ QVariant SidTableModel::data(const QModelIndex &i, int role) const {
         if (col == 0) return QString("%1").arg(row + 1, 2, 16, QLatin1Char('0')).toUpper();
         if (col == 1) return QString("%1").arg(L, 2, 16, QLatin1Char('0')).toUpper();
         if (col == 2) return QString("%1").arg(R, 2, 16, QLatin1Char('0')).toUpper();
+        if (col == 3 && role == Qt::DisplayRole)
+            return (L == 0 && R == 0) ? QString() : decodeCell(t_, L, R);
     }
-    if (role == Qt::TextAlignmentRole) return int(Qt::AlignCenter);
-    if (role == Qt::FontRole) return Theme::monoFont(11);
-
+    if (role == Qt::TextAlignmentRole) {
+        return (col == 3) ? int(Qt::AlignVCenter | Qt::AlignLeft)
+                          : int(Qt::AlignCenter);
+    }
+    if (role == Qt::FontRole) {
+        return (col == 3) ? Theme::uiFont(10) : Theme::monoFont(11);
+    }
     if (role == Qt::ForegroundRole) {
         if (col == 0) return QBrush(Theme::C::textDim);
         if (col == 1) return QBrush(L ? Theme::C::cmdDigit : Theme::C::textDim);
         if (col == 2) return QBrush(R ? Theme::C::cmdParam : Theme::C::textDim);
+        if (col == 3) return QBrush(Theme::C::text);
     }
     return {};
 }
@@ -161,6 +170,7 @@ QVariant SidTableModel::headerData(int section, Qt::Orientation o, int role) con
             case 0: return QString("Idx");
             case 1: return QString("L");
             case 2: return QString("R");
+            case 3: return QString("What it does");
         }
     }
     return {};
@@ -169,20 +179,20 @@ QVariant SidTableModel::headerData(int section, Qt::Orientation o, int role) con
 bool SidTableModel::setData(const QModelIndex &i, const QVariant &v, int role) {
     if (role != Qt::EditRole || !i.isValid()) return false;
     int col = i.column(); int row = i.row();
-    if (col == 0) return false; // index column not editable
+    if (col == 0 || col == 3) return false;
     bool ok = false;
     int val = v.toString().toInt(&ok, 16);
     if (!ok || val < 0 || val > 255) return false;
     if (col == 1) ltable[t_][row] = (unsigned char)val;
     else if (col == 2) rtable[t_][row] = (unsigned char)val;
-    emit dataChanged(i, i);
+    emit dataChanged(index(row, 0), index(row, 3));
     return true;
 }
 
 Qt::ItemFlags SidTableModel::flags(const QModelIndex &i) const {
     if (!i.isValid()) return Qt::NoItemFlags;
     Qt::ItemFlags f = Qt::ItemIsSelectable | Qt::ItemIsEnabled;
-    if (i.column() != 0) f |= Qt::ItemIsEditable;
+    if (i.column() == 1 || i.column() == 2) f |= Qt::ItemIsEditable;
     return f;
 }
 
@@ -251,8 +261,12 @@ TablesView::TablesView(QWidget *parent) : QWidget(parent) {
         views_[t]->setItemDelegate(new TableCellDelegate(t, views_[t]));
         views_[t]->setShowGrid(false);
         views_[t]->verticalHeader()->hide();
-        views_[t]->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-        views_[t]->verticalHeader()->setDefaultSectionSize(20);
+        auto *hh = views_[t]->horizontalHeader();
+        hh->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+        hh->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+        hh->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+        hh->setSectionResizeMode(3, QHeaderView::Stretch);
+        views_[t]->verticalHeader()->setDefaultSectionSize(22);
         views_[t]->setSelectionBehavior(QAbstractItemView::SelectRows);
         views_[t]->setSelectionMode(QAbstractItemView::SingleSelection);
         connect(views_[t]->selectionModel(), &QItemSelectionModel::currentChanged,
@@ -264,9 +278,86 @@ TablesView::TablesView(QWidget *parent) : QWidget(parent) {
     connect(tabs_, &QTabWidget::currentChanged, this, &TablesView::onTabChanged);
     leftCol->addWidget(tabs_, 1);
 
-    // Action button row beneath table
+    // "Add step…" dropdown gives typed templates per active table.
     auto *btnRow = new QHBoxLayout();
-    auto addBtn = [&](const QString &label, const QString &tip, void (TablesView::*slot)()) {
+    auto *addBtn = new QToolButton(this);
+    addBtn->setText("+ Add step…");
+    addBtn->setPopupMode(QToolButton::InstantPopup);
+    addBtn->setToolTip("Insert a typed step at cursor (waveform, delay, jump, "
+                       "modulation, etc.) Picks the right L/R bytes for you.");
+    auto *addMenu = new QMenu(addBtn);
+    addBtn->setMenu(addMenu);
+    btnRow->addWidget(addBtn);
+    auto buildAddMenu = [this, addMenu]() {
+        addMenu->clear();
+        auto seed = [this, addMenu](const QString &label, std::function<void()> f) {
+            auto *a = addMenu->addAction(label);
+            connect(a, &QAction::triggered, this, [this, f]{
+                QByteArray b = captureSongSnapshot();
+                f();
+                refresh();
+                pushEditIfChanged(this, std::move(b), "Add table step");
+                emit edited();
+            });
+        };
+        auto set = [](int t, int row, unsigned char L, unsigned char R){
+            ltable[t][row] = L; rtable[t][row] = R;
+        };
+        const int t = etnum, r = etpos;
+        if (t == 0) {
+            seed("Sawtooth at original note",     [=]{ set(0,r,0x21,0x00); });
+            seed("Pulse at original note",        [=]{ set(0,r,0x41,0x00); });
+            seed("Triangle at original note",     [=]{ set(0,r,0x11,0x00); });
+            seed("Noise at original note",        [=]{ set(0,r,0x81,0x00); });
+            addMenu->addSeparator();
+            seed("Delay 1 frame",                 [=]{ set(0,r,0x01,0x00); });
+            seed("Hold frequency",                [=]{ set(0,r,0x00,0x80); });
+            seed("Run pattern cmd (set ADSR)",    [=]{ set(0,r,0xF5,0xAA); });
+            addMenu->addSeparator();
+            seed("Jump to step 1 (loop)",         [=]{ set(0,r,0xFF,0x01); });
+            seed("Stop wavetable (FF 00)",        [=]{ set(0,r,0xFF,0x00); });
+        } else if (t == 1) {
+            seed("Set pulse width = $800 (square)", [=]{ set(1,r,0x88,0x00); });
+            seed("Set pulse width = $400 (narrow)", [=]{ set(1,r,0x84,0x00); });
+            seed("Set pulse width = $000 (thin)",   [=]{ set(1,r,0x80,0x00); });
+            addMenu->addSeparator();
+            seed("Modulate +32 / tick for 64 ticks", [=]{ set(1,r,0x40,0x20); });
+            seed("Modulate -32 / tick for 64 ticks", [=]{ set(1,r,0x40,0xE0); });
+            addMenu->addSeparator();
+            seed("Jump to step 1 (loop)",        [=]{ set(1,r,0xFF,0x01); });
+            seed("Stop pulsetable (FF 00)",      [=]{ set(1,r,0xFF,0x00); });
+        } else if (t == 2) {
+            seed("Lowpass, res F, ch1 only",     [=]{ set(2,r,0x90,0xF1); });
+            seed("Bandpass, res 8, ch1+2+3",     [=]{ set(2,r,0xA0,0x87); });
+            seed("Highpass, res F, ch1 only",    [=]{ set(2,r,0xC0,0xF1); });
+            addMenu->addSeparator();
+            seed("Set cutoff = $40",             [=]{ set(2,r,0x00,0x40); });
+            seed("Set cutoff = $80",             [=]{ set(2,r,0x00,0x80); });
+            seed("Set cutoff = $F0",             [=]{ set(2,r,0x00,0xF0); });
+            addMenu->addSeparator();
+            seed("Sweep cutoff +1 for 127 ticks", [=]{ set(2,r,0x7F,0x01); });
+            seed("Sweep cutoff -1 for 127 ticks", [=]{ set(2,r,0x7F,0xFF); });
+            addMenu->addSeparator();
+            seed("Jump to step 1 (loop)",        [=]{ set(2,r,0xFF,0x01); });
+            seed("Stop filtertable (FF 00)",     [=]{ set(2,r,0xFF,0x00); });
+        } else {
+            seed("Vibrato: speed 3, depth $40",  [=]{ set(3,r,0x03,0x40); });
+            seed("Vibrato: speed 5, depth $04 (slow)", [=]{ set(3,r,0x05,0x04); });
+            seed("Vibrato: note-indep, divisor 4", [=]{ set(3,r,0x83,0x04); });
+            addMenu->addSeparator();
+            seed("Portamento $0020 / tick",      [=]{ set(3,r,0x00,0x20); });
+            seed("Portamento $0100 / tick",      [=]{ set(3,r,0x01,0x00); });
+            seed("Portamento note-indep, shift 1", [=]{ set(3,r,0x80,0x01); });
+            addMenu->addSeparator();
+            seed("Funktempo: 9 / 6",             [=]{ set(3,r,0x09,0x06); });
+            seed("Funktempo: 24 / 18 (multispd)",[=]{ set(3,r,0x24,0x18); });
+        }
+        (void)seed;
+    };
+    buildAddMenu();
+    connect(addMenu, &QMenu::aboutToShow, this, [buildAddMenu]{ buildAddMenu(); });
+
+    auto addPlainBtn = [&](const QString &label, const QString &tip, void (TablesView::*slot)()) {
         auto *b = new QPushButton(label, this);
         b->setToolTip(tip);
         b->setMinimumWidth(64);
@@ -274,13 +365,12 @@ TablesView::TablesView(QWidget *parent) : QWidget(parent) {
         btnRow->addWidget(b);
         return b;
     };
-    addBtn("Insert",  "Insert empty row above cursor (INS)",      &TablesView::insertRow);
-    addBtn("Delete",  "Delete row at cursor (DEL)",               &TablesView::deleteRow);
-    addBtn("Clear",   "Clear current cell to zero",               &TablesView::clearCell);
-    addBtn("Negate",  "Negate speed parameter / relative note (Shift+N)", &TablesView::negate);
-    addBtn("Limit→Time","Convert limit-based modulation to time (Shift+L)", &TablesView::limitToTime);
-    addBtn("Optimize","Remove unused entries (Shift+O)",          &TablesView::optimize);
-    addBtn("FF jump", "Set row to FF jump (RST equivalent)",      &TablesView::insertJump);
+    addPlainBtn("Insert",  "Insert empty row above cursor (INS)",      &TablesView::insertRow);
+    addPlainBtn("Delete",  "Delete row at cursor (DEL)",               &TablesView::deleteRow);
+    addPlainBtn("Clear",   "Clear current cell to zero",               &TablesView::clearCell);
+    addPlainBtn("Negate",  "Negate speed parameter / relative note (Shift+N)", &TablesView::negate);
+    addPlainBtn("Limit→Time","Convert limit-based modulation to time (Shift+L)", &TablesView::limitToTime);
+    addPlainBtn("Optimize","Remove unused entries (Shift+O)",          &TablesView::optimize);
     btnRow->addStretch();
     leftCol->addLayout(btnRow);
     root->addLayout(leftCol, 3);

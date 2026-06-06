@@ -31,6 +31,7 @@ char *tablerightname[] = {
   "mt_filtspdtbl",
   "mt_speedrighttbl"};
 
+extern int song_channels;
 unsigned char chnused[MAX_CHN];
 unsigned char pattused[MAX_PATT];
 unsigned char pattmap[MAX_PATT];
@@ -205,7 +206,7 @@ void relocator(void)
         (songlen[c][2]))
     {
       // See which patterns are used in this song
-      for (d = 0; d < MAX_CHN; d++)
+      for (d = 0; d < song_channels; d++)
       {
         songdatasize += songlen[c][d]+2;
         for (e = 0; e < songlen[c][d]; e++)
@@ -656,7 +657,7 @@ void relocator(void)
         (songlen[c][1]) &&
         (songlen[c][2]))
     {
-      for (d = 0; d < MAX_CHN; d++)
+      for (d = 0; d < song_channels; d++)
       {
         songoffset[c][d] = songdatasize;
         songsize[c][d] = songlen[c][d] + 2;
@@ -699,7 +700,7 @@ void relocator(void)
     }
     else
     {
-      for (d = 0; d < MAX_CHN; d++)
+      for (d = 0; d < song_channels; d++)
       {
         songoffset[c][d] = songdatasize;
         songsize[c][d] = 0;
@@ -1379,7 +1380,7 @@ void relocator(void)
   // Insert orderlists
   for (c = 0; c < songs; c++)
   {
-    for (d = 0; d < MAX_CHN; d++)
+    for (d = 0; d < song_channels; d++)
     {
       sprintf(textbuffer, "mt_song%d", c*3+d);
       insertlabel(textbuffer);
@@ -2183,5 +2184,4 @@ void calcspeedtest(unsigned char pos)
   if (ltable[STBL][pos-1] >= 0x80) nocalculatedspeed = 0;
   else nonormalspeed = 0;
 }
-
 

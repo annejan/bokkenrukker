@@ -555,9 +555,26 @@ void MainWindow::packAndRelocate() {
         return;
     }
 
+    // gt2reloc uses bme/io_open which falls back to fopen() against the
+    // current working directory to find player.s / altplayer.s. Run it
+    // from the directory that holds those files — try common candidates.
+    QStringList srcDirs = {
+        QCoreApplication::applicationDirPath() + "/../../src",  // build/qt → ../../src
+        QCoreApplication::applicationDirPath() + "/../src",     // build → ../src
+        QCoreApplication::applicationDirPath() + "/src",
+        "src", "."
+    };
+    QString workDir;
+    for (const QString &d : srcDirs) {
+        if (QFile::exists(d + "/player.s")) { workDir = d; break; }
+    }
     QProcess proc;
+    if (!workDir.isEmpty()) proc.setWorkingDirectory(workDir);
     QStringList args;
-    args << QString::fromLocal8Bit(songfilename) << outPath;
+    // Pass absolute paths so the song / output don't get resolved relative
+    // to the workingDirectory we just changed into.
+    args << QFileInfo(QString::fromLocal8Bit(songfilename)).absoluteFilePath()
+         << QFileInfo(outPath).absoluteFilePath();
     proc.setProcessChannelMode(QProcess::MergedChannels);
     proc.start(tool, args);
     if (!proc.waitForFinished(15000)) {

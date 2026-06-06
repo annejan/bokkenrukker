@@ -27,34 +27,32 @@ public:
     }
     bool isSequential() const override { return true; }
     qint64 readData(char *data, qint64 maxlen) override {
-        // Cache the frame rate calculation outside the inner loop. ntsc /
-        // multiplier are read-only during a buffer fill; recomputing per
-        // chunk was a non-trivial portion of the per-buffer cost.
+        // Use sub-sample-precise fractional accumulator so the playroutine
+        // fires at exactly the requested frame rate regardless of the
+        // sampleRate / frame_hz ratio not dividing evenly.
         const int frame = (ntsc ? 60 : 50) * (multiplier ? multiplier : 1);
-        const int samplesPerTick = sampleRate_ / frame;
+        const double samplesPerTickF = (double)sampleRate_ / (double)frame;
         short *out = reinterpret_cast<short*>(data);
         const qint64 frames = maxlen / 2;
         qint64 produced = 0;
         while (produced < frames) {
-            if (sampleAccum_ <= 0) {
+            if (sampleAccumF_ <= 0.0) {
                 playroutine();
-                sampleAccum_ += samplesPerTick;
+                sampleAccumF_ += samplesPerTickF;
             }
-            const qint64 chunk = std::min<qint64>(sampleAccum_, frames - produced);
+            qint64 chunk = (qint64)sampleAccumF_;
+            if (chunk <= 0) chunk = 1;
+            if (chunk > frames - produced) chunk = frames - produced;
             const int got = sid_fillbuffer(out + produced, (int)chunk);
             if (got <= 0) {
-                // libresidfp held back samples. Don't memset to zero — that
-                // is exactly the tick / click the user is hearing. Hold the
-                // last sample instead so the waveform stays continuous; the
-                // next playroutine tick will refill genuine data.
                 short hold = (produced > 0) ? out[produced - 1] : 0;
                 for (qint64 i = 0; i < chunk; i++) out[produced + i] = hold;
                 produced += chunk;
-                sampleAccum_ -= chunk;
+                sampleAccumF_ -= (double)chunk;
                 continue;
             }
             produced += got;
-            sampleAccum_ -= got;
+            sampleAccumF_ -= (double)got;
         }
         return produced * 2;
     }
@@ -63,8 +61,8 @@ public:
         return std::numeric_limits<qint64>::max();
     }
 private:
-    int  sampleRate_;
-    int  sampleAccum_ = 0;
+    int     sampleRate_;
+    double  sampleAccumF_ = 0.0;
 };
 
 QtAudio::QtAudio(QObject *parent) : QObject(parent) {}

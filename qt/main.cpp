@@ -50,11 +50,13 @@ int main(int argc, char **argv) {
 
     initchannels();
     songinit = PLAY_STOPPED;
-    // Initialise libresidfp directly (skip bme/SDL audio init). Force the
-    // resampler to RESAMPLE (sinc) — the default DECIMATE mode aliases
-    // hard at the C64 1 MHz / 44 kHz ratio and produces audible 'tick'
-    // artefacts on every transient.
-    sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/1, customclockrate, 1);
+    // Initialise libresidfp directly. Stick with DECIMATE (interpolate=0)
+    // for the audio thread — RESAMPLE's sinc filter is 5-10× slower and was
+    // causing the audio thread to miss its real-time deadline, producing
+    // the 'instruments not playing on time' stutter the user reported. The
+    // ticks RESAMPLE was supposed to fix turned out to be the underrun
+    // memset(0) (now sample-hold) and not aliasing.
+    sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
 
     QtAudio audio;
     if (!audio.start((int)mr)) {

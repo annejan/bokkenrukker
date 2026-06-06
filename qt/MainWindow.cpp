@@ -82,6 +82,8 @@ extern char tuningname[64];
 int sound_init(unsigned b, unsigned mr, unsigned writer, unsigned hardsid,
                unsigned m, unsigned ntsc, unsigned multiplier,
                unsigned catweasel, unsigned interpolate, unsigned customclockrate);
+void sid_init(int speed, unsigned m, unsigned ntsc, unsigned interpolate,
+              unsigned customclockrate, unsigned usefp);
 int savesong(void);
 int saveinstrument(void);
 void loadinstrument(void);
@@ -643,6 +645,7 @@ void MainWindow::muteCurrentChannel() {
 void MainWindow::prevMultiplierSlot() { prevmultiplier(); refreshAll(); }
 void MainWindow::nextMultiplierSlot() { nextmultiplier(); refreshAll(); }
 void MainWindow::toggleStereoMode(bool on) {
+    if (auto *a = QtAudio::instance()) a->suspend();
     stereo_mode = on ? 1 : 0;
     // When promoting an existing mono song to stereo, channels 4-6 normally
     // have songlen=0 (nothing loaded for them) — the order map would render
@@ -659,8 +662,8 @@ void MainWindow::toggleStereoMode(bool on) {
             }
         }
     }
-    sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
-               catweasel, interpolate, customclockrate);
+    sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
+    if (auto *a = QtAudio::instance()) a->resume();
     statusStrip_->showMessage(on
         ? "Stereo ON — 6 channels, dual SID"
         : "Stereo OFF — 3 channels, single SID");
@@ -678,30 +681,34 @@ void MainWindow::toggleSid2Model() {
 }
 
 void MainWindow::toggleSidModel() {
+    // sound_init / sid_init tear down + rebuild the libresidfp instance the
+    // audio thread is mid-clock on. Bracket with suspend / resume.
+    if (auto *a = QtAudio::instance()) a->suspend();
     sidmodel ^= 1;
-    sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
-               catweasel, interpolate, customclockrate);
+    sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
+    if (auto *a = QtAudio::instance()) a->resume();
     statusStrip_->showMessage(sidmodel ? "Switched to 8580 SID"
                                        : "Switched to 6581 SID");
     refreshAll();
 }
 
 void MainWindow::toggleNtsc() {
+    if (auto *a = QtAudio::instance()) a->suspend();
     ntsc ^= 1;
-    sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
-               catweasel, interpolate, customclockrate);
+    sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
+    if (auto *a = QtAudio::instance()) a->resume();
     statusStrip_->showMessage(ntsc ? "Switched to NTSC 60Hz"
                                    : "Switched to PAL 50Hz");
     refreshAll();
 }
 
 void MainWindow::cycleMultiplier() {
-    // ½x (0) → 1 → 2 → 3 → 4 → ½x
+    if (auto *a = QtAudio::instance()) a->suspend();
     if (multiplier == 0)      multiplier = 1;
     else if (multiplier < 4)  multiplier++;
     else                       multiplier = 0;
-    sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
-               catweasel, interpolate, customclockrate);
+    sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
+    if (auto *a = QtAudio::instance()) a->resume();
     statusStrip_->showMessage(QString("Speed multiplier: %1")
         .arg(multiplier == 0 ? "½x" : QString("%1x").arg(multiplier)));
     refreshAll();

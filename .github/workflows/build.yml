@@ -1,0 +1,122 @@
+name: Build
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # ---------------------------------------------------------------------------
+  linux:
+    name: Linux (x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build pkg-config \
+            qt6-base-dev qt6-base-dev-tools libgl1-mesa-dev \
+            libsdl1.2-dev libjack-jackd2-dev
+
+      - name: Configure
+        run: cmake -S qt -B qt/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build qt/build -j"$(nproc)"
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p dist
+          cp qt/build/goattrk2-qt qt/build/goattrk2-qt-stereo dist/
+          cp -r examples dist/examples
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: goattracker2-qt-linux-x86_64
+          path: dist/
+
+  # ---------------------------------------------------------------------------
+  macos:
+    name: macOS (arm64)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install cmake ninja pkg-config qt6 sdl12-compat jack
+
+      - name: Configure
+        env:
+          PKG_CONFIG_PATH: ${{ env.PKG_CONFIG_PATH }}
+        run: |
+          BREW="$(brew --prefix)"
+          export PKG_CONFIG_PATH="$BREW/opt/sdl12-compat/lib/pkgconfig:$BREW/opt/jack/lib/pkgconfig:$BREW/lib/pkgconfig:$PKG_CONFIG_PATH"
+          cmake -S qt -B qt/build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt6)"
+
+      - name: Build
+        run: cmake --build qt/build -j"$(sysctl -n hw.ncpu)"
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p dist
+          cp qt/build/goattrk2-qt qt/build/goattrk2-qt-stereo dist/
+          cp -r examples dist/examples
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: goattracker2-qt-macos-arm64
+          path: dist/
+
+  # ---------------------------------------------------------------------------
+  windows:
+    name: Windows (x86_64, MinGW)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-qt6-base
+            mingw-w64-x86_64-qt6-tools
+            mingw-w64-x86_64-SDL
+            mingw-w64-x86_64-jack2
+
+      - name: Configure
+        run: cmake -S qt -B qt/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build qt/build -j
+
+      - name: Collect artifacts and bundle DLLs
+        run: |
+          mkdir -p dist
+          cp qt/build/goattrk2-qt.exe qt/build/goattrk2-qt-stereo.exe dist/
+          cp -r examples dist/examples
+          # Qt runtime + plugins
+          windeployqt6 --release --no-translations dist/goattrk2-qt.exe
+          # MinGW / SDL / JACK runtime DLLs resolved from /mingw64
+          for exe in dist/goattrk2-qt.exe dist/goattrk2-qt-stereo.exe; do
+            ldd "$exe" | awk '/\/mingw64\//{print $3}' | sort -u | while read -r dll; do
+              cp -u "$dll" dist/ 2>/dev/null || true
+            done
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: goattracker2-qt-windows-x86_64
+          path: dist/

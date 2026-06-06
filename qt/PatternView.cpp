@@ -276,12 +276,21 @@ void PatternView::mousePressEvent(QMouseEvent *e) {
             // colRect math: note=3w@0, instr=2w@4w, cmd=1w@7w, param=2w@8w.
             int xInChan = e->pos().x() - (rowNumW_ + c * chnW_);
             int col = xInChan / colWidth;
-            if      (col < 4)  epcolumn = 0;          // note
-            else if (col == 4) epcolumn = 1;          // instr hi
-            else if (col == 5) epcolumn = 2;          // instr lo
-            else if (col <= 7) epcolumn = 3;          // cmd
-            else if (col == 8) epcolumn = 4;          // param hi
-            else               epcolumn = 5;          // param lo
+            // Paint code offsets text by +colWidth (tx = x + colWidth), so
+            // the visible digit columns are shifted one col right of the raw
+            // channel-local x. Hit-box layout (col = xInChan/colWidth):
+            //   1..4  note (3 chars at cols 1-3, +slack)
+            //   5     instr hi    (col 5)
+            //   6     instr lo    (col 6)
+            //   7..8  cmd         (col 8 + slack on the left)
+            //   9     param hi    (col 9)
+            //   >=10  param lo    (col 10)
+            if      (col < 5)  epcolumn = 0;
+            else if (col == 5) epcolumn = 1;
+            else if (col == 6) epcolumn = 2;
+            else if (col <= 8) epcolumn = 3;
+            else if (col == 9) epcolumn = 4;
+            else               epcolumn = 5;
         }
         refresh();
         emit patternEdited();

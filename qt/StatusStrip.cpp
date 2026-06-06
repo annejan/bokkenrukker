@@ -82,9 +82,10 @@ StatusStrip::StatusStrip(QWidget *parent) : QFrame(parent) {
 
     transport_ = makeSegment("■ STOPPED", Theme::C::textDim, this);
     position_  = makeSegment("Row --/--", Theme::C::text, this);
-    tempo_     = makeClickable("Spd 1x  50Hz", Theme::C::text, this);
-    tempo_->setToolTip("Click to cycle speed multiplier (25Hz/1x/2x/3x/4x). "
-                       "Also: Shift+F5/F6.");
+    tempo_     = makeClickable("Spd 1x", Theme::C::text, this);
+    tempo_->setToolTip("Click to cycle speed multiplier (½x / 1x / 2x / 3x / 4x). "
+                       "Multiplier scales pattern-tempo precision; base tick rate "
+                       "is set by the PAL/NTSC segment. Also: Shift+F5/F6.");
     connect(tempo_, &ClickableLabel::clicked, this, &StatusStrip::tempoClicked);
     octave_    = makeSegment("Oct 2", Theme::C::text, this);
     instr_     = makeSegment("Ins 01", Theme::C::instr, this);
@@ -162,15 +163,12 @@ void StatusStrip::refresh() {
         .arg(songlen[esnum][epchn], 2, 16, QLatin1Char('0'))
         .toUpper());
 
-    int baseHz = ntsc ? 60 : 50;
-    int effHz = multiplier == 0 ? baseHz / 2 : baseHz * multiplier;
-    QString mlabel = (multiplier == 0) ? QString("Spd ½x  %1Hz").arg(effHz)
-                                       : QString("Spd %1x  %2Hz").arg(multiplier).arg(effHz);
+    QString mlabel = (multiplier == 0) ? "Spd ½x" : QString("Spd %1x").arg(multiplier);
     tempo_->setText(mlabel);
     octave_->setText(QString("Oct %1").arg(epoctave));
     instr_->setText(QString("Ins %1").arg(einum, 2, 16, QLatin1Char('0')).toUpper());
     sid_->setText(sidmodel ? "8580" : "6581");
-    ntsc_->setText(ntsc ? "NTSC" : "PAL");
+    ntsc_->setText(ntsc ? "NTSC 60Hz" : "PAL 50Hz");
     follow_->setText(followplay ? "Follow ON" : "Follow off");
     QPalette fp = follow_->palette();
     fp.setColor(QPalette::WindowText, followplay ? Theme::C::highlight : Theme::C::textDim);

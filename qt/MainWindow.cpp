@@ -418,17 +418,14 @@ void MainWindow::toggleNtsc() {
 }
 
 void MainWindow::cycleMultiplier() {
-    // 0 (½x / 25 Hz) → 1 → 2 → 3 → 4 → back to 1
+    // ½x (0) → 1 → 2 → 3 → 4 → ½x
     if (multiplier == 0)      multiplier = 1;
     else if (multiplier < 4)  multiplier++;
     else                       multiplier = 0;
     sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
                catweasel, interpolate, customclockrate);
-    int baseHz = ntsc ? 60 : 50;
-    int effHz = multiplier == 0 ? baseHz / 2 : baseHz * multiplier;
-    statusStrip_->showMessage(QString("Speed multiplier %1 → %2 Hz")
-        .arg(multiplier == 0 ? "½x" : QString("%1x").arg(multiplier))
-        .arg(effHz));
+    statusStrip_->showMessage(QString("Speed multiplier: %1")
+        .arg(multiplier == 0 ? "½x" : QString("%1x").arg(multiplier)));
     refreshAll();
 }
 void MainWindow::toggleFollowPlay() {

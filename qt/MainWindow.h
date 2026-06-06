@@ -36,7 +36,7 @@ private slots:
     void loadInstrument();
     void saveInstrument();
     void playFromBeginning();
-    void playFromPos();
+    void playFromPos();   // toggles: stop if playing, resume from position if stopped
     void playPattern();
     void stopSong();
     void muteCurrentChannel();
@@ -55,6 +55,7 @@ private slots:
 
 private:
     QUndoStack *undoStack_ = nullptr;
+    QAction *playPosAction_ = nullptr;
     PatternView *pattern_ = nullptr;
     OrderView *order_ = nullptr;
     InstrumentView *instrument_ = nullptr;

@@ -208,10 +208,12 @@ void MainWindow::buildUi() {
     playA->setShortcut(Qt::Key_F1);
     playA->setToolTip("Play song from beginning (F1)");
     connect(playA, &QAction::triggered, this, &MainWindow::playFromBeginning);
-    auto *playPosA = playMenu->addAction(QString::fromUtf8("▶  Play from &position"));
+    auto *playPosA = playMenu->addAction(QString::fromUtf8("▶  Play from &position / pause"));
     playPosA->setShortcut(Qt::Key_F2);
-    playPosA->setToolTip("Play song from current order position (F2)");
+    playPosA->setToolTip("Toggle play/pause from current order position (F2). "
+                         "Resumes near where you stopped.");
     connect(playPosA, &QAction::triggered, this, &MainWindow::playFromPos);
+    playPosAction_ = playPosA;
     auto *playPatA = playMenu->addAction(QString::fromUtf8("⧈  Play one pa&ttern"));
     playPatA->setShortcut(Qt::Key_F3);
     playPatA->setToolTip("Loop the current pattern (F3)");
@@ -265,6 +267,7 @@ void MainWindow::buildUi() {
         { btn->setObjectName("playBegin"); btn->setText("⏮ Begin"); }
     if (auto *btn = qobject_cast<QToolButton*>(tb->widgetForAction(playPosA)))
         { btn->setObjectName("playPos");   btn->setText("▶ Pos"); }
+    // We re-label the toolbar button between ▶ Pos and ⏸ Pause in tick().
     if (auto *btn = qobject_cast<QToolButton*>(tb->widgetForAction(playPatA)))
         { btn->setObjectName("playPatt");  btn->setText("⧈ Patt"); }
     if (auto *btn = qobject_cast<QToolButton*>(tb->widgetForAction(stopA)))
@@ -401,7 +404,16 @@ void MainWindow::refreshAll() {
 }
 
 void MainWindow::playFromBeginning() { followplay = 1; initsong(esnum, PLAY_BEGINNING); }
-void MainWindow::playFromPos()       { followplay = 1; initsong(esnum, PLAY_POS); }
+void MainWindow::playFromPos() {
+    // Toggle: stop if currently playing, otherwise resume from order cursor.
+    if (isplaying()) {
+        stopsong();
+        statusStrip_->showMessage("Paused");
+    } else {
+        followplay = 1;
+        initsong(esnum, PLAY_POS);
+    }
+}
 void MainWindow::playPattern()       { followplay = 1; initsong(esnum, PLAY_PATTERN); }
 void MainWindow::stopSong()          { stopsong(); }
 
@@ -451,6 +463,17 @@ void MainWindow::tick() {
     if (stack_->currentIndex() == EDIT_PATTERN) pattern_->refresh();
     if (isplaying()) orderMap_->refresh();
     statusStrip_->refresh();
+    // Re-label the Pos toolbar button between ▶ Pos and ⏸ Pause as transport
+    // state changes, so the button always shows the action it will perform.
+    if (playPosAction_) {
+        const QList<QWidget*> widgets = playPosAction_->associatedWidgets();
+        for (QWidget *w : widgets) {
+            if (auto *btn = qobject_cast<QToolButton*>(w)) {
+                const QString desired = isplaying() ? "⏸ Pause" : "▶ Pos";
+                if (btn->text() != desired) btn->setText(desired);
+            }
+        }
+    }
 }
 
 QByteArray MainWindow::beginEdit() {

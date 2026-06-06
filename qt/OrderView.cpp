@@ -17,6 +17,8 @@
 #include <QMenu>
 #include <QAction>
 #include <QShortcut>
+#include <QLineEdit>
+#include <QRegularExpressionValidator>
 
 extern "C" {
 #include "gcommon.h"
@@ -138,6 +140,24 @@ void OrderListModel::refresh() {
 class OrderDelegate : public QStyledItemDelegate {
 public:
     using QStyledItemDelegate::QStyledItemDelegate;
+
+    // Custom editor: QLineEdit with 2-char hex validator. Default delegate's
+    // editor would commit / re-edit on each keystroke because the model
+    // accepts a 1-char hex value as valid, closing the editor before the user
+    // can type the second nybble. With max-length 2 the QLineEdit keeps focus
+    // until Enter / Escape / focus-out — same UX as the SDL build.
+    QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &,
+                          const QModelIndex &) const override {
+        auto *e = new QLineEdit(parent);
+        e->setMaxLength(2);
+        e->setFont(Theme::monoFont(11));
+        e->setAlignment(Qt::AlignCenter);
+        auto *v = new QRegularExpressionValidator(
+            QRegularExpression("[0-9a-fA-F]{1,2}"), e);
+        e->setValidator(v);
+        return e;
+    }
+
     void paint(QPainter *p, const QStyleOptionViewItem &opt, const QModelIndex &i) const override {
         QStyleOptionViewItem o = opt;
         int r = i.row(), c = i.column();
@@ -227,6 +247,16 @@ OrderView::OrderView(QWidget *parent) : QWidget(parent) {
     table_->setShowGrid(false);
     table_->setSelectionBehavior(QAbstractItemView::SelectItems);
     table_->setSelectionMode(QAbstractItemView::SingleSelection);
+    // Only DoubleClicked + F2/Enter enter edit mode. The user reported that
+    // the first hex digit committed the cell before the second nybble could
+    // be typed — that's the AnyKeyPressed default flow: the digit both opens
+    // the editor and is dispatched to the model, which accepts '4' as valid
+    // hex 0x4, fires dataChanged, and the editor closes again. With this
+    // trigger set, single-clicks just move the selection; double-click (or
+    // F2 / Enter on the focused cell) opens the QLineEdit editor and it
+    // stays open until Return / Escape.
+    table_->setEditTriggers(QAbstractItemView::DoubleClicked
+                            | QAbstractItemView::EditKeyPressed);
     table_->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     table_->verticalHeader()->setDefaultSectionSize(20);
     table_->setAlternatingRowColors(false);

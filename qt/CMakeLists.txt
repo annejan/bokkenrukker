@@ -196,6 +196,9 @@ set(BME_FULL_SRC
     ${SRC_DIR}/bme/bme_kbd.c
 )
 
+# goatdata.c is a generated data blob from the upstream build and is not
+# vendored here, so only configure gt2reloc when it is actually present.
+if(EXISTS ${SRC_DIR}/goatdata.c)
 add_executable(gt2reloc
     ${GT2RELOC_SRC}
     ${RESIDFP_SRC}
@@ -226,3 +229,4 @@ target_link_libraries(gt2reloc PRIVATE
     ${JACK_LIBRARIES}
     m pthread
 )
+endif()

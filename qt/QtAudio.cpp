@@ -27,22 +27,30 @@ public:
     }
     bool isSequential() const override { return true; }
     qint64 readData(char *data, qint64 maxlen) override {
+        // Cache the frame rate calculation outside the inner loop. ntsc /
+        // multiplier are read-only during a buffer fill; recomputing per
+        // chunk was a non-trivial portion of the per-buffer cost.
         const int frame = (ntsc ? 60 : 50) * (multiplier ? multiplier : 1);
         const int samplesPerTick = sampleRate_ / frame;
         short *out = reinterpret_cast<short*>(data);
-        qint64 frames = maxlen / 2;        // 16-bit mono
+        const qint64 frames = maxlen / 2;
         qint64 produced = 0;
         while (produced < frames) {
             if (sampleAccum_ <= 0) {
                 playroutine();
                 sampleAccum_ += samplesPerTick;
             }
-            int chunk = std::min<qint64>(sampleAccum_, frames - produced);
-            int got = sid_fillbuffer(out + produced, chunk);
+            const qint64 chunk = std::min<qint64>(sampleAccum_, frames - produced);
+            const int got = sid_fillbuffer(out + produced, (int)chunk);
             if (got <= 0) {
-                std::memset(out + produced, 0, (frames - produced) * 2);
-                produced = frames;
-                break;
+                // libresidfp didn't produce any output for the requested
+                // cycles (resampler internal state). Skip ahead by chunk so
+                // the playroutine can advance — better to drop samples than
+                // spin until the audio thread starves.
+                std::memset(out + produced, 0, chunk * 2);
+                produced += chunk;
+                sampleAccum_ -= chunk;
+                continue;
             }
             produced += got;
             sampleAccum_ -= got;
@@ -73,12 +81,15 @@ bool QtAudio::start(int sampleRate) {
                  "QtMultimedia will resample.");
     }
     sink_ = std::make_unique<QAudioSink>(out, fmt);
-    // ~40 ms of mono Int16 at the selected rate.
-    sink_->setBufferSize(sampleRate / 25 * 2);
+    // ~100 ms of mono Int16. Smaller buffers triggered constant underruns
+    // through the Qt6 Pulse / PipeWire backends — readData was being called
+    // hundreds of times a second with chunks too small to amortise the
+    // libresidfp clock() overhead.
+    sink_->setBufferSize(sampleRate * 100 / 1000 * 2);
     device_ = new PullDevice(sampleRate, this);
     sink_->start(device_);
     qInfo() << "QtAudio: device=" << out.description()
-            << "buffer=" << sink_->bufferSize()
+            << "buffer(B)=" << sink_->bufferSize()
             << "state=" << sink_->state();
     if (sink_->state() == QAudio::StoppedState) {
         qWarning("QtAudio: sink failed to start: %d", (int)sink_->error());

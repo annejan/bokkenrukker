@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Multimedia)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SDL REQUIRED sdl)
 pkg_check_modules(JACK REQUIRED jack)
@@ -69,6 +69,7 @@ set(QT_SRC
     StatusStrip.cpp
     UndoStack.cpp
     Rpc.cpp
+    QtAudio.cpp
     qt_globals.c
     qt_stubs.c
 )
@@ -105,7 +106,7 @@ target_compile_options(goattrk2-qt PRIVATE
 )
 
 target_link_libraries(goattrk2-qt PRIVATE
-    Qt6::Core Qt6::Gui Qt6::Widgets
+    Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Multimedia
     ${SDL_LIBRARIES}
     ${JACK_LIBRARIES}
     m pthread

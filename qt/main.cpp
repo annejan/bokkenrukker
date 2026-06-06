@@ -5,6 +5,7 @@
 #include <cstring>
 #include "MainWindow.h"
 #include "Rpc.h"
+#include "QtAudio.h"
 
 extern "C" {
 #include "gcommon.h"
@@ -23,6 +24,8 @@ extern int songinit;
 void loadsong(void);
 void countpatternlengths(void);
 void clearsong(int cs, int cp, int ci, int ct, int cn);
+void sid_init(int speed, unsigned m, unsigned ntsc, unsigned interpolate,
+              unsigned customclockrate, unsigned usefp);
 }
 #include "gplay.h" // PLAY_STOPPED
 
@@ -44,9 +47,12 @@ int main(int argc, char **argv) {
 
     initchannels();
     songinit = PLAY_STOPPED;
-    if (!sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
-                    catweasel, interpolate, customclockrate)) {
-        qWarning("sound_init failed; running silent.");
+    // Initialise libresidfp directly (skip bme/SDL audio init).
+    sid_init((int)mr, sidmodel, ntsc, interpolate, customclockrate, 1);
+
+    QtAudio audio;
+    if (!audio.start((int)mr)) {
+        qWarning("QtAudio failed to start; running silent.");
     }
 
     // Start with a fresh empty song so the pattern editor is immediately
@@ -66,7 +72,7 @@ int main(int argc, char **argv) {
     int rc = app.exec();
 
     delete rpc;
-    sound_uninit();
+    audio.stop();
     SDL_Quit();
     return rc;
 }

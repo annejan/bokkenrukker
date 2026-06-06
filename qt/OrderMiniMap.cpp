@@ -12,6 +12,7 @@ extern int songlen[MAX_SONGS][MAX_CHN];
 extern int esnum;
 extern int espos[MAX_CHN];
 extern int eschn;
+extern int lastsonginit;
 extern CHN chn[MAX_CHN];
 int isplaying(void);
 }
@@ -41,10 +42,16 @@ void OrderMiniMap::paintEvent(QPaintEvent *) {
     int startY = 18;
     for (int c = 0; c < MAX_CHN; c++) {
         int x = 4 + c * colW;
-        // chn[c].songptr is the *next* slot to fetch; the one being played
-        // is the slot before it.
-        int playRow = playing ? (int)chn[c].songptr - 1 : -1;
-        if (playRow < 0) playRow = 0;
+        // chn[c].songptr is the *next* slot to fetch in song-play modes; the
+        // one currently playing is the slot before. In PLAY_PATTERN mode
+        // initsong wipes songptr to 0, so use the user-selected espos[c]
+        // instead — that's the orderlist row the user clicked to play.
+        int playRow = -1;
+        if (playing) {
+            if (lastsonginit == PLAY_PATTERN) playRow = espos[c];
+            else                              playRow = (int)chn[c].songptr - 1;
+            if (playRow < 0) playRow = 0;
+        }
         for (int r = 0; r < songlen[esnum][c]; r++) {
             unsigned char v = songorder[esnum][c][r];
             int y = startY + r * rowH;

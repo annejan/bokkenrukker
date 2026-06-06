@@ -65,6 +65,14 @@ unsigned residdelay = 0;
 unsigned hardsidbufinteractive = 20;
 unsigned hardsidbufplayback = 400;
 float basepitch = 0.0f;
+float equaldivisionsperoctave = 12.0f;
+int tuningcount = 0;
+double tuning[96];
+char specialnotenames[186];
+char scalatuningfilepath[MAX_PATHNAME];
+char tuningname[64];
+
+extern char *notename[];
 
 char configbuf[MAX_PATHNAME];
 char loadedsongfilename[MAX_FILENAME];
@@ -107,6 +115,8 @@ int main(int argc, char **argv)
   strcpy(filename, getenv("HOME"));
   strcat(filename, "/.goattrk/goattrk2.cfg");
   #endif
+  specialnotenames[0] = 0;
+  scalatuningfilepath[0] = 0;
   configfile = fopen(filename, "rt");
   if (configfile)
   {
@@ -146,6 +156,9 @@ int main(int argc, char **argv)
     getfloatparam(configfile, &filterparams.voicenonlinearity);
     getparam(configfile, &win_fullscreen);
     getfloatparam(configfile, &basepitch);
+    getfloatparam(configfile, &equaldivisionsperoctave);
+    getstringparam(configfile, specialnotenames);
+    getstringparam(configfile, scalatuningfilepath);
     fclose(configfile);
   }
 
@@ -183,16 +196,19 @@ int main(int argc, char **argv)
         printtext(0,y++,15,"-Gxx Set pitch of A-4 in Hz (0 = use default frequencytable, close to 440Hz)");
         printtext(0,y++,15,"-Hxx Use HardSID (0 = off, 1 = HardSID ID0 2 = HardSID ID1 etc.)");
         printtext(0,y++,15,"-Ixx Set reSID interpolation (0 = off, 1 = on, 2 = distortion, 3 = distortion & on) DEFAULT=off");
-        printtext(0,y++,15,"-Kxx Note-entry mode (0 = PROTRACKER 1 = DMC) DEFAULT=PROTRK.");
+        printtext(0,y++,15,"-Jxx Set special note names (2 chars per note in a cycle, e.g. C-DbD-EbE-F-GbG-AbA-BbB-)");
+        printtext(0,y++,15,"-Kxx Note-entry mode (0 = PROTRACKER 1 = DMC 2 = JANKO) DEFAULT=PROTRK.");
         printtext(0,y++,15,"-Lxx SID memory location in hex. DEFAULT=D400");
         printtext(0,y++,15,"-Mxx Set sound mixing rate DEFAULT=44100");
         printtext(0,y++,15,"-Oxx Set pulseoptimization/skipping (0 = off, 1 = on) DEFAULT=on");
+        printtext(0,y++,15,"-Qxx Set equal divisions per octave (12 = default, 8.2019143 = Bohlen-Pierce)");
         printtext(0,y++,15,"-Rxx Set realtime-effect optimization/skipping (0 = off, 1 = on) DEFAULT=on");
         printtext(0,y++,15,"-Sxx Set speed multiplier (0 for 25Hz, 1 for 1x, 2 for 2x etc.)");
         printtext(0,y++,15,"-Txx Set HardSID interactive mode sound buffer length in milliseconds DEFAULT=20, max.buffering=0");
         printtext(0,y++,15,"-Uxx Set HardSID playback mode sound buffer length in milliseconds DEFAULT=400, max.buffering=0");
         printtext(0,y++,15,"-Vxx Set finevibrato conversion (0 = off, 1 = on) DEFAULT=on");
         printtext(0,y++,15,"-Xxx Set window type (0 = window, 1 = fullscreen) DEFAULT=window");
+        printtext(0,y++,15,"-Yxx Path to a Scala tuning file .scl");
         printtext(0,y++,15,"-Zxx Set random reSID write delay in cycles (0 = off) DEFAULT=off");
         printtext(0,y++,15,"-N   Use NTSC timing");
         printtext(0,y++,15,"-P   Use PAL timing (DEFAULT)");
@@ -295,6 +311,18 @@ int main(int argc, char **argv)
         case 'G':
         sscanf(&argv[c][2], "%f", &basepitch);
         break;
+
+        case 'Q':
+        sscanf(&argv[c][2], "%f", &equaldivisionsperoctave);
+        break;
+
+        case 'J':
+        sscanf(&argv[c][2], "%185s", specialnotenames);
+        break;
+
+        case 'Y':
+        sscanf(&argv[c][2], "%s", scalatuningfilepath);
+        break;
       }
     }
     else
@@ -325,7 +353,7 @@ int main(int argc, char **argv)
   sidaddress &= 0xffff;
   if (!stepsize) stepsize = 4;
   if (multiplier > 16) multiplier = 16;
-  if (keypreset > 2) keypreset = 0;
+  if (keypreset > KEY_JANKO) keypreset = 0;
   if ((finevibrato == 1) && (multiplier < 2)) usefinevib = 1;
   if (finevibrato > 1) usefinevib = 1;
   if (optimizepulse > 1) optimizepulse = 1;
@@ -333,11 +361,30 @@ int main(int argc, char **argv)
   if (residdelay > 63) residdelay = 63;
   if (customclockrate < 100) customclockrate = 0;
 
+  // Read Scala tuning file
+  if (scalatuningfilepath[0] != '\0')
+  {
+    readscalatuningfile();
+  }
+
   // Calculate frequencytable if necessary
   if (basepitch < 0.0f)
     basepitch = 0.0f;
   if (basepitch > 0.0f)
     calculatefreqtable();
+  else if (tuningcount || equaldivisionsperoctave != 12.0f)
+  {
+    /* If only -Q or a Scala file is supplied, use the default A-4 reference
+       (≈440Hz) so the alt tuning still applies even without -G. */
+    if (basepitch == 0.0f) basepitch = 440.0f;
+    calculatefreqtable();
+  }
+
+  // Set special note names
+  if (specialnotenames[0] != '\0' && specialnotenames[1] != '\0')
+  {
+    setspecialnotenames();
+  }
 
   // Set screenmode
   if (!initscreen())
@@ -422,7 +469,10 @@ int main(int argc, char **argv)
                         ";reSID-fp type 4 b\n%f\n\n"
                         ";reSID-fp voice nonlinearity\n%f\n\n"
                         ";Window type (0 = window, 1 = fullscreen)\n%d\n\n"
-                        ";Base pitch of A-4 in Hz (0 = use default frequencytable)\n%f\n\n",
+                        ";Base pitch of A-4 in Hz (0 = use default frequencytable)\n%f\n\n"
+                        ";Equal divisions per octave (12 = default)\n%f\n\n"
+                        ";Special note names (2 chars per note in a cycle; - if unused)\n%s\n\n"
+                        ";Scala tuning file path (- if unused)\n%s\n\n",
     b,
     mr,
     hardsid,
@@ -458,7 +508,10 @@ int main(int argc, char **argv)
     filterparams.type4b,
     filterparams.voicenonlinearity,
     win_fullscreen,
-    basepitch);
+    basepitch,
+    equaldivisionsperoctave,
+    specialnotenames[0] ? specialnotenames : "-",
+    scalatuningfilepath[0] ? scalatuningfilepath : "-");
     fclose(configfile);
   }
 
@@ -1361,6 +1414,21 @@ void getfloatparam(FILE *handle, float *value)
   sscanf(configptr, "%f", value);
 }
 
+void getstringparam(FILE *handle, char *value)
+{
+  char *configptr;
+
+  for (;;)
+  {
+    if (feof(handle)) return;
+    fgets(configbuf, MAX_PATHNAME, handle);
+    if ((configbuf[0]) && (configbuf[0] != ';') && (configbuf[0] != ' ') && (configbuf[0] != 13) && (configbuf[0] != 10)) break;
+  }
+
+  configptr = configbuf;
+  sscanf(configptr, "%s", value);
+}
+
 void prevmultiplier(void)
 {
   if (multiplier > 0)
@@ -1381,17 +1449,192 @@ void nextmultiplier(void)
 
 void calculatefreqtable()
 {
+  /* Backport from v2.75+: supports equal-divisions-per-octave (-Q) and
+     Scala-style ratio tunings (loaded via readscalatuningfile()). */
   double basefreq = (double)basepitch * (16777216.0 / 985248.0) * pow(2.0, 0.25) / 32.0;
+  double cyclebasefreq = basefreq;
+  double freq = basefreq;
   int c;
+  int i;
 
-  for (c = 0; c < 8*12 ; c++)
+  if (tuningcount)
   {
-    double note = c;
-    double freq = basefreq * pow(2.0, note/12.0);
-    int intfreq = freq + 0.5;
-    if (intfreq > 0xffff)
-        intfreq = 0xffff;
-    freqtbllo[c] = intfreq & 0xff;
-    freqtblhi[c] = intfreq >> 8;
+    c = 0;
+    while (c < 96)
+    {
+      for (i = 0; i < tuningcount; i++)
+      {
+        if (c < 96)
+        {
+          int intfreq = freq + 0.5;
+          if (intfreq > 0xffff)
+              intfreq = 0xffff;
+          freqtbllo[c] = intfreq & 0xff;
+          freqtblhi[c] = intfreq >> 8;
+          freq = cyclebasefreq * tuning[i];
+          c++;
+        }
+      }
+      cyclebasefreq = freq;
+    }
+  }
+  else
+  {
+    for (c = 0; c < 8*12 ; c++)
+    {
+      double note = c;
+      double f = basefreq * pow(2.0, note/(double)equaldivisionsperoctave);
+      int intfreq = f + 0.5;
+      if (intfreq > 0xffff)
+          intfreq = 0xffff;
+      freqtbllo[c] = intfreq & 0xff;
+      freqtblhi[c] = intfreq >> 8;
+    }
+  }
+}
+
+/* Default 12-tone note name table — used to restore after a custom set is
+   applied (cleared) by the user. Holds duplicated strings so freeing
+   notename[] entries from setspecialnotenames() is harmless on reset. */
+static const char *defaultnotenames[96] =
+ {"C-0", "C#0", "D-0", "D#0", "E-0", "F-0", "F#0", "G-0", "G#0", "A-0", "A#0", "B-0",
+  "C-1", "C#1", "D-1", "D#1", "E-1", "F-1", "F#1", "G-1", "G#1", "A-1", "A#1", "B-1",
+  "C-2", "C#2", "D-2", "D#2", "E-2", "F-2", "F#2", "G-2", "G#2", "A-2", "A#2", "B-2",
+  "C-3", "C#3", "D-3", "D#3", "E-3", "F-3", "F#3", "G-3", "G#3", "A-3", "A#3", "B-3",
+  "C-4", "C#4", "D-4", "D#4", "E-4", "F-4", "F#4", "G-4", "G#4", "A-4", "A#4", "B-4",
+  "C-5", "C#5", "D-5", "D#5", "E-5", "F-5", "F#5", "G-5", "G#5", "A-5", "A#5", "B-5",
+  "C-6", "C#6", "D-6", "D#6", "E-6", "F-6", "F#6", "G-6", "G#6", "A-6", "A#6", "B-6",
+  "C-7", "C#7", "D-7", "D#7", "E-7", "F-7", "F#7", "G-7", "G#7", "...", "---", "+++"};
+
+void resetnotenames(void)
+{
+  int i;
+  for (i = 0; i < 96; i++)
+  {
+    /* Cast away const for assignment to char *notename[]; we never write
+       through it when it points at defaultnotenames literals. */
+    notename[i] = (char *)defaultnotenames[i];
+  }
+}
+
+void setspecialnotenames(void)
+{
+  /* Backport from v2.75+: every two chars of specialnotenames[] is the name
+     of one note within an octave/cycle. We then suffix the octave digit. */
+  int i;
+  int j;
+  int oct;
+  char *name;
+  char octave[11];
+
+  i = 0;
+  oct = 0;
+  while (i < 93)
+  {
+    for (j = 0; j < 186; j += 2)
+    {
+      if (specialnotenames[j] == '\0')
+        break;
+      if (i < 93)
+      {
+        name = malloc(4);
+        strncpy(name, specialnotenames + j, 2);
+        sprintf(octave, "%d", oct);
+        strcpy(name + 2, octave);
+        notename[i] = name;
+        i++;
+      }
+    }
+    oct++;
+  }
+}
+
+void readscalatuningfile(void)
+{
+  /* Backport from v2.75+: Scala .scl tuning file parser. Reads a tuning
+     name, count, then `count` ratios or cent values. Ratios populate
+     tuning[]; the first/last ratio's chosen note-letter pair (if present
+     after the ratio) is used to populate specialnotenames[]. */
+  FILE *scalatuningfile;
+  char *configptr;
+  char strbuf[64];
+  char name[3];
+  int i;
+  double numerator;
+  double denominator;
+  double centvalue;
+
+  scalatuningfile = fopen(scalatuningfilepath, "rt");
+  if (scalatuningfile)
+  {
+    /* Tuning name */
+    for (;;)
+    {
+      if (feof(scalatuningfile)) { fclose(scalatuningfile); return; }
+      fgets(configbuf, MAX_PATHNAME, scalatuningfile);
+      if ((configbuf[0]) && (configbuf[0] != '!') && (configbuf[0] != 13) && (configbuf[0] != 10)) break;
+    }
+    configptr = configbuf;
+    sscanf(configptr, "%63[^\t\n]", tuningname);
+
+    /* Tuning count */
+    for (;;)
+    {
+      if (feof(scalatuningfile)) { fclose(scalatuningfile); return; }
+      fgets(configbuf, MAX_PATHNAME, scalatuningfile);
+      if ((configbuf[0]) && (configbuf[0] != '!') && (configbuf[0] != 13) && (configbuf[0] != 10)) break;
+    }
+    configptr = configbuf;
+    sscanf(configptr, "%d", &tuningcount);
+    if (tuningcount < 1) tuningcount = 0;
+    if (tuningcount > 96) tuningcount = 96;
+
+    /* Tunings */
+    for (i = 0; i < tuningcount; i++)
+    {
+      for (;;)
+      {
+        if (feof(scalatuningfile)) { fclose(scalatuningfile); return; }
+        fgets(configbuf, MAX_PATHNAME, scalatuningfile);
+        if ((configbuf[0]) && (configbuf[0] != '!') && (configbuf[0] != 13) && (configbuf[0] != 10)) break;
+      }
+      configptr = configbuf;
+      name[0] = '\0';
+      strbuf[0] = '\0';
+      sscanf(configptr, "%63s %2s", strbuf, name);
+      if (!i)
+      {
+        strcpy(specialnotenames, name);
+      }
+      else
+      {
+        if (i == tuningcount - 1)
+        {
+          char *tmp = strdup(specialnotenames);
+          strcpy(specialnotenames, name);
+          strcat(specialnotenames, tmp);
+          free(tmp);
+        }
+        else
+        {
+          strcat(specialnotenames, name);
+        }
+      }
+      if (!strchr(strbuf, '.'))
+      {
+        sscanf(strbuf, "%lf", &numerator);
+        if (strchr(strbuf, '/'))
+        {
+          sscanf(strchr(strbuf, '/') + 1, "%lf", &denominator);
+          if (denominator != 0.0) tuning[i] = numerator / denominator;
+        }
+      }
+      else
+      {
+        sscanf(configptr, "%lf", &centvalue);
+        tuning[i] = pow(2.0, centvalue / 1200.0);
+      }
+    }
+    fclose(scalatuningfile);
   }
 }

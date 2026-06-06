@@ -31,6 +31,7 @@ public:
 
 private slots:
     void openSong();
+    void mergeSong();
     void saveSong();
     void saveSongAs();
     void loadInstrument();
@@ -52,6 +53,21 @@ private slots:
 private slots:
     void undo();
     void redo();
+
+    // Microtonal / tuning settings (backport from v2.75)
+    void setTuning12Tet();
+    void setTuning19Tet();
+    void setTuning24Tet();
+    void setTuningCustomNTet();
+    void loadScalaFile();
+    void resetTuning();
+    void setNoteNames12();
+    void setNoteNamesSolfege();
+    void setNoteNamesCustom();
+    void setNoteNamesReset();
+    void setKeyPresetTracker();
+    void setKeyPresetDmc();
+    void setKeyPresetJanko();
 
 private:
     QUndoStack *undoStack_ = nullptr;

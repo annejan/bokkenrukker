@@ -30,6 +30,8 @@
 #include <QVBoxLayout>
 #include <QToolButton>
 #include <QStyle>
+#include <QInputDialog>
+#include <QActionGroup>
 #include "Theme.h"
 #include <cstring>
 
@@ -55,7 +57,16 @@ extern int einum;
 extern int epchn;
 extern unsigned sidmodel;
 extern unsigned multiplier;
+extern unsigned keypreset;
 extern unsigned b, mr, writer, hardsid, ntsc, catweasel, interpolate, customclockrate;
+// Microtonal globals (mirror src/goattrk2.c definitions).
+extern float basepitch;
+extern float equaldivisionsperoctave;
+extern int tuningcount;
+extern double tuning[96];
+extern char specialnotenames[186];
+extern char scalatuningfilepath[];
+extern char tuningname[64];
 int sound_init(unsigned b, unsigned mr, unsigned writer, unsigned hardsid,
                unsigned m, unsigned ntsc, unsigned multiplier,
                unsigned catweasel, unsigned interpolate, unsigned customclockrate);
@@ -64,6 +75,10 @@ int saveinstrument(void);
 void loadinstrument(void);
 void prevmultiplier(void);
 void nextmultiplier(void);
+void calculatefreqtable(void);
+void setspecialnotenames(void);
+void readscalatuningfile(void);
+void resetnotenames(void);
 }
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
@@ -142,6 +157,9 @@ void MainWindow::buildUi() {
     auto *openA = fileMenu->addAction("&Open .sng…");
     openA->setShortcut(Qt::CTRL | Qt::Key_O);
     connect(openA, &QAction::triggered, this, &MainWindow::openSong);
+    auto *mergeA = fileMenu->addAction("&Merge .sng…");
+    mergeA->setShortcut(Qt::CTRL | Qt::Key_M);
+    connect(mergeA, &QAction::triggered, this, &MainWindow::mergeSong);
     auto *saveA = fileMenu->addAction("&Save");
     saveA->setShortcut(Qt::CTRL | Qt::Key_S);
     connect(saveA, &QAction::triggered, this, &MainWindow::saveSong);
@@ -202,6 +220,64 @@ void MainWindow::buildUi() {
     followA->setShortcut(Qt::CTRL | Qt::Key_F);
     followA->setCheckable(true);
     connect(followA, &QAction::triggered, this, &MainWindow::toggleFollowPlay);
+
+    // ---- Settings menu (microtonal / tuning / keypreset) ---------------
+    auto *settingsMenu = menuBar()->addMenu("&Settings");
+
+    auto *tuningMenu = settingsMenu->addMenu("&Tuning");
+    auto *tuningGroup = new QActionGroup(this);
+    tuningGroup->setExclusive(true);
+    auto addTuning = [&](const QString &label, void (MainWindow::*slot)()) {
+        auto *a = tuningMenu->addAction(label);
+        a->setCheckable(true);
+        tuningGroup->addAction(a);
+        connect(a, &QAction::triggered, this, slot);
+        return a;
+    };
+    auto *t12A = addTuning("12-TET (default)", &MainWindow::setTuning12Tet);
+    t12A->setChecked(true);
+    addTuning("19-TET",            &MainWindow::setTuning19Tet);
+    addTuning("24-TET",            &MainWindow::setTuning24Tet);
+    addTuning("Custom N-TET…",     &MainWindow::setTuningCustomNTet);
+    tuningMenu->addSeparator();
+    auto *scalaA = tuningMenu->addAction("Load Scala .scl file…");
+    connect(scalaA, &QAction::triggered, this, &MainWindow::loadScalaFile);
+    tuningMenu->addSeparator();
+    auto *resetTuningA = tuningMenu->addAction("&Reset to built-in table");
+    connect(resetTuningA, &QAction::triggered, this, &MainWindow::resetTuning);
+
+    auto *nameMenu = settingsMenu->addMenu("&Note names");
+    auto *nameGroup = new QActionGroup(this);
+    nameGroup->setExclusive(true);
+    auto addNoteNames = [&](const QString &label, void (MainWindow::*slot)()) {
+        auto *a = nameMenu->addAction(label);
+        a->setCheckable(true);
+        nameGroup->addAction(a);
+        connect(a, &QAction::triggered, this, slot);
+        return a;
+    };
+    auto *n12A = addNoteNames("Standard 12 (C, C#, D…)", &MainWindow::setNoteNames12);
+    n12A->setChecked(true);
+    addNoteNames("Solfège (do, re, mi…)", &MainWindow::setNoteNamesSolfege);
+    addNoteNames("Custom…",               &MainWindow::setNoteNamesCustom);
+    nameMenu->addSeparator();
+    auto *nResetA = nameMenu->addAction("Reset to defaults");
+    connect(nResetA, &QAction::triggered, this, &MainWindow::setNoteNamesReset);
+
+    auto *keyMenu = settingsMenu->addMenu("Note &entry layout");
+    auto *keyGroup = new QActionGroup(this);
+    keyGroup->setExclusive(true);
+    auto addKey = [&](const QString &label, void (MainWindow::*slot)(), bool checked) {
+        auto *a = keyMenu->addAction(label);
+        a->setCheckable(true);
+        a->setChecked(checked);
+        keyGroup->addAction(a);
+        connect(a, &QAction::triggered, this, slot);
+        return a;
+    };
+    addKey("Protracker (default)", &MainWindow::setKeyPresetTracker, keypreset == KEY_TRACKER);
+    addKey("DMC",                  &MainWindow::setKeyPresetDmc,     keypreset == KEY_DMC);
+    addKey("Janko / isomorphic",   &MainWindow::setKeyPresetJanko,   keypreset == KEY_JANKO);
 
     auto *playMenu = menuBar()->addMenu("&Play");
     auto *playA = playMenu->addAction(QString::fromUtf8("⏮  Play from &beginning"));
@@ -343,6 +419,26 @@ void MainWindow::openSong() {
     QString fn = QFileDialog::getOpenFileName(this, "Open Song", start, "SNG (*.sng);;All (*.*)");
     if (fn.isEmpty()) return;
     loadSongFile(fn);
+}
+
+// Append a second song's patterns / orderlists / instruments / tables onto
+// the currently-loaded song. Uses the v2.73 mergesong() C helper which
+// reads from the global `songfilename` slot.
+void MainWindow::mergeSong() {
+    QString start = songpath[0] ? QString::fromLocal8Bit(songpath)
+                                : QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
+    QString fn = QFileDialog::getOpenFileName(this, "Merge Song", start, "SNG (*.sng);;All (*.*)");
+    if (fn.isEmpty()) return;
+    QByteArray before = beginEdit();
+    QByteArray ba = fn.toLocal8Bit();
+    std::strncpy(songfilename, ba.constData(), MAX_FILENAME - 1);
+    songfilename[MAX_FILENAME - 1] = 0;
+    rememberDir(fn, songpath, MAX_PATHNAME);
+    mergesong();
+    countpatternlengths();
+    refreshAll();
+    endEdit(before, "Merge song");
+    statusStrip_->showMessage(QString("Merged: %1").arg(fn));
 }
 
 void MainWindow::saveSong() {
@@ -505,4 +601,138 @@ void MainWindow::redo() {
     undoStack_->redo();
     statusStrip_->showMessage(QString("Redo: %1").arg(label));
     refreshAll();
+}
+
+// ----- Microtonal / Scala / keyboard layout settings ------------------------
+// Backport of v2.75's -Q / -J / -Y / Janko features. The shared C
+// functions (calculatefreqtable / setspecialnotenames / readscalatuningfile)
+// live in qt_globals.c. Any slot that changes the freq table also kicks
+// notename[] back to defaults first so we don't reuse stale microtonal
+// labels from a previous Scala load.
+
+static void applyNTet(float n, const char *label, StatusStrip *strip) {
+    equaldivisionsperoctave = n;
+    tuningcount = 0;            // disables the ratio path in calculatefreqtable()
+    if (basepitch <= 0.0f) basepitch = 440.0f;
+    calculatefreqtable();
+    resetnotenames();
+    if (strip) strip->showMessage(QString("Tuning: %1").arg(label));
+}
+
+void MainWindow::setTuning12Tet() { applyNTet(12.0f, "12-TET", statusStrip_); }
+void MainWindow::setTuning19Tet() { applyNTet(19.0f, "19-TET", statusStrip_); }
+void MainWindow::setTuning24Tet() { applyNTet(24.0f, "24-TET", statusStrip_); }
+
+void MainWindow::setTuningCustomNTet() {
+    bool ok = false;
+    double n = QInputDialog::getDouble(this, "Custom N-TET",
+        "Equal divisions per octave\n(e.g. 31, or 8.2019143 for Bohlen-Pierce):",
+        equaldivisionsperoctave, 1.0, 96.0, 4, &ok);
+    if (!ok) return;
+    applyNTet((float)n, QString("%1-TET").arg(n).toUtf8().constData(), statusStrip_);
+}
+
+void MainWindow::loadScalaFile() {
+    QString fn = QFileDialog::getOpenFileName(this, "Load Scala tuning",
+        QString(), "Scala tuning (*.scl);;All (*.*)");
+    if (fn.isEmpty()) return;
+    QByteArray ba = fn.toLocal8Bit();
+    std::strncpy(scalatuningfilepath, ba.constData(), MAX_PATHNAME - 1);
+    scalatuningfilepath[MAX_PATHNAME - 1] = 0;
+    tuningcount = 0;
+    specialnotenames[0] = '\0';
+    readscalatuningfile();
+    if (tuningcount <= 0) {
+        statusStrip_->showMessage("Scala load failed (no tuning ratios parsed)");
+        return;
+    }
+    if (basepitch <= 0.0f) basepitch = 440.0f;
+    calculatefreqtable();
+    resetnotenames();
+    if (specialnotenames[0] && specialnotenames[1]) setspecialnotenames();
+    statusStrip_->showMessage(QString("Loaded Scala: %1 (%2 ratios)")
+        .arg(tuningname[0] ? QString::fromLocal8Bit(tuningname) : QFileInfo(fn).fileName())
+        .arg(tuningcount));
+    refreshAll();
+}
+
+void MainWindow::resetTuning() {
+    equaldivisionsperoctave = 12.0f;
+    tuningcount = 0;
+    specialnotenames[0] = '\0';
+    scalatuningfilepath[0] = '\0';
+    basepitch = 0.0f;  // signal "use built-in baked freqtable"
+    // We can't restore the original baked freqtable without re-reading
+    // gplay.c's initialiser, so just recompute 12-TET at 440Hz. Close enough
+    // for hearing the reset land; matches what -G440 -Q12 produces.
+    basepitch = 440.0f;
+    calculatefreqtable();
+    basepitch = 0.0f;
+    resetnotenames();
+    statusStrip_->showMessage("Tuning reset to 12-TET defaults");
+    refreshAll();
+}
+
+void MainWindow::setNoteNames12() {
+    resetnotenames();
+    specialnotenames[0] = '\0';
+    statusStrip_->showMessage("Note names: standard 12");
+    refreshAll();
+}
+
+void MainWindow::setNoteNamesSolfege() {
+    // Two-char-per-note pack for solfège — sharps keep the C# style label
+    // so the cycle still has 12 entries (matches 12-TET).
+    static const char *names12[12] = {
+        "Do","C#","Re","D#","Mi","Fa","F#","So","G#","La","A#","Ti"
+    };
+    int i = 0;
+    for (int n = 0; n < 12; n++) {
+        specialnotenames[i++] = names12[n][0];
+        specialnotenames[i++] = names12[n][1];
+    }
+    specialnotenames[i] = '\0';
+    setspecialnotenames();
+    statusStrip_->showMessage("Note names: solfège");
+    refreshAll();
+}
+
+void MainWindow::setNoteNamesCustom() {
+    bool ok = false;
+    QString cur = QString::fromLocal8Bit(specialnotenames);
+    QString s = QInputDialog::getText(this, "Custom note names",
+        "Two chars per note within an octave/cycle.\n"
+        "E.g. C-DbD-EbE-F-GbG-AbA-BbB-",
+        QLineEdit::Normal, cur, &ok);
+    if (!ok) return;
+    QByteArray ba = s.toLocal8Bit();
+    if (ba.size() < 2) {
+        statusStrip_->showMessage("Need at least one 2-char name");
+        return;
+    }
+    std::strncpy(specialnotenames, ba.constData(), sizeof(specialnotenames) - 1);
+    specialnotenames[sizeof(specialnotenames) - 1] = '\0';
+    setspecialnotenames();
+    statusStrip_->showMessage("Note names: custom");
+    refreshAll();
+}
+
+void MainWindow::setNoteNamesReset() {
+    specialnotenames[0] = '\0';
+    resetnotenames();
+    statusStrip_->showMessage("Note names reset");
+    refreshAll();
+}
+
+void MainWindow::setKeyPresetTracker() {
+    keypreset = KEY_TRACKER;
+    statusStrip_->showMessage("Note entry: Protracker layout");
+}
+void MainWindow::setKeyPresetDmc() {
+    keypreset = KEY_DMC;
+    statusStrip_->showMessage("Note entry: DMC layout");
+}
+void MainWindow::setKeyPresetJanko() {
+    keypreset = KEY_JANKO;
+    statusStrip_->showMessage("Note entry: Janko (isomorphic) layout");
 }

@@ -33,6 +33,7 @@
 
 #define KEY_TRACKER 0
 #define KEY_DMC 1
+#define KEY_JANKO 2
 
 #define VISIBLEPATTROWS 31
 #define VISIBLEORDERLIST 15
@@ -79,6 +80,13 @@ extern unsigned interpolate;
 extern unsigned hardsidbufinteractive;
 extern unsigned hardsidbufplayback;
 extern float basepitch;
+extern float equaldivisionsperoctave;
+extern int tuningcount;
+extern double tuning[96];
+extern char specialnotenames[186];
+extern char scalatuningfilepath[MAX_PATHNAME];
+extern char tuningname[64];
+extern char *notename[];
 extern char configbuf[MAX_PATHNAME];
 extern char loadedsongfilename[MAX_FILENAME];
 extern char songfilename[MAX_FILENAME];
@@ -96,6 +104,7 @@ extern unsigned char datafile[];
 
 void getparam(FILE *handle, unsigned *value);
 void getfloatparam(FILE *handle, float *value);
+void getstringparam(FILE *handle, char *value);
 void waitkey(void);
 void waitkeymouse(void);
 void waitkeynoupdate(void);
@@ -113,5 +122,8 @@ void prevmultiplier(void);
 void nextmultiplier(void);
 void editadsr(void);
 void calculatefreqtable(void);
+void setspecialnotenames(void);
+void resetnotenames(void);
+void readscalatuningfile(void);
 
 #endif

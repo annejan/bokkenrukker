@@ -41,8 +41,11 @@ int main(int argc, char **argv) {
         else if (!args[i].startsWith("-")) songArg = args[i];
     }
 
-    if (SDL_Init(SDL_INIT_AUDIO) < 0) {
-        qWarning("SDL_Init audio failed: %s", SDL_GetError());
+    // SDL audio init removed — QAudioSink owns the audio device now. SDL is
+    // only kept around for misc helpers in the bundled bme code, so init the
+    // timer subsystem (cheap, no device locking).
+    if (SDL_Init(SDL_INIT_TIMER) < 0) {
+        qWarning("SDL_Init timer failed: %s", SDL_GetError());
     }
 
     initchannels();

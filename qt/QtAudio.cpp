@@ -25,6 +25,7 @@ public:
         : QIODevice(parent), sampleRate_(sampleRate) {
         open(QIODevice::ReadOnly);
     }
+    bool isSequential() const override { return true; }
     qint64 readData(char *data, qint64 maxlen) override {
         const int frame = (ntsc ? 60 : 50) * (multiplier ? multiplier : 1);
         const int samplesPerTick = sampleRate_ / frame;
@@ -72,9 +73,13 @@ bool QtAudio::start(int sampleRate) {
                  "QtMultimedia will resample.");
     }
     sink_ = std::make_unique<QAudioSink>(out, fmt);
-    sink_->setBufferSize(sampleRate / 25 * 2);  // ~40 ms latency
+    // ~40 ms of mono Int16 at the selected rate.
+    sink_->setBufferSize(sampleRate / 25 * 2);
     device_ = new PullDevice(sampleRate, this);
     sink_->start(device_);
+    qInfo() << "QtAudio: device=" << out.description()
+            << "buffer=" << sink_->bufferSize()
+            << "state=" << sink_->state();
     if (sink_->state() == QAudio::StoppedState) {
         qWarning("QtAudio: sink failed to start: %d", (int)sink_->error());
         return false;

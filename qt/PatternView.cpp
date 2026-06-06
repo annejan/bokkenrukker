@@ -38,6 +38,8 @@ extern int esnum;
 extern int songlen[MAX_SONGS][MAX_CHN];
 extern CHN chn[MAX_CHN];
 extern int stereo_mode;
+extern int hexnybble;
+extern int autoadvance;
 int isplaying(void);
 void patterncommands(void);
 void generalcommands(void);
@@ -146,7 +148,27 @@ void PatternView::keyPressEvent(QKeyEvent *e) {
     if (!isNav) before = captureSongSnapshot();
     setGoatKeys(e);
     converthex();
+    int preCol = epcolumn;
+    int prePos = eppos;
     patterncommands();
+    // 2-digit hex field UX: typing the first nybble at instr-hi (col 1) or
+    // param-hi (col 4) should advance INTO the next nybble instead of
+    // dropping to the next row. Typing the lo nybble (col 2 or 5) advances
+    // a row and resets back to the hi nybble — so the user can stream byte
+    // pairs at the row cadence. We let gpattern.c run its default advance
+    // and then patch the result here, instead of forking the C core.
+    if (hexnybble >= 0 && recordmode && autoadvance < 2 && preCol > 0) {
+        if (preCol == 1 || preCol == 4) {
+            // Hi nybble was just written; gpattern advanced eppos. Roll it
+            // back and step epcolumn to the lo nybble.
+            eppos = prePos;
+            epcolumn = preCol + 1;
+        } else if (preCol == 2 || preCol == 5) {
+            // Lo nybble done; row already advanced, snap back to the hi
+            // nybble so the next keystroke starts a fresh byte.
+            epcolumn = preCol - 1;
+        }
+    }
     // generalcommands carries the cross-editor hotkeys: + / - cycle
     // instrument, * / / cycle octave, ; and ' alternates. Without this the
     // Qt build couldn't reach any of those from the pattern view.

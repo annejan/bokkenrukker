@@ -264,85 +264,32 @@ static int render_sid(reSIDfp::residfp *s, const unsigned char *regs,
   return total;
 }
 
-// Stereo path: drive SID1 and SID2 in lockstep so their resampler state stays
-// aligned sample-for-sample. Doing two independent render_sid calls drifts
-// over hundreds of buffers and produces audible glitches; this version writes
-// the same register to both SIDs and runs the same clock cycles, then sums
-// the two output streams with attenuation (so 6 voices can sit inside the
-// int16 range without constant clipping).
-static int render_pair(short *ptr, int samples) {
-  static std::vector<short> tmp;
-  if ((int)tmp.size() < samples) tmp.resize(samples);
-  short *p1 = ptr;
-  short *p2 = tmp.data();
-  int s1 = samples, s2 = samples;
-  int total1 = 0, total2 = 0;
-  int c;
-  int badline = rand() % NUMSIDREGS;
-  int tdelta = clockrate * samples / samplerate;
-  if (tdelta <= 0) return 0;
-
-  // residfp::clock(cycles, buf) writes the produced samples into `buf` with
-  // no size guard — calling it when s1/s2 is already 0 overruns. Use
-  // clockSilent for whichever SID is done so the internal phase keeps
-  // advancing in lockstep with the still-rendering one.
-  auto step = [&](int cycles) {
-    if (cycles <= 0) return;
-    if (s1 > 0) {
-      int r1 = sid->clock((unsigned)cycles, p1);
-      if (r1 > s1) r1 = s1;
-      p1 += r1; s1 -= r1; total1 += r1;
-    } else {
-      sid->clockSilent((unsigned)cycles);
-    }
-    if (s2 > 0) {
-      int r2 = sid2->clock((unsigned)cycles, p2);
-      if (r2 > s2) r2 = s2;
-      p2 += r2; s2 -= r2; total2 += r2;
-    } else {
-      sid2->clockSilent((unsigned)cycles);
-    }
-  };
-
-  for (c = 0; c < NUMSIDREGS; c++) {
-    unsigned char o = sid_getorder(c);
-    if (o == 4 || o == 11 || o == 18) { step(SIDWAVEDELAY); tdelta -= SIDWAVEDELAY; }
-    if (badline == c && residdelay)   { step((int)residdelay); tdelta -= residdelay; }
-    sid ->write(o, sidreg [o]);
-    sid2->write(o, sidreg2[o]);
-    step(SIDWRITEDELAY);
-    tdelta -= SIDWRITEDELAY;
-    if (tdelta <= 0 && s1 <= 0 && s2 <= 0) break;
-  }
-  if (tdelta > 0) step(tdelta);
-  while (s1 > 0 || s2 > 0) {
-    int more = clockrate * std::max(s1, s2) / samplerate;
-    if (more <= 0) break;
-    int prev1 = total1, prev2 = total2;
-    step(more);
-    if (total1 == prev1 && total2 == prev2) break;
-  }
-
-  int n = std::min(total1, total2);
-  // Mix at 0.5x per source — six voices max out at int16 without clipping,
-  // and stereo sits roughly at parity with mono perceived loudness because
-  // SID material rarely hits both peaks at the same instant.
-  for (int i = 0; i < n; i++) {
-    int v = ((int)ptr[i] + (int)tmp[i]) / 2;
-    ptr[i] = (short)v;
-  }
-  // If one SID rendered more samples than the other, zero-pad the tail of
-  // ptr up to n so we don't leak the previous buffer's contents back to the
-  // audio callback.
-  for (int i = n; i < samples; i++) ptr[i] = 0;
-  return samples;
-}
-
 int sid_fillbuffer(short *ptr, int samples)
 {
   if (!sid) return 0;
   if (!sid2) return render_sid(sid, sidreg, ptr, samples);
-  return render_pair(ptr, samples);
+
+  // Stereo path. Use the same per-SID renderer that produces the mono path's
+  // sample count — that loop has an aggressive top-up at the tail, so both
+  // calls reliably hit `samples` and we mix N==samples both sides.
+  static std::vector<short> tmp;
+  if ((int)tmp.size() < samples) tmp.resize(samples);
+
+  int n1 = render_sid(sid,  sidreg,  ptr,         samples);
+  int n2 = render_sid(sid2, sidreg2, tmp.data(),  samples);
+  int n  = std::min(n1, n2);
+
+  // Straight sum with hard clip. SID2 with all-zero registers produces a
+  // near-silent stream so this keeps the SID1 voicing at full volume in the
+  // common case (no extra parts written to ch4-6). When SID2 actually has
+  // material, peaks may clip — that's preferable to permanent attenuation.
+  for (int i = 0; i < n; i++) {
+    int v = (int)ptr[i] + (int)tmp[i];
+    if (v >  32767) v =  32767;
+    if (v < -32768) v = -32768;
+    ptr[i] = (short)v;
+  }
+  return n;
 }
 
 }

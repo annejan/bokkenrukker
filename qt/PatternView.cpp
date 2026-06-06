@@ -36,12 +36,15 @@ extern int eschn;
 extern int esnum;
 extern int songlen[MAX_SONGS][MAX_CHN];
 extern CHN chn[MAX_CHN];
+extern int stereo_mode;
 int isplaying(void);
 void patterncommands(void);
 void generalcommands(void);
 void mutechannel(int chnnum);
 extern char *notename[];
 }
+
+static int shownChannels() { return stereo_mode ? MAX_CHN : 3; }
 
 PatternView::PatternView(QWidget *parent) : QAbstractScrollArea(parent) {
     QFont mono = Theme::monoFont(11);
@@ -72,7 +75,7 @@ int PatternView::gridTopOffset() const {
 
 void PatternView::updateScrollRange() {
     int maxRows = 0;
-    for (int c = 0; c < MAX_CHN; c++)
+    for (int c = 0; c < shownChannels(); c++)
         if (pattlen[epnum[c]] > maxRows) maxRows = pattlen[epnum[c]];
     verticalScrollBar()->setRange(0, std::max(0, maxRows - visibleRows()));
     verticalScrollBar()->setPageStep(visibleRows());
@@ -88,7 +91,7 @@ void PatternView::refresh() {
     // Follow-play: track which pattern each channel is currently playing
     // and move the edit cursor onto it, mirroring gdisplay.c:100-126.
     if (followplay && playing) {
-        for (int c = 0; c < MAX_CHN; c++) {
+        for (int c = 0; c < shownChannels(); c++) {
             if (chn[c].advance) epnum[c] = chn[c].pattnum;
             int newpos = chn[c].pattptr / 4;
             if (newpos > pattlen[epnum[c]]) newpos = pattlen[epnum[c]];
@@ -154,7 +157,7 @@ int PatternView::channelAtX(int x) const {
     int rx = x - rowNumW_;
     if (rx < 0) return -1;
     int c = rx / chnW_;
-    if (c < 0 || c >= MAX_CHN) return -1;
+    if (c < 0 || c >= shownChannels()) return -1;
     return c;
 }
 
@@ -225,7 +228,7 @@ void PatternView::paintEvent(QPaintEvent *) {
     const int vuH = vuStripH_ - vuPad * 2;
     unsigned char levels[MAX_CHN] = {0};
     sid_getlevels(levels);
-    for (int c = 0; c < MAX_CHN; c++) {
+    for (int c = 0; c < shownChannels(); c++) {
         int x = rowNumW_ + c * chnW_ + 2;
         int w = chnW_ - 6;
         QRect frame(x, vuPad, w, vuH);
@@ -253,7 +256,7 @@ void PatternView::paintEvent(QPaintEvent *) {
 
     // ---- Mini scope strip -----------------------------------------------
     int scopeY = vuStripH_;
-    for (int c = 0; c < MAX_CHN; c++) {
+    for (int c = 0; c < shownChannels(); c++) {
         int x = rowNumW_ + c * chnW_ + 2;
         int w = chnW_ - 6;
         QRect frame(x, scopeY + 2, w, scopeStripH_ - 4);
@@ -282,7 +285,7 @@ void PatternView::paintEvent(QPaintEvent *) {
     int headerY = vuStripH_ + scopeStripH_;
     const int muteW = 24;
     const int muteGap = 8;
-    for (int c = 0; c < MAX_CHN; c++) {
+    for (int c = 0; c < shownChannels(); c++) {
         int x = rowNumW_ + c * chnW_ + 4;
         bool active = (c == epchn);
         QRect headRect(x - 4, headerY + 2, chnW_ - 4, headerStripH_ - 4);
@@ -340,7 +343,7 @@ void PatternView::paintEvent(QPaintEvent *) {
                    Qt::AlignRight | Qt::AlignVCenter,
                    QString("%1").arg(row, 3, 16, QLatin1Char('0')).toUpper());
 
-        for (int c = 0; c < MAX_CHN; c++) {
+        for (int c = 0; c < shownChannels(); c++) {
             int patnum = epnum[c];
             int plen = pattlen[patnum];
             int x = rowNumW_ + c * chnW_;

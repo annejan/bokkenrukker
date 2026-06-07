@@ -18,7 +18,7 @@
 - [x] Song order still shows chan 4, 5, 6 even when second SID is disabled
       *(OrderListModel::columnCount now follows stereo_mode; rowCount only scans the
         active channels too.)*
-- [ ] Check if subtune 2 should be allocated to second SID chip by default.
+- [ ] Check if 'subtune 2' pattern should be allocated to second SID chip by default.
 - [x] When selecting field in the Tables editor, the value becomes '...' in the screen, hiding the previous value.
       *(TableCellDelegate::createEditor: QLineEdit + maxLength 2 + hex validator;
         editTriggers reduced to DoubleClicked + EditKeyPressed.)*
@@ -103,5 +103,18 @@
       *(qt_globals.c sidmodel + sid2model now initialise to 1 (8580).
         loadsong() overwrites these from the .sng header, so anything
         saved against 6581 still loads as 6581.)*
-- [ ] Is Octamed different enough from Protracker to add that style as well ? 
+- [x] Is Octamed different enough from Protracker to add that style as well ?
+      *(no — OctaMED note-entry key map is the same Z..M lower row /
+        Q..U upper row as Protracker; the engine differences are at
+        the song-arrangement / mixing level, not in the keyboard. Adding
+        an 'OctaMED' preset would be a duplicate of Protracker. Skipped.)*
+- [x] Add load and save of user preferences, like SID type and other settings the user does in the UI, have a default, and the possibility to 'save as'.
+      *(QSettings auto-restore on launch + auto-save on quit, stored at
+        \$XDG_CONFIG_HOME/goattrk2-qt/goattrk2-qt.conf (Linux) / equivalent
+        on Windows / macOS. Keys: audio/sidmodel, audio/sid2model,
+        audio/stereo, audio/ntsc, audio/multiplier, editor/keypreset,
+        editor/followplay. Applied before sid_init so the SID backend
+        starts with the persisted chip model; loadSongFile still overrides
+        from the .sng header so songs play back authentically. 'Save as
+        profile' deferred — single auto-saved profile is enough for now.)*
 - [ ] 

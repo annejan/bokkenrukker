@@ -3,6 +3,7 @@
 #include <QStringList>
 #include <QStyleFactory>
 #include <QPalette>
+#include <QSettings>
 #include <SDL/SDL.h>
 #include <cstring>
 #include "MainWindow.h"
@@ -22,7 +23,11 @@ int sound_init(unsigned b, unsigned mr, unsigned writer, unsigned hardsid,
 void sound_uninit(void);
 
 extern unsigned b, mr, writer, hardsid, sidmodel, ntsc, multiplier;
+extern unsigned sid2model;
+extern int stereo_mode;
 extern unsigned catweasel, interpolate, customclockrate;
+extern unsigned keypreset;
+extern int followplay;
 extern char songfilename[];
 extern int songinit;
 void loadsong(void);
@@ -34,10 +39,47 @@ void sid_init(int speed, unsigned m, unsigned ntsc, unsigned interpolate,
 #include "gplay.h" // PLAY_STOPPED
 
 int main(int argc, char **argv) {
+    QApplication::setOrganizationName("goattrk2-qt");
+    QApplication::setApplicationName("goattrk2-qt");
     QApplication app(argc, argv);
     Log::init();
     qInfo("argv: argc=%d", argc);
     for (int i = 0; i < argc; i++) qInfo("  argv[%d]=%s", i, argv[i]);
+
+    // Restore user preferences from QSettings ($XDG_CONFIG_HOME/goattrk2-qt
+    // /goattrk2-qt.conf on Linux). Applied BEFORE sid_init so the SID
+    // backend starts with the chip model the user last saved. loadSongFile()
+    // later overrides sidmodel / sid2model from the .sng header, so songs
+    // written against a specific chip still play back authentically.
+    {
+        QSettings s;
+        sidmodel    = s.value("audio/sidmodel",   sidmodel  ).toUInt();
+        sid2model   = s.value("audio/sid2model",  sid2model ).toUInt();
+        stereo_mode = s.value("audio/stereo",     stereo_mode).toInt();
+        ntsc        = s.value("audio/ntsc",       ntsc      ).toUInt();
+        multiplier  = s.value("audio/multiplier", multiplier).toUInt();
+        keypreset   = s.value("editor/keypreset", keypreset ).toUInt();
+        followplay  = s.value("editor/followplay",followplay).toInt();
+        qInfo("prefs loaded from %s: sid1=%u sid2=%u stereo=%d ntsc=%u "
+              "mult=%u key=%u follow=%d",
+              qPrintable(s.fileName()),
+              sidmodel, sid2model, stereo_mode, ntsc, multiplier,
+              keypreset, followplay);
+    }
+
+    // Persist on shutdown — no manual 'Save preferences' menu item; the
+    // app simply remembers what the user did last.
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, []() {
+        QSettings s;
+        s.setValue("audio/sidmodel",   sidmodel);
+        s.setValue("audio/sid2model",  sid2model);
+        s.setValue("audio/stereo",     stereo_mode);
+        s.setValue("audio/ntsc",       ntsc);
+        s.setValue("audio/multiplier", multiplier);
+        s.setValue("editor/keypreset", keypreset);
+        s.setValue("editor/followplay",followplay);
+        s.sync();
+    });
 
     // Force Fusion style + an app-wide dark palette so the editor looks the
     // same across Linux / Windows / macOS. Native Windows style was

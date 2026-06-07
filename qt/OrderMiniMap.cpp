@@ -66,9 +66,12 @@ void OrderMiniMap::paintEvent(QPaintEvent *) {
             unsigned char v = songorder[esnum][c][r];
             int y = startY + r * rowH;
             QColor cell = Theme::C::bgAlt;
-            if (v == LOOPSONG)       cell = Theme::C::rst;
-            else if (v >= TRANSDOWN) cell = Theme::C::transpose;
-            else if (v >= REPEAT)    cell = Theme::C::repeatCol;
+            // Match OrderView's purple palette so the same special command
+            // looks the same in both views. Three shades keep RST /
+            // transpose / repeat visually distinct inside the family.
+            if (v == LOOPSONG)       cell = QColor(80, 30, 90);
+            else if (v >= TRANSDOWN) cell = QColor(60, 30, 90);
+            else if (v >= REPEAT)    cell = QColor(50, 25, 80);
             else {
                 int t = qMin(255, 40 + v * 4);
                 cell = QColor(t / 3, t / 2, t);

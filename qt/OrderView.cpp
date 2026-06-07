@@ -167,12 +167,12 @@ public:
         unsigned char v = songorder[esnum][c][r];
         const bool isSpecial = (v >= REPEAT);   // RST / TRANSUP/DOWN / REPEAT
         // Background semantic tint — RST, transpose and repeat all share a
-        // purple band now so 'this is not a pattern number' reads at a glance.
-        // The shade differs slightly so the three sub-types stay distinct.
+        // bright purple band so control blocks pop out of the order list
+        // at a glance. Three shades keep the sub-types distinguishable.
         if (r >= songlen[esnum][c] + 2)      p->fillRect(opt.rect, Theme::C::bgBase);
-        else if (v == LOOPSONG)              p->fillRect(opt.rect, QColor(80, 30, 90));
-        else if (v >= TRANSDOWN)             p->fillRect(opt.rect, QColor(60, 30, 90));
-        else if (v >= REPEAT)                p->fillRect(opt.rect, QColor(50, 25, 80));
+        else if (v == LOOPSONG)              p->fillRect(opt.rect, QColor(180, 80, 220));
+        else if (v >= TRANSDOWN)             p->fillRect(opt.rect, QColor(150, 70, 210));
+        else if (v >= REPEAT)                p->fillRect(opt.rect, QColor(130, 60, 200));
         else if (r % 4 == 0)                 p->fillRect(opt.rect, Theme::C::beat);
         // Playback underlay (red) — drawn before the edit cursor so the
         // yellow cursor outline still wins when both land on the same cell.

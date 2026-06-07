@@ -74,7 +74,6 @@
         purple shades and suppresses the yellow edit-cursor underlay +
         border on cells where v >= REPEAT — clicking a special cell
         still moves selection but no longer drops the cursor onto it.)*
-- [ ] 
 
 ## Features
 

@@ -23,6 +23,7 @@ protected:
     void resizeEvent(QResizeEvent *e) override;
     void keyPressEvent(QKeyEvent *e) override;
     void mousePressEvent(QMouseEvent *e) override;
+    void wheelEvent(QWheelEvent *e) override;
     bool event(QEvent *e) override;
 
 private:

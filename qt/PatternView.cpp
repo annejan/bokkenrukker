@@ -8,6 +8,7 @@
 #include <QFontDatabase>
 #include <QKeyEvent>
 #include <QMouseEvent>
+#include <QWheelEvent>
 #include <QInputDialog>
 #include <QLineEdit>
 #include <QToolTip>
@@ -25,6 +26,7 @@ extern unsigned char pattern[MAX_PATT][MAX_PATTROWS*4+4];
 extern int pattlen[MAX_PATT];
 extern int epnum[MAX_CHN];
 extern int eppos;
+extern int epoctave;
 extern int epview;
 extern int epcolumn;
 extern int epchn;
@@ -218,6 +220,25 @@ void PatternView::keyPressEvent(QKeyEvent *e) {
     emit patternEdited();
 }
 
+void PatternView::wheelEvent(QWheelEvent *e) {
+    // Wheel over the OCT N pill nudges the recording octave ±1. Anywhere
+    // else, fall through to the scroll area's default scroll behaviour.
+    QPoint pos = e->position().toPoint();
+    if (pos.x() < rowNumW_ && pos.y() < gridTopOffset()) {
+        int dy = e->angleDelta().y();
+        if (dy != 0) {
+            int n = epoctave + (dy > 0 ? +1 : -1);
+            if (n < 0) n = 0;
+            if (n > 7) n = 7;
+            epoctave = n;
+            refresh();
+            e->accept();
+            return;
+        }
+    }
+    QAbstractScrollArea::wheelEvent(e);
+}
+
 int PatternView::channelAtX(int x) const {
     int rx = x - rowNumW_;
     if (rx < 0) return -1;
@@ -227,7 +248,15 @@ int PatternView::channelAtX(int x) const {
 }
 
 void PatternView::mousePressEvent(QMouseEvent *e) {
+    const int x = e->pos().x();
     const int y = e->pos().y();
+
+    // OCT N pill in top-left corner — click cycles 0..7 (wraps).
+    if (x < rowNumW_ && y < gridTopOffset()) {
+        epoctave = (epoctave + 1) & 7;
+        refresh();
+        return;
+    }
 
     // Channel header strip — click on pattern# / mute toggle
     int headerY = vuStripH_ + scopeStripH_;
@@ -342,6 +371,33 @@ void PatternView::paintEvent(QPaintEvent *) {
 
     const int rowOffset = verticalScrollBar()->value();
     const int W = viewport()->width();
+
+    // ---- Octave indicator in the top-left corner -----------------------
+    // The status-strip 'Oct N · Protracker' segment was too far from the
+    // pattern grid for the user to notice. Drop a prominent OCT N pill
+    // right above the row-number column where the cursor lives so the
+    // recording octave is always in the user's eye line. Mouse-click
+    // cycles up, wheel scrolls ±1 (handled in the event hooks).
+    {
+        QRect octRect(2, 2, rowNumW_ - 4, gridTopOffset() - 4);
+        p.fillRect(octRect, QColor(40, 30, 70));
+        p.setPen(QPen(QColor(180, 140, 255), 1));
+        p.drawRect(octRect);
+        QFont of = font();
+        of.setBold(true);
+        of.setPointSize(of.pointSize() + 2);
+        p.setFont(of);
+        p.setPen(QColor(220, 200, 255));
+        p.drawText(octRect, Qt::AlignCenter, QString("OCT %1").arg(epoctave));
+        p.setFont(font());
+        p.setPen(QColor(160, 140, 200));
+        QFont sf = font();
+        sf.setPointSize(sf.pointSize() - 1);
+        p.setFont(sf);
+        p.drawText(QRect(octRect.x(), octRect.bottom() - 14, octRect.width(), 12),
+                   Qt::AlignCenter, "click / wheel");
+        p.setFont(font());
+    }
 
     // ---- VU bars strip --------------------------------------------------
     const int vuPad = 4;

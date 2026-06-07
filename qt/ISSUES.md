@@ -94,6 +94,11 @@
       *(instrColor() short-circuits to an invalid QColor when the
         instrument slot is 'factory empty' — blank name, zero ADSR,
         zero wave / pulse / filter pointers and zero firstwave.)*
+- [x] focus border highlight around instrument value, no longer visible since color scheme has been added.
+      *(re-ordered the paintEvent passes — focusRect is captured during
+        the column-tint pass but the drawRect for the white outline
+        happens after the instrument-colour fillRect, so the border
+        sits on top of the colour band and stays visible.)*
 
 ## Features
 

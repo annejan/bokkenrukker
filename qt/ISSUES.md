@@ -74,7 +74,12 @@
         purple shades and suppresses the yellow edit-cursor underlay +
         border on cells where v >= REPEAT — clicking a special cell
         still moves selection but no longer drops the cursor onto it.)*
-- [ ] The instrument editor has an instrument selector on the left, but the instrument selection side bar "instruments" is already present on the right, remove the left one.
+- [x] The instrument editor has an instrument selector on the left, but the instrument selection side bar "instruments" is already present on the right, remove the left one.
+      *(dropped list_ + its connection / palette setup / populate loop / per-
+        refresh name mirroring / onListChanged slot from InstrumentView.
+        InstrumentQuickList in the right dock is now the single selector,
+        firing instrumentChosen -> MainWindow::refreshAll which re-reads
+        einum into the editor.)*
 
 ## Features
 
@@ -125,5 +130,5 @@
         bidirectionally bound via valueChanged forwarding; the spinbox
         still fires InstrumentView::onAdChanged / onSrChanged so the
         engine wiring is unchanged.)*
-- [ ] Add a toggle button to give every instrument it's own unique color and color the instrument bytes in the patterns the color the instrument has got. (Do something like hash the name, and make sure the colors are ergonomically useful ). Use the colors in this page as a reference, filter out the colors too close to text color: https://static.vecteezy.com/system/resources/previews/016/592/367/original/color-palette-set-design-template-multi-color-free-vector.jpg
+- [ ] Add a toggle button to give every instrument it's own unique background color and color the instrument bytes in the patterns the background color the instrument has got. (Do something like hash the name, and make sure the colors are ergonomically useful ). Use the colors in this page as a reference, filter out the colors too close to text color: https://static.vecteezy.com/system/resources/previews/016/592/367/original/color-palette-set-design-template-multi-color-free-vector.jpg
 - [ ] 

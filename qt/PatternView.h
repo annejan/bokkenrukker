@@ -46,4 +46,6 @@ private:
     int headerStripH_ = 0;
 
     int channelAtX(int x) const;
+    int lastEppos_ = -1;
+    int lastEpchn_ = -1;
 };

@@ -38,7 +38,9 @@ extern int epnum[MAX_CHN];
 extern int editmode;
 extern int lastsonginit;
 extern CHN chn[MAX_CHN];
+extern int stereo_mode;
 int isplaying(void);
+static int orderShownChannels() { return stereo_mode ? MAX_CHN : 3; }
 void orderlistcommands(void);
 // Shared note-name lookup defined in qt_globals.c.
 extern char *notename[];
@@ -62,11 +64,12 @@ OrderListModel::OrderListModel(QObject *parent) : QAbstractTableModel(parent) {}
 
 int OrderListModel::rowCount(const QModelIndex &) const {
     int n = 0;
-    for (int c = 0; c < MAX_CHN; c++)
+    int nc = orderShownChannels();
+    for (int c = 0; c < nc; c++)
         if (songlen[esnum][c] > n) n = songlen[esnum][c];
     return n + 2; // include RST + restart slot
 }
-int OrderListModel::columnCount(const QModelIndex &) const { return MAX_CHN; }
+int OrderListModel::columnCount(const QModelIndex &) const { return orderShownChannels(); }
 
 QVariant OrderListModel::data(const QModelIndex &i, int role) const {
     if (!i.isValid()) return {};

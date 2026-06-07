@@ -388,6 +388,9 @@ qt/CMakeFiles/goattrk2-qt.dir/PatternView.cpp.o: \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qdialog.h \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/QLineEdit \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qlineedit.h \
+ /usr/include/x86_64-linux-gnu/qt6/QtWidgets/QToolTip \
+ /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qtooltip.h \
+ /usr/include/x86_64-linux-gnu/qt6/QtGui/QHelpEvent \
  /home/paul/work/c64/goattracker2/qt/SdlKeyMap.h \
  /usr/include/SDL/SDL_keysym.h \
  /home/paul/work/c64/goattracker2/qt/Theme.h \

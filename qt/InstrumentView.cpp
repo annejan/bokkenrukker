@@ -307,6 +307,10 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
         row->addWidget(s);
         auto *btn = new QPushButton("→ table", tblBox);
         btn->setMaximumWidth(80);
+        btn->setToolTip("Open the Tables editor and jump the cursor to the "
+                        "row this pointer references — quick way to find / "
+                        "edit the wavetable / pulsetable / filtertable "
+                        "program this instrument runs.");
         connect(btn, &QPushButton::clicked, this, slot);
         row->addWidget(btn);
         return row;

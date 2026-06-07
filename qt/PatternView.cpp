@@ -10,6 +10,8 @@
 #include <QMouseEvent>
 #include <QInputDialog>
 #include <QLineEdit>
+#include <QToolTip>
+#include <QHelpEvent>
 #include "SdlKeyMap.h"
 #include "Theme.h"
 #include "UndoStack.h"
@@ -111,15 +113,22 @@ void PatternView::refresh() {
     updateScrollRange();
     int rowOffset = verticalScrollBar()->value();
     int rows = visibleRows();
+    // Only auto-pull the scrollbar to keep the cursor visible when the
+    // cursor actually moved this refresh — otherwise a mouse-wheel scroll
+    // past eppos kept getting yanked back because the periodic refresh()
+    // (tickScope at ~50 Hz) re-evaluated the visibility clause every tick.
+    bool cursorMoved = (eppos != lastEppos_) || (epchn != lastEpchn_);
     if (followplay && playing) {
         int prow = chn[epchn].pattptr / 4;
         int center = std::max(0, prow - rows / 2);
         verticalScrollBar()->setValue(center);
-    } else if (rows > 0) {
+    } else if (cursorMoved && rows > 0) {
         if (eppos < rowOffset) verticalScrollBar()->setValue(eppos);
         else if (eppos >= rowOffset + rows)
             verticalScrollBar()->setValue(eppos - rows + 1);
     }
+    lastEppos_ = eppos;
+    lastEpchn_ = epchn;
     viewport()->update();
 }
 
@@ -132,6 +141,31 @@ void PatternView::tickScope() {
 }
 
 bool PatternView::event(QEvent *e) {
+    if (e->type() == QEvent::ToolTip) {
+        auto *he = static_cast<QHelpEvent*>(e);
+        QPoint pos = he->pos();
+        // Row-number column hover: show pattern step in hex + dec, the row
+        // type (beat / downbeat) and pattern length context.
+        if (pos.x() < rowNumW_ && pos.y() >= gridTopOffset()) {
+            int row = verticalScrollBar()->value()
+                      + (pos.y() - gridTopOffset()) / rowHeight;
+            QString tag;
+            if (row % 16 == 0)     tag = "downbeat";
+            else if (row % 4 == 0) tag = "beat";
+            else                   tag = "step";
+            int patnum = epnum[epchn];
+            QToolTip::showText(he->globalPos(),
+                QString("Row $%1 (%2) — %3, pattern $%4 length $%5")
+                    .arg(row, 2, 16, QLatin1Char('0')).toUpper()
+                    .arg(row)
+                    .arg(tag)
+                    .arg(patnum, 2, 16, QLatin1Char('0')).toUpper()
+                    .arg(pattlen[patnum], 2, 16, QLatin1Char('0')).toUpper(),
+                this);
+            return true;
+        }
+        QToolTip::hideText();
+    }
     return QAbstractScrollArea::event(e);
 }
 
@@ -390,10 +424,22 @@ void PatternView::paintEvent(QPaintEvent *) {
         p.drawText(QPoint(x + 8 * colWidth, headerY + headerStripH_ - 6),
                    QString("L%1").arg(pattlen[epnum[c]], 2, 16, QLatin1Char('0')).toUpper());
 
+        // Mute toggle: word labels MUTE / ON are unambiguous across fonts
+        // and locales — emoji speaker glyphs render as boxes on the mono
+        // font many users pick for the editor.
         QRect muteRect(muteX, headerY + 4, muteW, headerStripH_ - 8);
-        p.setPen(chn[c].mute ? Theme::C::vuRed : Theme::C::vuGreen);
+        QColor muteColor = chn[c].mute ? Theme::C::vuRed : Theme::C::vuGreen;
+        p.fillRect(muteRect, chn[c].mute ? QColor(60, 20, 20)
+                                         : QColor(20, 50, 25));
+        p.setPen(muteColor);
         p.drawRect(muteRect);
-        p.drawText(muteRect, Qt::AlignCenter, chn[c].mute ? "M" : "·");
+        QFont mf = font();
+        mf.setPointSize(mf.pointSize() - 1);
+        mf.setBold(true);
+        p.setFont(mf);
+        p.drawText(muteRect, Qt::AlignCenter,
+                   chn[c].mute ? "MUTE" : "ON");
+        p.setFont(font());
     }
     p.setPen(Theme::C::sep);
     p.drawLine(0, headerY + headerStripH_, W, headerY + headerStripH_);

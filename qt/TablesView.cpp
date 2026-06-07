@@ -16,6 +16,8 @@
 #include <QPainter>
 #include <QKeyEvent>
 #include <QMenu>
+#include <QLineEdit>
+#include <QRegularExpressionValidator>
 #include <functional>
 
 extern "C" {
@@ -208,6 +210,24 @@ class TableCellDelegate : public QStyledItemDelegate {
 public:
     TableCellDelegate(int tableIdx, QObject *parent = nullptr)
         : QStyledItemDelegate(parent), t_(tableIdx) {}
+    QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &,
+                          const QModelIndex &i) const override {
+        // L / R columns: full 2-char hex editor. The default delegate fed
+        // single-keystroke edits straight into the model and committed on
+        // the first character, leaving the user's typed digit (and a
+        // padded second digit '.') visible mid-edit. Same fix as OrderView:
+        // QLineEdit with maxLength 2 + hex validator, stays open until
+        // Return / Escape / focus loss.
+        if (i.column() != 1 && i.column() != 2) return nullptr;
+        auto *e = new QLineEdit(parent);
+        e->setMaxLength(2);
+        e->setFont(Theme::monoFont(11));
+        e->setAlignment(Qt::AlignCenter);
+        auto *v = new QRegularExpressionValidator(
+            QRegularExpression("[0-9a-fA-F]{1,2}"), e);
+        e->setValidator(v);
+        return e;
+    }
     void paint(QPainter *p, const QStyleOptionViewItem &opt, const QModelIndex &i) const override {
         int row = i.row();
         unsigned char L = ltable[t_][row];
@@ -259,6 +279,10 @@ TablesView::TablesView(QWidget *parent) : QWidget(parent) {
         models_[t] = new SidTableModel(t, this);
         views_[t]->setModel(models_[t]);
         views_[t]->setItemDelegate(new TableCellDelegate(t, views_[t]));
+        // No AnyKeyPressed: typing first hex digit used to commit the cell
+        // before the second nybble could be typed.
+        views_[t]->setEditTriggers(QAbstractItemView::DoubleClicked
+                                   | QAbstractItemView::EditKeyPressed);
         views_[t]->setShowGrid(false);
         views_[t]->verticalHeader()->hide();
         auto *hh = views_[t]->horizontalHeader();

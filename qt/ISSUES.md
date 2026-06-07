@@ -54,7 +54,11 @@
       *(decodeCell() now skips the 'note:' suffix when L == $FF (jump) or
         L is in $F0..$FE (execute cmd) — those rows treat R as a target /
         cmd param, not a note byte.)*
-- [ ] Order map at start up too narrow, max width should be default width.
+- [x] Order map at start up too narrow, max width should be default width.
+      *(OrderMiniMap::sizeHint returns QSize(160, 400) + MainWindow uses
+        resizeDocks({orderMapDock_}, {160}, Qt::Horizontal) so the dock
+        starts at the historical 160 px instead of Qt's tiny default.)*
+- [ ] MUTE in 'UV' bar when channel muted, very dark RED, should be bright and stand out.
 - [ ] 
 
 ## Features
@@ -74,5 +78,9 @@
 - [ ] Add option to select mono or stereo mode for dual sid, keeping things simple for the user.
 - [ ] Add support for external keyboards or samplers via USB, to enable record mode via these devices? (Popular options you can suggest?)
 - [ ] Clear way to set / read the octave in the UI for record mode in the pattern editor
-- [ ] Add switch above order map to select channels together or individually.
+- [x] Add switch above order map to select channels together or individually.
+      *(Dock now wraps a QToolButton header over OrderMiniMap. Button toggles
+        OrderMiniMap::selectAllChannels — true = plain click moves all chans,
+        false = plain click moves only the clicked one. Ctrl-click still
+        inverts the active mode for one click so both stay reachable.)*
 - [ ] 

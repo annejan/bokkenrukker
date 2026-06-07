@@ -86,6 +86,12 @@ QVariant OrderListModel::data(const QModelIndex &i, int role) const {
         return QString("%1").arg(v, 2, 16, QLatin1Char('0')).toUpper();
     }
     if (role == Qt::ForegroundRole) {
+        // Bright purple background needs a high-contrast foreground —
+        // Theme::C::rst / transpose / repeatCol are darker tints that
+        // chosen against the previous near-black background and got
+        // unreadable when the cells went bright. Force white on all
+        // three special types.
+        if (v >= REPEAT) return QBrush(QColor(255, 255, 255));
         if (r >= songlen[esnum][c] + 2) return QBrush(Theme::C::textDim);
         if (v == LOOPSONG)       return QBrush(Theme::C::rst);
         if (v >= TRANSDOWN)      return QBrush(Theme::C::transpose);

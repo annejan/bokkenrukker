@@ -97,18 +97,6 @@ StatusStrip::StatusStrip(QWidget *parent) : QFrame(parent) {
                         "wheel scrolls ±1. Keyboard: * raises, / lowers.");
     connect(octave_, &ClickableLabel::clicked, this, &StatusStrip::octaveClicked);
     octave_->installEventFilter(this);
-}
-
-bool StatusStrip::eventFilter(QObject *o, QEvent *e) {
-    if (o == octave_ && e->type() == QEvent::Wheel) {
-        auto *we = static_cast<QWheelEvent*>(e);
-        int dy = we->angleDelta().y();
-        if (dy != 0) {
-            emit octaveDelta(dy > 0 ? +1 : -1);
-            return true;
-        }
-    }
-    return QFrame::eventFilter(o, e);
     instr_     = makeSegment("Ins 01", Theme::C::instr, this);
     sid_       = makeClickable("6581", Theme::C::highlight, this);
     sid_->setToolTip("SID1 chip model. Click to toggle 6581 ↔ 8580. Also: Shift+F8.");
@@ -153,6 +141,18 @@ bool StatusStrip::eventFilter(QObject *o, QEvent *e) {
     layout->addWidget(follow_);
     addSep();
     layout->addWidget(message_, 1);
+}
+
+bool StatusStrip::eventFilter(QObject *o, QEvent *e) {
+    if (o == octave_ && e->type() == QEvent::Wheel) {
+        auto *we = static_cast<QWheelEvent*>(e);
+        int dy = we->angleDelta().y();
+        if (dy != 0) {
+            emit octaveDelta(dy > 0 ? +1 : -1);
+            return true;
+        }
+    }
+    return QFrame::eventFilter(o, e);
 }
 
 // Lightweight validation: scan current instrument + pattern cell for the

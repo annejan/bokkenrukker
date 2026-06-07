@@ -80,7 +80,11 @@
         InstrumentQuickList in the right dock is now the single selector,
         firing instrumentChosen -> MainWindow::refreshAll which re-reads
         einum into the editor.)*
-- [ ] Wave table program color explanation text color is too dark, make brighter.
+- [x] Wave table program color explanation text color is too dark, make brighter.
+      *(the descriptor + 'Examples:' lines in the right-side legend used
+        #5A6470 which barely registered against bgAlt. Bumped to #B0BCC8
+        across all four table legends (wave / pulse / filter / speed)
+        — bright enough to read while still secondary to bold opcodes.)*
 - [x] Table pointers '-> table' button doesn't work.
       *(InstrumentView::edited connection in MainWindow now also calls
         syncStack() — the jump slots set editmode=3 (EDIT_TABLES) and

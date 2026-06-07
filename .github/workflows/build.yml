@@ -19,8 +19,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             cmake ninja-build pkg-config \
-            qt6-base-dev qt6-base-dev-tools qt6-multimedia-dev libgl1-mesa-dev \
-            libsdl1.2-dev libjack-jackd2-dev
+            qt6-base-dev qt6-base-dev-tools libgl1-mesa-dev \
+            libsdl1.2-dev libjack-jackd2-dev portaudio19-dev
 
       - name: Configure
         run: cmake -S qt -B qt/build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -47,7 +47,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: brew install cmake ninja pkg-config qt6 sdl12-compat jack
+        run: brew install cmake ninja pkg-config qt6 sdl12-compat jack portaudio
 
       - name: Configure
         env:
@@ -57,8 +57,10 @@ jobs:
           export PKG_CONFIG_PATH="$BREW/opt/sdl12-compat/lib/pkgconfig:$BREW/opt/jack/lib/pkgconfig:$BREW/lib/pkgconfig:$PKG_CONFIG_PATH"
           # The sources use #include <SDL/SDL.h>, but Homebrew's SDL pc only adds
           # .../include/SDL. Add the Homebrew include root so the SDL/ prefix resolves.
+          # Brew prefix on CMAKE_PREFIX_PATH so find_library/find_path locate
+          # PortAudio (and Qt) under /opt/homebrew.
           cmake -S qt -B qt/build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH="$(brew --prefix qt6)" \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt6);$BREW" \
             -DCMAKE_C_FLAGS="-I$BREW/include" \
             -DCMAKE_CXX_FLAGS="-I$BREW/include"
 
@@ -96,10 +98,10 @@ jobs:
             mingw-w64-x86_64-ninja
             mingw-w64-x86_64-pkgconf
             mingw-w64-x86_64-qt6-base
-            mingw-w64-x86_64-qt6-multimedia
             mingw-w64-x86_64-qt6-tools
             mingw-w64-x86_64-SDL
             mingw-w64-x86_64-jack2
+            mingw-w64-x86_64-portaudio
 
       - name: Configure
         run: cmake -S qt -B qt/build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -112,9 +114,9 @@ jobs:
           mkdir -p dist
           cp qt/build/goattrk2-qt.exe dist/
           cp -r examples dist/examples
-          # Qt runtime + plugins (Multimedia backend included)
+          # Qt runtime + plugins
           windeployqt6 --release --no-translations dist/goattrk2-qt.exe
-          # MinGW / SDL / JACK runtime DLLs resolved from /mingw64
+          # MinGW / SDL / JACK / PortAudio runtime DLLs resolved from /mingw64
           ldd dist/goattrk2-qt.exe | awk '/\/mingw64\//{print $3}' | sort -u | while read -r dll; do
             cp -u "$dll" dist/ 2>/dev/null || true
           done

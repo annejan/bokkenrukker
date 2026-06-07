@@ -166,7 +166,14 @@
         'cmd NXY' decode. Pointer row highlighted yellow. Sticky after
         focus loss; replaced when a different pointer focuses. Live-
         updates while the user types in the spinbox.)*
-- [ ] Instruments are now changed directly in the configuration, it would be better, if we change a copy of the instrument, and have a button next to 'Play test note' and 'Silence', that allows to 'Apply' the changed instrument, or reset in back to the current state using 'Reset'. 
+- [x] Instruments are now changed directly in the configuration, it would be better, if we change a copy of the instrument, and have a button next to 'Play test note' and 'Silence', that allows to 'Apply' the changed instrument, or reset in back to the current state using 'Reset'.
+      *(InstrumentView::saved_ snapshots instr[einum] at slot load. Every
+        edit slot calls markDirty() which enables Apply + Reset. Apply
+        commits the current live state as the new baseline (saved_ =
+        instr[einum]). Reset rolls instr[einum] back to saved_ and re-
+        reads the UI. Switching to a different slot auto-applies the
+        previous slot silently. Live edits still hit instr[einum]
+        directly so the test note hears every keystroke.)*
 - [x] Add a toggle button in the instrument editor that keeps playing the note every second on repeat, so the changes in the variables can be changed and reviewed instantly.
       *('Auto-test' QPushButton added next to 'Play test note' / 'Silence'.
         When toggled on a 1 s QTimer retriggers onTestNote so any ADSR /

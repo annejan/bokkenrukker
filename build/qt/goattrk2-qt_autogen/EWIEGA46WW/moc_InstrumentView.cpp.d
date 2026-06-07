@@ -1,5 +1,6 @@
 /home/paul/work/c64/goattracker2/build/qt/goattrk2-qt_autogen/EWIEGA46WW/moc_InstrumentView.cpp: /home/paul/work/c64/goattracker2/qt/InstrumentView.h \
   /home/paul/work/c64/goattracker2/build/qt/goattrk2-qt_autogen/moc_predefs.h \
+  /home/paul/work/c64/goattracker2/src/gcommon.h \
   /usr/include/alloca.h \
   /usr/include/asm-generic/errno-base.h \
   /usr/include/asm-generic/errno.h \

@@ -335,6 +335,7 @@ qt/CMakeFiles/goattrk2-qt.dir/InstrumentView.cpp.o: \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qsizepolicy.h \
  /usr/include/x86_64-linux-gnu/qt6/QtGui/qcursor.h \
  /usr/include/x86_64-linux-gnu/qt6/QtGui/qbitmap.h \
+ /home/paul/work/c64/goattracker2/qt/../src/gcommon.h \
  /home/paul/work/c64/goattracker2/qt/Theme.h \
  /usr/include/x86_64-linux-gnu/qt6/QtGui/QColor \
  /usr/include/x86_64-linux-gnu/qt6/QtGui/qcolor.h \
@@ -435,5 +436,4 @@ qt/CMakeFiles/goattrk2-qt.dir/InstrumentView.cpp.o: \
  /usr/include/x86_64-linux-gnu/qt6/QtGui/qtransform.h \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/qnativeinterface.h \
  /usr/include/x86_64-linux-gnu/qt6/QtGui/QFontMetrics \
- /usr/include/x86_64-linux-gnu/qt6/QtGui/qfontmetrics.h \
- /home/paul/work/c64/goattracker2/qt/../src/gcommon.h
+ /usr/include/x86_64-linux-gnu/qt6/QtGui/qfontmetrics.h

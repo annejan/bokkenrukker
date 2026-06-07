@@ -377,6 +377,16 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     autoBtn->setCheckable(true);
     autoBtn->setToolTip("Retrigger the test note every second so any edit to "
                         "ADSR / wave / pulse / filter is audible instantly.");
+    applyBtn_ = new QPushButton("Apply", this);
+    applyBtn_->setToolTip("Commit the current edits as the new revert baseline. "
+                          "After Apply, the Reset button will roll back to "
+                          "THIS state.");
+    resetBtn_ = new QPushButton("Reset", this);
+    resetBtn_->setToolTip("Roll the instrument back to the state at the last "
+                          "Apply (or to the state it was in when this slot was "
+                          "first opened, if you never clicked Apply).");
+    connect(applyBtn_, &QPushButton::clicked, this, &InstrumentView::onApplyEdits);
+    connect(resetBtn_, &QPushButton::clicked, this, &InstrumentView::onResetEdits);
     connect(testBtn, &QPushButton::clicked, this, &InstrumentView::onTestNote);
     connect(stopBtn, &QPushButton::clicked, this, &InstrumentView::onSilenceTestNote);
     autoTestTimer_ = new QTimer(this);
@@ -394,6 +404,9 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     btnRow->addWidget(testBtn);
     btnRow->addWidget(stopBtn);
     btnRow->addWidget(autoBtn);
+    btnRow->addSpacing(20);
+    btnRow->addWidget(applyBtn_);
+    btnRow->addWidget(resetBtn_);
     btnRow->addStretch();
     center->addLayout(btnRow);
 
@@ -545,8 +558,57 @@ void InstrumentView::updatePointerPreview(int t, int startRow) {
 void InstrumentView::refresh() {
     updating_ = true;
     if (einum < 1) einum = 1;
+    // Snapshot the slot we're switching to (or returning to) as the new
+    // baseline. Past edits left over from another slot become the new
+    // 'saved' state implicitly — the user only gets explicit revert
+    // capability within the slot they're actively editing. matches the
+    // user's described workflow.
+    saved_ = instr[einum];
+    savedSlot_ = einum;
+    dirty_ = false;
     readFromGlobals();
     updating_ = false;
+    if (applyBtn_) applyBtn_->setEnabled(false);
+    if (resetBtn_) resetBtn_->setEnabled(false);
+}
+
+void InstrumentView::markDirty() {
+    if (updating_) return;
+    if (savedSlot_ != einum) {
+        // refresh() hasn't caught up yet — treat the new slot as the
+        // baseline so we don't roll back the wrong instrument.
+        saved_ = instr[einum];
+        savedSlot_ = einum;
+    }
+    dirty_ = true;
+    if (applyBtn_) applyBtn_->setEnabled(true);
+    if (resetBtn_) resetBtn_->setEnabled(true);
+}
+
+void InstrumentView::onApplyEdits() {
+    if (!dirty_) return;
+    saved_ = instr[einum];
+    savedSlot_ = einum;
+    dirty_ = false;
+    if (applyBtn_) applyBtn_->setEnabled(false);
+    if (resetBtn_) resetBtn_->setEnabled(false);
+    if (summary_) summary_->setText(QString("<i style='color:#A1C181'>"
+                                            "Applied — current state is the "
+                                            "new revert baseline.</i>"));
+    emit edited();
+}
+
+void InstrumentView::onResetEdits() {
+    if (!dirty_) return;
+    instr[einum] = saved_;
+    dirty_ = false;
+    if (applyBtn_) applyBtn_->setEnabled(false);
+    if (resetBtn_) resetBtn_->setEnabled(false);
+    readFromGlobals();
+    if (summary_) summary_->setText(QString("<i style='color:#FFD93D'>"
+                                            "Reset — rolled back to the last "
+                                            "Apply baseline.</i>"));
+    emit edited();
 }
 
 void InstrumentView::readFromGlobals() {
@@ -610,6 +672,7 @@ void InstrumentView::onNameChanged(const QString &t) {
     char buf[MAX_INSTRNAMELEN + 1];
     std::memcpy(buf, ins.name, MAX_INSTRNAMELEN);
     buf[MAX_INSTRNAMELEN] = 0;
+    markDirty();
     pushEditIfChanged(this, std::move(before), "Instrument name");
     emit edited();
 }
@@ -627,6 +690,7 @@ void InstrumentView::onAdChanged(int) {
     writeAd();
     adsr_->setAdsr(attack_->value(), decay_->value(),
                    sustain_->value(), release_->value());
+    markDirty();
     pushEditIfChanged(this, std::move(before), "Instrument ADSR");
     emit edited();
 }
@@ -636,6 +700,7 @@ void InstrumentView::onSrChanged(int) {
     writeSr();
     adsr_->setAdsr(attack_->value(), decay_->value(),
                    sustain_->value(), release_->value());
+    markDirty();
     pushEditIfChanged(this, std::move(before), "Instrument ADSR");
     emit edited();
 }
@@ -644,38 +709,39 @@ void InstrumentView::onWtChanged(int v) {
     QByteArray before = captureSongSnapshot();
     instr[einum].ptr[WTBL] = v;
     wavePrev_->setStart(v);
+    markDirty();
     pushEditIfChanged(this, std::move(before), "Instrument param");
     emit edited();
 }
 void InstrumentView::onPtChanged(int v) {
     if (updating_) return;
     QByteArray b = captureSongSnapshot(); instr[einum].ptr[PTBL] = v;
-    pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
+    markDirty(); pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
 }
 void InstrumentView::onFtChanged(int v) {
     if (updating_) return;
     QByteArray b = captureSongSnapshot(); instr[einum].ptr[FTBL] = v;
-    pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
+    markDirty(); pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
 }
 void InstrumentView::onVibParamChanged(int v) {
     if (updating_) return;
     QByteArray b = captureSongSnapshot(); instr[einum].ptr[STBL] = v;
-    pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
+    markDirty(); pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
 }
 void InstrumentView::onVibDelayChanged(int v) {
     if (updating_) return;
     QByteArray b = captureSongSnapshot(); instr[einum].vibdelay = v;
-    pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
+    markDirty(); pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
 }
 void InstrumentView::onGateChanged(int v) {
     if (updating_) return;
     QByteArray b = captureSongSnapshot(); instr[einum].gatetimer = v;
-    pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
+    markDirty(); pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
 }
 void InstrumentView::onFirstWaveChanged(int v) {
     if (updating_) return;
     QByteArray b = captureSongSnapshot(); instr[einum].firstwave = v;
-    pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
+    markDirty(); pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
 }
 
 void InstrumentView::onGotoWaveTable() {

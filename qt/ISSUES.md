@@ -99,12 +99,10 @@
         the column-tint pass but the drawRect for the white outline
         happens after the instrument-colour fillRect, so the border
         sits on top of the colour band and stays visible.)*
+- [ ] Wave table index color to dark gray, the places where this dark gray color is used elsewhere should be made lighter as well.
 
 ## Features
 
-- [ ] Make the ADSR share UI component interactive, so dragging becomes possible
-- [ ] Show moving bar in ADSR UI component where the sample is (If possible, and frame drops are allowed).
-- [ ] Highlight wave table lines that are active in the same way the instruments are highlighted, filter for visible, and only update view when, a delta is present and the element is visible.
 - [ ] Record mode present in 'Pattern editor' ?
 - [ ] Use key codes, that are not dependent on keyboard layout for Pattern record mode, so alternative keyboard layouts have a music keyboard with the notes in order as well. For the normal commands the preferred layout should be honored, only for notes it should be layout independent.
 - [ ] Have a way to silence a note in the pattern editor once started.
@@ -174,4 +172,5 @@
         When toggled on a 1 s QTimer retriggers onTestNote so any ADSR /
         wave / pulse / filter knob change is audible within the next
         second. Toggling off stops the timer + silences.)*
+- [ ] Add midi protocol support, so a midi keyboard can be used to record notes in the pattern channel selected. (Over USB or what ever just make sure it's Windows and Linux and OSX compatible)
 - [ ] 

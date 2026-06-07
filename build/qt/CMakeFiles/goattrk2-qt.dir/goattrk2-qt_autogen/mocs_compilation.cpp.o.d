@@ -366,6 +366,7 @@ qt/CMakeFiles/goattrk2-qt.dir/goattrk2-qt_autogen/mocs_compilation.cpp.o: \
  /home/paul/work/c64/goattracker2/build/qt/goattrk2-qt_autogen/EWIEGA46WW/../../../../qt/InstrumentView.h \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/QWidget \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qwidget.h \
+ /home/paul/work/c64/goattracker2/qt/../src/gcommon.h \
  /home/paul/work/c64/goattracker2/build/qt/goattrk2-qt_autogen/EWIEGA46WW/moc_MainWindow.cpp \
  /home/paul/work/c64/goattracker2/build/qt/goattrk2-qt_autogen/EWIEGA46WW/../../../../qt/MainWindow.h \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/QMainWindow \
@@ -384,7 +385,6 @@ qt/CMakeFiles/goattrk2-qt.dir/goattrk2-qt_autogen/mocs_compilation.cpp.o: \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qabstractscrollarea.h \
  /usr/include/c++/13/deque /usr/include/c++/13/bits/stl_deque.h \
  /usr/include/c++/13/bits/deque.tcc \
- /home/paul/work/c64/goattracker2/qt/../src/gcommon.h \
  /home/paul/work/c64/goattracker2/build/qt/goattrk2-qt_autogen/EWIEGA46WW/moc_Rpc.cpp \
  /home/paul/work/c64/goattracker2/build/qt/goattrk2-qt_autogen/EWIEGA46WW/../../../../qt/Rpc.h \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/QObject \

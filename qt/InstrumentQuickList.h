@@ -22,5 +22,6 @@ private:
     bool updating_ = false;
     bool blinkEnabled_ = false;
     QTimer flashTimer_;
-    uint8_t flash_[256] = {0};   // decay counter per instrument
+    // Decay counter per (instrument, channel). MAX_CHN=6 covers stereo.
+    uint8_t flash_[256][6] = {{0}};
 };

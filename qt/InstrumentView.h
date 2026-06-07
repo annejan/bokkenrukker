@@ -1,7 +1,6 @@
 #pragma once
 #include <QWidget>
 
-class QListWidget;
 class QSpinBox;
 class QLineEdit;
 class QComboBox;
@@ -19,7 +18,6 @@ signals:
     void edited();
 
 private slots:
-    void onListChanged(int row);
     void onNameChanged(const QString &);
     void onAdChanged(int);
     void onSrChanged(int);
@@ -38,7 +36,6 @@ private slots:
     void applyPreset(int index);
 
 private:
-    QListWidget *list_ = nullptr;
     class QComboBox *presetBox_ = nullptr;
     QLineEdit *name_ = nullptr;
     QSpinBox *attack_, *decay_, *sustain_, *release_;

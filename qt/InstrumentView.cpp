@@ -215,18 +215,9 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     root->setContentsMargins(12, 12, 12, 12);
     root->setSpacing(12);
 
-    // Left: instrument list -----------------------------------------------
-    list_ = new QListWidget(this);
-    list_->setMinimumWidth(200);
-    list_->setMaximumWidth(240);
-    list_->setFont(Theme::monoFont(11));
-    QPalette lp = list_->palette();
-    lp.setColor(QPalette::Base, Theme::C::bgAlt);
-    lp.setColor(QPalette::Text, Theme::C::text);
-    lp.setColor(QPalette::Highlight, Theme::C::editRow);
-    list_->setPalette(lp);
-    connect(list_, &QListWidget::currentRowChanged, this, &InstrumentView::onListChanged);
-    root->addWidget(list_);
+    // Left-side instrument list removed — the 'Instruments' side dock on
+    // the right already provides the same selector and was duplicating
+    // both the screen real-estate and the keep-in-sync churn.
 
     // Center: editor form --------------------------------------------------
     auto *center = new QVBoxLayout();
@@ -424,27 +415,12 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     right->addStretch();
     root->addLayout(right, 1);
 
-    // Populate list
-    for (int i = 1; i < MAX_INSTR; i++) list_->addItem(QString());
     refresh();
 }
 
 void InstrumentView::refresh() {
     updating_ = true;
-    // Refresh list contents — names may have changed
-    for (int i = 1; i < MAX_INSTR; i++) {
-        char buf[MAX_INSTRNAMELEN + 1];
-        std::memcpy(buf, instr[i].name, MAX_INSTRNAMELEN);
-        buf[MAX_INSTRNAMELEN] = 0;
-        QString name = QString::fromLocal8Bit(buf).trimmed();
-        if (name.isEmpty()) name = "—";
-        list_->item(i - 1)->setText(
-            QString("%1  %2")
-                .arg(i, 2, 16, QLatin1Char('0')).toUpper()
-                .arg(name));
-    }
     if (einum < 1) einum = 1;
-    list_->setCurrentRow(einum - 1);
     readFromGlobals();
     updating_ = false;
 }
@@ -499,13 +475,6 @@ void InstrumentView::readFromGlobals() {
     updating_ = false;
 }
 
-void InstrumentView::onListChanged(int row) {
-    if (updating_ || row < 0) return;
-    einum = row + 1;
-    readFromGlobals();
-    emit edited();
-}
-
 void InstrumentView::onNameChanged(const QString &t) {
     if (updating_) return;
     QByteArray before = captureSongSnapshot();
@@ -517,10 +486,6 @@ void InstrumentView::onNameChanged(const QString &t) {
     char buf[MAX_INSTRNAMELEN + 1];
     std::memcpy(buf, ins.name, MAX_INSTRNAMELEN);
     buf[MAX_INSTRNAMELEN] = 0;
-    QString name = QString::fromLocal8Bit(buf).trimmed();
-    if (name.isEmpty()) name = "—";
-    list_->item(einum - 1)->setText(
-        QString("%1  %2").arg(einum, 2, 16, QLatin1Char('0')).toUpper().arg(name));
     pushEditIfChanged(this, std::move(before), "Instrument name");
     emit edited();
 }

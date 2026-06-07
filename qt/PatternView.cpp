@@ -379,22 +379,28 @@ void PatternView::paintEvent(QPaintEvent *) {
     // recording octave is always in the user's eye line. Mouse-click
     // cycles up, wheel scrolls ±1 (handled in the event hooks).
     {
+        // Loud pill — bright purple background, white border, big text.
+        // Subtle versions blended into the surrounding dark theme and the
+        // user couldn't spot them.
         QRect octRect(2, 2, rowNumW_ - 4, gridTopOffset() - 4);
-        p.fillRect(octRect, QColor(40, 30, 70));
-        p.setPen(QPen(QColor(180, 140, 255), 1));
+        p.fillRect(octRect, QColor(120, 50, 200));
+        p.setPen(QPen(QColor(255, 255, 255), 2));
         p.drawRect(octRect);
         QFont of = font();
         of.setBold(true);
-        of.setPointSize(of.pointSize() + 2);
+        of.setPointSize(of.pointSize() + 4);
         p.setFont(of);
-        p.setPen(QColor(220, 200, 255));
-        p.drawText(octRect, Qt::AlignCenter, QString("OCT %1").arg(epoctave));
+        p.setPen(QColor(255, 255, 255));
+        p.drawText(QRect(octRect.x(), octRect.y(),
+                         octRect.width(), octRect.height() - 14),
+                   Qt::AlignCenter, QString("OCT %1").arg(epoctave));
         p.setFont(font());
-        p.setPen(QColor(160, 140, 200));
         QFont sf = font();
         sf.setPointSize(sf.pointSize() - 1);
         p.setFont(sf);
-        p.drawText(QRect(octRect.x(), octRect.bottom() - 14, octRect.width(), 12),
+        p.setPen(QColor(230, 220, 255));
+        p.drawText(QRect(octRect.x(), octRect.bottom() - 13,
+                         octRect.width(), 12),
                    Qt::AlignCenter, "click / wheel");
         p.setFont(font());
     }

@@ -16,11 +16,13 @@
 #include <QGroupBox>
 #include <QPainter>
 #include <QPaintEvent>
+#include <QMouseEvent>
 #include <QFontMetrics>
 #include <cstring>
 
 extern "C" {
 #include "gcommon.h"
+#include "gplay.h"
 extern INSTR instr[MAX_INSTR];
 extern int einum;
 extern int epoctave;
@@ -29,6 +31,7 @@ extern int highestusedinstr;
 void gototable(int t, int pos);
 void playtestnote(int note, int ins, int chnnum);
 void releasenote(int chnnum);
+void sid_getlevels(unsigned char *out);
 extern int editmode;
 extern unsigned char ltable[MAX_TABLES][MAX_TABLELEN];
 extern unsigned char rtable[MAX_TABLES][MAX_TABLELEN];
@@ -38,6 +41,7 @@ extern unsigned char rtable[MAX_TABLES][MAX_TABLELEN];
 // ADSR envelope preview widget
 // ---------------------------------------------------------------------------
 class AdsrPreview : public QWidget {
+    Q_OBJECT
 public:
     explicit AdsrPreview(QWidget *parent) : QWidget(parent) {
         setMinimumSize(280, 140);
@@ -45,33 +49,37 @@ public:
         QPalette pal = palette();
         pal.setColor(QPalette::Window, Theme::C::bgAlt);
         setPalette(pal);
+        setMouseTracking(true);
+        setCursor(Qt::ArrowCursor);
     }
     void setAdsr(int a, int d, int s, int r) {
         a_ = a; d_ = d; s_ = s; r_ = r;
         update();
     }
+    // Live amplitude during playback, 0..255. Anything > 0 enables the
+    // moving-bar marker; 0 disables it (and the parent will also skip
+    // calling update() to save frames).
+    void setLiveLevel(int level) {
+        if (level == liveLevel_) return;
+        liveLevel_ = level;
+        update();
+    }
+
+signals:
+    void adsrChanged(int a, int d, int s, int r);
+
 protected:
     void paintEvent(QPaintEvent *) override {
         QPainter p(this);
         p.setRenderHint(QPainter::Antialiasing);
+        computeGeometry();
         int W = width(), H = height();
-        int aw = 20 + a_ * 12;
-        int dw = 20 + d_ * 10;
-        int rw = 20 + r_ * 10;
-        int baseY = H - 12;
-        int peakY = 14;
-        int sustY = baseY - (s_ * (baseY - peakY) / 15);
-        QPoint p0(10, baseY);
-        QPoint p1(p0.x() + aw, peakY);
-        QPoint p2(p1.x() + dw, sustY);
-        QPoint p3(p2.x() + 80, sustY);
-        QPoint p4(p3.x() + rw, baseY);
-        if (p4.x() > W - 8) p4.setX(W - 8);
+        (void)W; (void)H;
 
         // Fill under envelope
         QPolygon poly;
-        poly << QPoint(p0.x(), baseY) << p0 << p1 << p2 << p3 << p4
-             << QPoint(p4.x(), baseY);
+        poly << QPoint(p0_.x(), baseY_) << p0_ << p1_ << p2_ << p3_ << p4_
+             << QPoint(p4_.x(), baseY_);
         QColor fill = Theme::C::highlight;
         fill.setAlpha(60);
         p.setBrush(fill);
@@ -80,34 +88,174 @@ protected:
 
         // Envelope stroke
         p.setPen(QPen(Theme::C::highlight, 2));
-        p.drawLine(p0, p1);
-        p.drawLine(p1, p2);
-        p.drawLine(p2, p3);
-        p.drawLine(p3, p4);
+        p.drawLine(p0_, p1_);
+        p.drawLine(p1_, p2_);
+        p.drawLine(p2_, p3_);
+        p.drawLine(p3_, p4_);
+
+        // Draggable point handles — only the three that are wired to
+        // spinboxes get a marker so the user knows what to grab.
+        auto handle = [&](const QPoint &pt, bool active) {
+            p.setBrush(active ? Theme::C::highlight : Theme::C::bgAlt);
+            p.setPen(QPen(Theme::C::highlight, 1.5));
+            p.drawEllipse(pt, 4, 4);
+        };
+        handle(p1_, dragPoint_ == 1);
+        handle(p2_, dragPoint_ == 2);
+        handle(p4_, dragPoint_ == 4);
+
+        // Moving-bar marker showing live envelope amplitude during
+        // playback. Horizontal position scales with current level
+        // relative to the envelope peak (255). The marker is suppressed
+        // when liveLevel_ == 0 (gate off / silent) so the idle UI looks
+        // exactly like it always did.
+        if (liveLevel_ > 0) {
+            int span = p4_.x() - p0_.x();
+            int barX = p0_.x() + (liveLevel_ * span) / 255;
+            if (barX < p0_.x()) barX = p0_.x();
+            if (barX > p4_.x()) barX = p4_.x();
+            QColor bar = Theme::C::playRow;
+            bar.setAlpha(220);
+            p.setPen(QPen(bar, 2));
+            p.drawLine(QPoint(barX, peakY_ - 4),
+                       QPoint(barX, baseY_ + 4));
+        }
 
         // Labels for phases
         p.setPen(Theme::C::textDim);
         QFont f = font();
         f.setPointSize(8);
         p.setFont(f);
-        p.drawText(QPoint(p0.x(), baseY + 10), "0");
-        p.drawText(QRect(p0.x(), peakY - 12, aw, 10),
+        p.drawText(QPoint(p0_.x(), baseY_ + 10), "0");
+        p.drawText(QRect(p0_.x(), peakY_ - 12, p1_.x() - p0_.x(), 10),
                    Qt::AlignCenter, "A");
-        p.drawText(QRect(p1.x(), peakY - 12, dw, 10),
+        p.drawText(QRect(p1_.x(), peakY_ - 12, p2_.x() - p1_.x(), 10),
                    Qt::AlignCenter, "D");
-        p.drawText(QRect(p2.x(), sustY - 12, p3.x() - p2.x(), 10),
+        p.drawText(QRect(p2_.x(), sustY_ - 12, p3_.x() - p2_.x(), 10),
                    Qt::AlignCenter, "S");
-        p.drawText(QRect(p3.x(), sustY - 12, rw, 10),
+        p.drawText(QRect(p3_.x(), sustY_ - 12, p4_.x() - p3_.x(), 10),
                    Qt::AlignCenter, "R");
     }
+
+    void mousePressEvent(QMouseEvent *e) override {
+        if (e->button() != Qt::LeftButton) return;
+        computeGeometry();
+        QPoint pos = e->pos();
+        const int hit = 10; // pixel-grab radius
+        // Tested in painted-z order — p4 / p2 / p1, so dragging the
+        // release handle still works even if it visually overlaps the
+        // sustain handle on tiny envelopes.
+        if (manhattan(pos, p4_) <= hit) dragPoint_ = 4;
+        else if (manhattan(pos, p2_) <= hit) dragPoint_ = 2;
+        else if (manhattan(pos, p1_) <= hit) dragPoint_ = 1;
+        else dragPoint_ = 0;
+        if (dragPoint_) {
+            applyDrag(pos);
+            update();
+        }
+    }
+    void mouseMoveEvent(QMouseEvent *e) override {
+        if (dragPoint_) {
+            applyDrag(e->pos());
+            update();
+            return;
+        }
+        // Hover cursor cue — turn into an open hand near any drag
+        // handle. Keeps the affordance discoverable without a label.
+        computeGeometry();
+        const int hit = 10;
+        QPoint pos = e->pos();
+        bool over = manhattan(pos, p1_) <= hit
+                 || manhattan(pos, p2_) <= hit
+                 || manhattan(pos, p4_) <= hit;
+        setCursor(over ? Qt::PointingHandCursor : Qt::ArrowCursor);
+    }
+    void mouseReleaseEvent(QMouseEvent *) override {
+        dragPoint_ = 0;
+        update();
+    }
+
 private:
+    static int manhattan(const QPoint &a, const QPoint &b) {
+        return qAbs(a.x() - b.x()) + qAbs(a.y() - b.y());
+    }
+
+    // Compute p0..p4 / sustY using the current a/d/s/r. Mirrors the
+    // arithmetic of the original paint code so visual position and
+    // hit-test position match exactly.
+    void computeGeometry() {
+        int W = width(), H = height();
+        int aw = 20 + a_ * 12;
+        int dw = 20 + d_ * 10;
+        int rw = 20 + r_ * 10;
+        baseY_ = H - 12;
+        peakY_ = 14;
+        sustY_ = baseY_ - (s_ * (baseY_ - peakY_) / 15);
+        p0_ = QPoint(10, baseY_);
+        p1_ = QPoint(p0_.x() + aw, peakY_);
+        p2_ = QPoint(p1_.x() + dw, sustY_);
+        p3_ = QPoint(p2_.x() + 80, sustY_);
+        p4_ = QPoint(p3_.x() + rw, baseY_);
+        if (p4_.x() > W - 8) p4_.setX(W - 8);
+    }
+
+    // Translate a mouse position into nybble values for the active
+    // drag point and emit adsrChanged so the spinboxes update (which
+    // in turn write to instr[einum] via the existing slots).
+    void applyDrag(const QPoint &pos) {
+        // Recompute with current values so the geometry the inverse
+        // math uses matches what was drawn.
+        computeGeometry();
+        int newA = a_, newD = d_, newS = s_, newR = r_;
+        switch (dragPoint_) {
+        case 1: {
+            // p1.x = p0.x + (20 + a*12) → solve for a in 0..15
+            int dx = pos.x() - p0_.x() - 20;
+            newA = qBound(0, dx / 12, 15);
+            break;
+        }
+        case 2: {
+            // p2.x = p1.x + (20 + d*10) → d in 0..15
+            int dx = pos.x() - p1_.x() - 20;
+            newD = qBound(0, dx / 10, 15);
+            // p2.y / sustY = baseY - s * (baseY-peakY)/15 → s in 0..15
+            int range = baseY_ - peakY_;
+            if (range > 0) {
+                int dy = baseY_ - qBound(peakY_, pos.y(), baseY_);
+                newS = qBound(0, (dy * 15 + range / 2) / range, 15);
+            }
+            break;
+        }
+        case 4: {
+            // p4.x = p3.x + (20 + r*10) → r in 0..15
+            int dx = pos.x() - p3_.x() - 20;
+            newR = qBound(0, dx / 10, 15);
+            break;
+        }
+        default:
+            return;
+        }
+        if (newA == a_ && newD == d_ && newS == s_ && newR == r_) return;
+        a_ = newA; d_ = newD; s_ = newS; r_ = newR;
+        emit adsrChanged(a_, d_, s_, r_);
+    }
+
     int a_ = 0, d_ = 0, s_ = 0, r_ = 0;
+    int liveLevel_ = 0;
+    int dragPoint_ = 0; // 0 = none, 1 = p1, 2 = p2, 4 = p4
+
+    // Cached geometry from the last computeGeometry() call. paintEvent /
+    // mouse handlers all use these so the picture and the hit areas
+    // stay in lockstep.
+    QPoint p0_, p1_, p2_, p3_, p4_;
+    int baseY_ = 0, peakY_ = 0, sustY_ = 0;
 };
 
 // ---------------------------------------------------------------------------
 // Wavetable preview strip
 // ---------------------------------------------------------------------------
 class WavetablePreview : public QWidget {
+    Q_OBJECT
 public:
     explicit WavetablePreview(QWidget *parent) : QWidget(parent) {
         setMinimumHeight(28);
@@ -117,6 +265,16 @@ public:
         setPalette(pal);
     }
     void setStart(int s) { start_ = s; update(); }
+    // Set the currently-active wavetable step (1-based row index from
+    // chn[].ptr[WTBL]). 0 means 'idle' — no highlight. The widget will
+    // only repaint when the value actually changes, keeping the timer-
+    // driven refresh from spinning the CPU.
+    void setActiveStep(int step) {
+        if (step == activeStep_) return;
+        activeStep_ = step;
+        update();
+    }
+    int activeStep() const { return activeStep_; }
 protected:
     void paintEvent(QPaintEvent *) override {
         QPainter p(this);
@@ -144,6 +302,17 @@ protected:
             p.fillRect(r, c);
             p.setPen(Theme::C::sep);
             p.drawRect(r);
+            // Highlight the step the playback engine is currently
+            // executing. activeStep_ is 1-based (matches chn[].ptr[WTBL]
+            // semantics — 0 means idle). Bright outline overlays the
+            // sep border so it reads as 'live cursor' even at small
+            // cell sizes. Stays inside the existing cell rect so the
+            // visual hierarchy isn't disturbed.
+            if (activeStep_ != 0 && (idx + 1) == activeStep_) {
+                p.setPen(QPen(Theme::C::highlight, 2));
+                p.setBrush(Qt::NoBrush);
+                p.drawRect(r.adjusted(1, 1, -1, -1));
+            }
         }
         // Legend brightness matches the section header above so the user
         // reads it as 'caption for these tiles', not 'disabled metadata'.
@@ -159,6 +328,7 @@ protected:
     }
 private:
     int start_ = 1;
+    int activeStep_ = 0;
 };
 
 // ---------------------------------------------------------------------------
@@ -423,6 +593,18 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     right->addWidget(envHdr);
 
     adsr_ = new AdsrPreview(this);
+    // Drag-to-edit: dragging the A / D+S / R handles on the preview
+    // pushes new nybble values into the spinboxes, which already wire
+    // into instr[einum] via onAdChanged / onSrChanged. Wrapping the
+    // set calls in updating_=false has no extra effect — the spinbox
+    // valueChanged short-circuits when the value is unchanged.
+    connect(adsr_, &AdsrPreview::adsrChanged, this,
+            [this](int a, int d, int s, int r) {
+                attack_->setValue(a);
+                decay_->setValue(d);
+                sustain_->setValue(s);
+                release_->setValue(r);
+            });
     adsr_->setToolTip(
         "<b>Heights</b> = SID envelope amplitude.<br>"
         "&nbsp;&nbsp;peak (top) = $FF — SID always attacks to full, A doesn't change this height.<br>"
@@ -500,7 +682,45 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     right->addStretch();
     root->addLayout(right, 1);
 
+    // Playback-monitor timer: 33 Hz heartbeat (~30 ms) that pulls the
+    // current envelope level and active wavetable step for chn[epchn]
+    // and pushes them into the preview widgets. The widgets
+    // short-circuit redraws when the value hasn't changed, so an idle
+    // SID stays idle on the GUI side too (zero repaints / frame).
+    playbackTimer_ = new QTimer(this);
+    playbackTimer_->setInterval(30); // ~33 Hz
+    connect(playbackTimer_, &QTimer::timeout, this,
+            &InstrumentView::tickPlayback);
+    playbackTimer_->start();
+
     refresh();
+}
+
+void InstrumentView::tickPlayback() {
+    // Pull the live envelope level for the channel the instrument
+    // editor is bound to. sid_getlevels returns the SID envelope
+    // generator output (0..255), same source used by PatternView's
+    // VU bar — so this driver stays consistent with what the rest of
+    // the UI reads as 'is the channel sounding'.
+    unsigned char levels[MAX_CHN] = {0};
+    sid_getlevels(levels);
+    int ch = (epchn >= 0 && epchn < MAX_CHN) ? epchn : 0;
+    int level = levels[ch];
+
+    // ADSR moving bar — only repaint when transitioning to/from
+    // non-zero, or while non-zero. AdsrPreview::setLiveLevel already
+    // short-circuits same-value calls, but skipping it entirely when
+    // both old and new are 0 saves a function-call+compare per frame.
+    if (level != 0 || adsr_) {
+        adsr_->setLiveLevel(level);
+    }
+
+    // Wavetable highlight — chn[c].ptr[WTBL] is the 1-based row of the
+    // current wavetable step (0 = idle). setActiveStep no-ops when the
+    // value matches, so when the engine sits on the same step we draw
+    // zero extra frames.
+    int step = chn[ch].ptr[WTBL];
+    wavePrev_->setActiveStep(step);
 }
 
 bool InstrumentView::eventFilter(QObject *o, QEvent *e) {
@@ -820,4 +1040,9 @@ void InstrumentView::applyPreset(int index) {
     refresh();
     emit edited();
 }
+
+// AdsrPreview / WavetablePreview are Q_OBJECT classes defined in this
+// .cpp, so MOC needs their definitions to be visible here for the
+// generated meta-object to link.
+#include "InstrumentView.moc"
 

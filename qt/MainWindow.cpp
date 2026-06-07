@@ -721,38 +721,26 @@ void MainWindow::playFromPos() {
         statusStrip_->showMessage("Paused");
     } else {
         followplay = 1;
-        // Sync each channel's song pointer to where the user's cursor sits
-        // in the order list AND seed each channel's in-pattern position
-        // from eppos (the row the cursor is on). Without the pattptr bit,
-        // 'Play from position' restarted the current pattern from row 0
-        // regardless of where the cursor sat.
-        for (int c = 0; c < MAX_CHN; c++) {
-            chn[c].songptr = espos[c];
-            int start = eppos;
-            int plen = pattlen[epnum[c]];
-            if (start < 0)     start = 0;
-            if (start >= plen) start = 0;
-            chn[c].pattptr = start * 4;
-        }
-        initsong(esnum, PLAY_POS);
+        // initsongpos() consumes startpattpos in playroutine — that's the
+        // path that actually survives, because initsong() (no -pos) sets
+        // startpattpos=0 and the playroutine then overwrites every chn[c]
+        // .pattptr with 0. Seeding chn[c].pattptr ourselves before calling
+        // initsong was getting trampled inside playroutine.
+        for (int c = 0; c < MAX_CHN; c++) chn[c].songptr = espos[c];
+        int start = eppos;
+        if (start < 0) start = 0;
+        initsongpos(esnum, PLAY_POS, start);
     }
 }
 void MainWindow::playPattern() {
     followplay = 1;
-    // initsong(PLAY_PATTERN) replays whatever chn[c].pattnum currently holds;
-    // sync to the user's selected pattern in each channel (epnum[c]) and
-    // start at the cursor row (eppos) so 'play pattern' from row 20 actually
-    // starts at row 20.
     for (int c = 0; c < MAX_CHN; c++) {
         chn[c].pattnum = epnum[c];
-        int start = eppos;
-        int plen = pattlen[epnum[c]];
-        if (start < 0)     start = 0;
-        if (start >= plen) start = 0;
-        chn[c].pattptr = start * 4;
         chn[c].songptr = espos[c];
     }
-    initsong(esnum, PLAY_PATTERN);
+    int start = eppos;
+    if (start < 0) start = 0;
+    initsongpos(esnum, PLAY_PATTERN, start);
 }
 void MainWindow::stopSong()          { stopsong(); }
 

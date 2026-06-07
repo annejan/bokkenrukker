@@ -454,14 +454,15 @@ static QString titleForSong(const QString &path) {
 
 void MainWindow::loadSongFile(const QString &path) {
     qInfo("load: path=%s", qPrintable(path));
-    // Bracket the load with sink suspend / resume so the audio thread parks
-    // while loadsong / clearsong rewrite chn[], songorder[], etc.
-    if (auto *a = QtAudio::instance()) a->suspend();
-    // Hard-stop the playroutine before the load, so the next audio fill that
-    // wakes up after resume() doesn't fire playroutine() against the
-    // half-mutated state the load is about to install.
-    stopsong();
-    songinit = PLAY_STOPPED;
+    // AudioFence:
+    //   1. QAudioSink::suspend() (cooperative hint)
+    //   2. lock the audio mutex — waits for the in-flight PullDevice::readData
+    //      to return, so the audio thread can't be inside playroutine() /
+    //      sid_fillbuffer() while we rewrite chn[] / sidreg[] / songorder[]
+    //   3. stopsong + songinit=PLAY_STOPPED so the next fill after resume()
+    //      doesn't reanimate the half-loaded state
+    // Released at end of this scope -> sink resumes against the new song.
+    AudioFence fence;
 
     QByteArray ba = path.toLocal8Bit();
     std::strncpy(songfilename, ba.constData(), MAX_FILENAME - 1);
@@ -483,7 +484,6 @@ void MainWindow::loadSongFile(const QString &path) {
     undoStack_->clear();   // loaded state starts a fresh history
     refreshAll();
     if (auto *w = activeEditorWidget()) w->update();
-    if (auto *a = QtAudio::instance()) a->resume();
     statusStrip_->showMessage(QString("Loaded: %1").arg(path));
 }
 
@@ -715,7 +715,7 @@ void MainWindow::muteCurrentChannel() {
 void MainWindow::prevMultiplierSlot() { prevmultiplier(); refreshAll(); }
 void MainWindow::nextMultiplierSlot() { nextmultiplier(); refreshAll(); }
 void MainWindow::toggleStereoMode(bool on) {
-    if (auto *a = QtAudio::instance()) a->suspend();
+    AudioFence fence;
     stereo_mode = on ? 1 : 0;
     // When promoting an existing mono song to stereo, channels 4-6 normally
     // have songlen=0 (nothing loaded for them) — the order map would render
@@ -733,7 +733,6 @@ void MainWindow::toggleStereoMode(bool on) {
         }
     }
     sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
-    if (auto *a = QtAudio::instance()) a->resume();
     statusStrip_->showMessage(on
         ? "Stereo ON — 6 channels, dual SID"
         : "Stereo OFF — 3 channels, single SID");
@@ -751,34 +750,32 @@ void MainWindow::toggleSid2Model() {
 }
 
 void MainWindow::toggleSidModel() {
-    // sound_init / sid_init tear down + rebuild the libresidfp instance the
-    // audio thread is mid-clock on. Bracket with suspend / resume.
-    if (auto *a = QtAudio::instance()) a->suspend();
+    // sid_init tears down + rebuilds the libresidfp instance the audio
+    // thread is mid-clock on. AudioFence locks the mutex + hard-stops the
+    // playroutine for the rebuild window.
+    AudioFence fence;
     sidmodel ^= 1;
     sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
-    if (auto *a = QtAudio::instance()) a->resume();
     statusStrip_->showMessage(sidmodel ? "Switched to 8580 SID"
                                        : "Switched to 6581 SID");
     refreshAll();
 }
 
 void MainWindow::toggleNtsc() {
-    if (auto *a = QtAudio::instance()) a->suspend();
+    AudioFence fence;
     ntsc ^= 1;
     sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
-    if (auto *a = QtAudio::instance()) a->resume();
     statusStrip_->showMessage(ntsc ? "Switched to NTSC 60Hz"
                                    : "Switched to PAL 50Hz");
     refreshAll();
 }
 
 void MainWindow::cycleMultiplier() {
-    if (auto *a = QtAudio::instance()) a->suspend();
+    AudioFence fence;
     if (multiplier == 0)      multiplier = 1;
     else if (multiplier < 4)  multiplier++;
     else                       multiplier = 0;
     sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
-    if (auto *a = QtAudio::instance()) a->resume();
     statusStrip_->showMessage(QString("Speed multiplier: %1")
         .arg(multiplier == 0 ? "½x" : QString("%1x").arg(multiplier)));
     refreshAll();

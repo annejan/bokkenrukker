@@ -4,15 +4,18 @@
 #include <QAudioFormat>
 #include <QMediaDevices>
 #include <QIODevice>
+#include <QMutexLocker>
 #include <QDebug>
 #include <cstring>
 
 extern "C" {
 #include "gcommon.h"
-void playroutine(void);
+#include "gplay.h"  // PLAY_STOPPED + playroutine prototype
 int  sid_fillbuffer(short *ptr, int samples);
 extern unsigned multiplier;
 extern unsigned ntsc;
+void stopsong(void);
+extern int songinit;
 }
 
 // Pull-mode QIODevice that the QAudioSink calls into whenever its internal
@@ -27,6 +30,11 @@ public:
     }
     bool isSequential() const override { return true; }
     qint64 readData(char *data, qint64 maxlen) override {
+        // Lock the QtAudio mutex for the whole fill so a UI-thread loadsong
+        // can't rewrite chn[] / sidreg[] / songorder[] mid-buffer. The fill
+        // is bounded by maxlen so the worst-case lock-hold is one Qt audio
+        // chunk (~20 ms at 200 ms buffer).
+        QMutexLocker lk(&QtAudio::instance()->mutex());
         // Use sub-sample-precise fractional accumulator so the playroutine
         // fires at exactly the requested frame rate regardless of the
         // sampleRate / frame_hz ratio not dividing evenly.
@@ -113,4 +121,24 @@ void QtAudio::stop() {
     if (sink_) sink_->stop();
     sink_.reset();
     device_ = nullptr;
+}
+
+// RAII fence: lock the audio mutex (waits for any in-flight readData to
+// finish), then hard-stop the playroutine. The destructor releases the lock
+// so the next fill resumes with whatever state the caller installed.
+AudioFence::AudioFence() {
+    auto *a = QtAudio::instance();
+    if (a) {
+        a->suspend();
+        a->mutex().lock();
+    }
+    stopsong();
+    songinit = PLAY_STOPPED;
+}
+AudioFence::~AudioFence() {
+    auto *a = QtAudio::instance();
+    if (a) {
+        a->mutex().unlock();
+        a->resume();
+    }
 }

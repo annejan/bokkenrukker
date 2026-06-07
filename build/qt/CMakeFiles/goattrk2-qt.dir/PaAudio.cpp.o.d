@@ -311,4 +311,5 @@ qt/CMakeFiles/goattrk2-qt.dir/PaAudio.cpp.o: \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/qhash.h \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/qvarlengtharray.h \
  /home/paul/work/c64/goattracker2/qt/../src/gcommon.h \
- /home/paul/work/c64/goattracker2/qt/../src/gplay.h
+ /home/paul/work/c64/goattracker2/qt/../src/gplay.h \
+ /home/paul/work/c64/goattracker2/qt/../src/gsid.h

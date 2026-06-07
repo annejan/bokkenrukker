@@ -71,12 +71,18 @@ static QString decodeCell(int t, unsigned char L, unsigned char R) {
             if (L & 0x01) bits << "gate";
             line = QString("wave $%1 [%2]").arg(hex(L)).arg(bits.join('+'));
         }
-        QString rs;
-        if (R == 0x80) rs = "hold freq";
-        else if (R >= 0x81) rs = QString("abs note %1").arg(R - 0x81);
-        else if (R >= 0x60) rs = QString("neg rel %1").arg(R - 0x60);
-        else rs = QString("rel +%1").arg(R);
-        line += "    note: " + rs;
+        // R is only a note byte for waveform / delay rows. For 'jump'
+        // (L=$FF, R = target step) and 'execute cmd' (L=$F0..$FE, R = cmd
+        // param), R is data; don't tack on a bogus 'note: rel +xx'.
+        const bool rIsNote = !(L == 0xFF || (L >= 0xF0 && L <= 0xFE));
+        if (rIsNote) {
+            QString rs;
+            if (R == 0x80) rs = "hold freq";
+            else if (R >= 0x81) rs = QString("abs note %1").arg(R - 0x81);
+            else if (R >= 0x60) rs = QString("neg rel %1").arg(R - 0x60);
+            else rs = QString("rel +%1").arg(R);
+            line += "    note: " + rs;
+        }
     } else if (t == 1) {
         if (L == 0xFF) line = R == 0 ? "stop" : QString("jump to step $%1").arg(hex(R));
         else if (L >= 0x80) {

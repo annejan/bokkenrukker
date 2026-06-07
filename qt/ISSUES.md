@@ -34,6 +34,26 @@
 - [x] Mute button is too narrow for word 'MUTE', obscuring most of the word, just make it a red 'M' fixes the issue.
       *(reverted to 1-char glyph: bold red 'M' on dark-red fill when muted,
         green '♪' on dark-green fill when playing.)*
+- [x] SID 2 off/6581/8580 should be clickable, the dropdown settings should still be there, just stating 'enable dual SID'
+      *(SID2 segment now 3-state cycle on click: off → 6581 → 8580 → off.
+        Settings menu 'Dual SID' toggle still flips stereo_mode explicitly.)*
+- [ ] Second SID results in segmentation fault at the moment.
+- [ ] Collapse button doesn't work, and doesn't make sense in context.
+- [ ] 'Note entry layout' doesn't change much in the view
+- [x] When changing SID type during playing, a hanging note can occur
+      *(AudioFence now zeros every voice's freq / pulse / ctrl (gate=0) / AD /
+        SR + master volume + RES_FILT in both sidreg shadows, and sets each
+        chn[c].gate to 0xfe. Before, stopsong()+songinit=PLAY_STOPPED was set
+        directly, skipping the playroutine PLAY_STOP transition that
+        normally writes the gate-off bits.)*
+- [x] When a row is selected in the 'pattern editor', 'Play from position' still starts playing at the beginning of the pattern.
+      *(playFromPos + playPattern now seed chn[c].pattptr = eppos * 4 in
+        addition to songptr = espos[c], so the song / pattern starts at
+        the cursor row instead of row 0.)*
+- [x] In Wave table, 'jump to step' also shows 'note: rel +13' (for example), is this correct?
+      *(decodeCell() now skips the 'note:' suffix when L == $FF (jump) or
+        L is in $F0..$FE (execute cmd) — those rows treat R as a target /
+        cmd param, not a note byte.)*
 - [ ] 
 
 ## Features
@@ -50,3 +70,5 @@
       *(PatternView::event handles QEvent::ToolTip on the row-number column:
         shows row hex/decimal, beat / downbeat / step tag, pattern# + length.)*
 - [ ] Second SID not implemented, because audio mixing resulted in unacceptable audio quality, found out how to implement this correctly.
+- [ ] Add option to select mono or stereo mode for dual sid, keeping things simple for the user.
+- [ ] Add support for external keyboards or samplers via USB, to enable record mode via these devices? (Popular options you can suggest?)

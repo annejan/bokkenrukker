@@ -9,11 +9,15 @@
 extern "C" {
 #include "gcommon.h"
 #include "gplay.h"
+#include "gsid.h"
 int  sid_fillbuffer(short *ptr, int samples);
 extern unsigned multiplier;
 extern unsigned ntsc;
 void stopsong(void);
 extern int songinit;
+extern unsigned char sidreg[];
+extern unsigned char sidreg2[];
+extern CHN chn[];
 }
 
 PaAudio *PaAudio::self_ = nullptr;
@@ -132,6 +136,33 @@ AudioFence::AudioFence() {
     }
     stopsong();
     songinit = PLAY_STOPPED;
+
+    // Force every voice off in the SID register shadow + clear gate bits on
+    // chn[]. stopsong() asks playroutine() to do this transition the next
+    // tick, but we set PLAY_STOPPED above before that tick can run — so
+    // without this manual wipe the previous note's gate=1 + frequency stays
+    // in sidreg[] and you can hear the note hang when the user switches SID
+    // chip type mid-play.
+    for (int v = 0; v < 3; v++) {
+        int base = v * 7;
+        sidreg [base + 0] = 0;        // freq lo
+        sidreg [base + 1] = 0;        // freq hi
+        sidreg [base + 2] = 0;        // pulse lo
+        sidreg [base + 3] = 0;        // pulse hi
+        sidreg [base + 4] = 0;        // ctrl  (gate=0 + waveform=0)
+        sidreg [base + 5] = 0;        // AD
+        sidreg [base + 6] = 0;        // SR
+        sidreg2[base + 0] = 0;
+        sidreg2[base + 1] = 0;
+        sidreg2[base + 2] = 0;
+        sidreg2[base + 3] = 0;
+        sidreg2[base + 4] = 0;
+        sidreg2[base + 5] = 0;
+        sidreg2[base + 6] = 0;
+    }
+    sidreg [0x18] = 0; sidreg2[0x18] = 0;  // master volume = 0 so any
+    sidreg [0x17] = 0; sidreg2[0x17] = 0;  // residual envelope is silent
+    for (int c = 0; c < MAX_CHN; c++) chn[c].gate = 0xfe;
 }
 AudioFence::~AudioFence() {
     auto *a = PaAudio::instance();

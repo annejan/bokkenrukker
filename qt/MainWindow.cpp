@@ -146,7 +146,7 @@ void MainWindow::buildUi() {
     statusStrip_ = new StatusStrip(centralWrap);
     centralLay->addWidget(statusStrip_);
     connect(statusStrip_, &StatusStrip::sidClicked, this, &MainWindow::toggleSidModel);
-    connect(statusStrip_, &StatusStrip::sid2Clicked, this, &MainWindow::toggleSid2Model);
+    connect(statusStrip_, &StatusStrip::sid2Clicked, this, &MainWindow::cycleSid2);
     connect(statusStrip_, &StatusStrip::followClicked, this, &MainWindow::toggleFollowPlay);
     connect(statusStrip_, &StatusStrip::ntscClicked, this, &MainWindow::toggleNtsc);
     connect(statusStrip_, &StatusStrip::tempoClicked, this, &MainWindow::cycleMultiplier);
@@ -695,9 +695,18 @@ void MainWindow::playFromPos() {
     } else {
         followplay = 1;
         // Sync each channel's song pointer to where the user's cursor sits
-        // in the order list. Without this, PLAY_POS replays from wherever
-        // the last initsong left chn[c].songptr — usually the beginning.
-        for (int c = 0; c < MAX_CHN; c++) chn[c].songptr = espos[c];
+        // in the order list AND seed each channel's in-pattern position
+        // from eppos (the row the cursor is on). Without the pattptr bit,
+        // 'Play from position' restarted the current pattern from row 0
+        // regardless of where the cursor sat.
+        for (int c = 0; c < MAX_CHN; c++) {
+            chn[c].songptr = espos[c];
+            int start = eppos;
+            int plen = pattlen[epnum[c]];
+            if (start < 0)     start = 0;
+            if (start >= plen) start = 0;
+            chn[c].pattptr = start * 4;
+        }
         initsong(esnum, PLAY_POS);
     }
 }
@@ -705,10 +714,15 @@ void MainWindow::playPattern() {
     followplay = 1;
     // initsong(PLAY_PATTERN) replays whatever chn[c].pattnum currently holds;
     // sync to the user's selected pattern in each channel (epnum[c]) and
-    // reset pattptr so playback starts at the top of that pattern.
+    // start at the cursor row (eppos) so 'play pattern' from row 20 actually
+    // starts at row 20.
     for (int c = 0; c < MAX_CHN; c++) {
         chn[c].pattnum = epnum[c];
-        chn[c].pattptr = 0;
+        int start = eppos;
+        int plen = pattlen[epnum[c]];
+        if (start < 0)     start = 0;
+        if (start >= plen) start = 0;
+        chn[c].pattptr = start * 4;
         chn[c].songptr = espos[c];
     }
     initsong(esnum, PLAY_PATTERN);
@@ -754,6 +768,26 @@ void MainWindow::toggleSid2Model() {
     }
     statusStrip_->showMessage(sid2model ? "SID2 → 8580" : "SID2 → 6581");
     refreshAll();
+}
+
+// Status-strip SID2 click cycles 3-state: off -> 6581 -> 8580 -> off.
+// The 'enable dual SID' menu checkbox remains the explicit on/off control;
+// the status-bar segment is a quick 'glance + click' affordance.
+void MainWindow::cycleSid2() {
+    if (!stereo_mode) {
+        sid2model = 0;             // entering stereo defaults to 6581
+        toggleStereoMode(true);    // already audio-fenced
+        statusStrip_->showMessage("SID2 enabled — 6581");
+        return;
+    }
+    if (sid2model == 0) {
+        toggleSid2Model();         // 6581 -> 8580
+        statusStrip_->showMessage("SID2 → 8580");
+        return;
+    }
+    // sid2model == 1 (8580) -> off (stereo_mode off)
+    toggleStereoMode(false);
+    statusStrip_->showMessage("SID2 disabled");
 }
 
 void MainWindow::toggleSidModel() {

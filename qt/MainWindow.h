@@ -76,6 +76,7 @@ private slots:
     void setKeyPresetJanko();
     void toggleStereoMode(bool on);
     void toggleSid2Model();
+    void cycleSid2();   // status-strip click: off -> 6581 -> 8580 -> off
 
 private:
     QUndoStack *undoStack_ = nullptr;

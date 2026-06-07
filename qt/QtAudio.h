@@ -1,7 +1,7 @@
 #pragma once
 #include <QObject>
 #include <QIODevice>
-#include <QMutex>
+#include <QRecursiveMutex>
 #include <memory>
 
 class QAudioSink;
@@ -29,7 +29,12 @@ public:
     // MainWindow load/clear path can grab it to fence off the audio thread
     // synchronously — QAudioSink::suspend() alone is async and lets the
     // in-flight readData race the C-globals rewrite.
-    QMutex &mutex() { return mtx_; }
+    //
+    // Recursive on purpose: AudioFence holds the mutex on the UI thread,
+    // then sid_init / loadsong / refreshAll dirty widgets that paint, and
+    // paint reads QtAudio::currentSnapshot() which would otherwise re-lock
+    // and deadlock the UI thread.
+    QRecursiveMutex &mutex() { return mtx_; }
 
     // Display-side snapshot of chn[] taken at each playroutine tick during
     // a fill. The UI consults this through currentSnapshot() instead of
@@ -54,7 +59,7 @@ private:
     std::unique_ptr<QAudioSink> sink_;
     PullDevice *device_ = nullptr;
     int sampleRate_ = 0;
-    QMutex mtx_;
+    QRecursiveMutex mtx_;
 
     // Ring buffer of recent ticks. Sized for ~1 s at 50 Hz so the UI can
     // always find the one matching processedUSecs() even with a fat sink

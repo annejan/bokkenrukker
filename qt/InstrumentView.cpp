@@ -7,6 +7,7 @@
 #include <QFormLayout>
 #include <QListWidget>
 #include <QSpinBox>
+#include <QSlider>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QComboBox>
@@ -180,6 +181,31 @@ static QSpinBox *makeNybbleSpin(QWidget *parent) {
     return s;
 }
 
+// Wrap a 0..15 ADSR spinbox in a row with a horizontal slider. Slider and
+// spinbox stay in sync via two-way valueChanged forwarding — dragging the
+// slider drives the spinbox (which in turn fires the InstrumentView's
+// onAdChanged / onSrChanged slot), so the engine wiring stays unchanged.
+static QWidget *makeNybbleRow(QSpinBox *spin, QWidget *parent) {
+    auto *w = new QWidget(parent);
+    auto *h = new QHBoxLayout(w);
+    h->setContentsMargins(0, 0, 0, 0);
+    h->setSpacing(8);
+    auto *slider = new QSlider(Qt::Horizontal, w);
+    slider->setRange(0, 15);
+    slider->setPageStep(1);
+    slider->setTickPosition(QSlider::TicksBelow);
+    slider->setTickInterval(1);
+    slider->setMinimumWidth(160);
+    spin->setMaximumWidth(70);
+    h->addWidget(spin);
+    h->addWidget(slider, 1);
+    QObject::connect(spin, QOverload<int>::of(&QSpinBox::valueChanged),
+                     slider, &QSlider::setValue);
+    QObject::connect(slider, &QSlider::valueChanged,
+                     spin, &QSpinBox::setValue);
+    return w;
+}
+
 // ---------------------------------------------------------------------------
 
 InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
@@ -275,10 +301,10 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     release_ = makeNybbleSpin(envBox);
     release_->setToolTip("Release rate after key-off ($0 fastest, $F slowest). "
                          "Watch out: A=0, R=1 can ADSR-bug on some chips.");
-    envForm->addRow("Attack", attack_);
-    envForm->addRow("Decay", decay_);
-    envForm->addRow("Sustain", sustain_);
-    envForm->addRow("Release", release_);
+    envForm->addRow("Attack",  makeNybbleRow(attack_,  envBox));
+    envForm->addRow("Decay",   makeNybbleRow(decay_,   envBox));
+    envForm->addRow("Sustain", makeNybbleRow(sustain_, envBox));
+    envForm->addRow("Release", makeNybbleRow(release_, envBox));
     connect(attack_, QOverload<int>::of(&QSpinBox::valueChanged), this, &InstrumentView::onAdChanged);
     connect(decay_,  QOverload<int>::of(&QSpinBox::valueChanged), this, &InstrumentView::onAdChanged);
     connect(sustain_,QOverload<int>::of(&QSpinBox::valueChanged), this, &InstrumentView::onSrChanged);

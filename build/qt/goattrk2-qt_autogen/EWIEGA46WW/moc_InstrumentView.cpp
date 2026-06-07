@@ -26,29 +26,27 @@ QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
 namespace {
 struct qt_meta_stringdata_InstrumentView_t {
-    uint offsetsAndSizes[44];
+    uint offsetsAndSizes[40];
     char stringdata0[15];
     char stringdata1[7];
     char stringdata2[1];
     char stringdata3[14];
-    char stringdata4[4];
-    char stringdata5[14];
+    char stringdata4[12];
+    char stringdata5[12];
     char stringdata6[12];
     char stringdata7[12];
     char stringdata8[12];
-    char stringdata9[12];
-    char stringdata10[12];
-    char stringdata11[18];
-    char stringdata12[18];
-    char stringdata13[14];
-    char stringdata14[19];
-    char stringdata15[16];
-    char stringdata16[17];
+    char stringdata9[18];
+    char stringdata10[18];
+    char stringdata11[14];
+    char stringdata12[19];
+    char stringdata13[16];
+    char stringdata14[17];
+    char stringdata15[18];
+    char stringdata16[11];
     char stringdata17[18];
-    char stringdata18[11];
-    char stringdata19[18];
-    char stringdata20[12];
-    char stringdata21[6];
+    char stringdata18[12];
+    char stringdata19[6];
 };
 #define QT_MOC_LITERAL(ofs, len) \
     uint(sizeof(qt_meta_stringdata_InstrumentView_t::offsetsAndSizes) + ofs), len 
@@ -57,31 +55,27 @@ Q_CONSTINIT static const qt_meta_stringdata_InstrumentView_t qt_meta_stringdata_
         QT_MOC_LITERAL(0, 14),  // "InstrumentView"
         QT_MOC_LITERAL(15, 6),  // "edited"
         QT_MOC_LITERAL(22, 0),  // ""
-        QT_MOC_LITERAL(23, 13),  // "onListChanged"
-        QT_MOC_LITERAL(37, 3),  // "row"
-        QT_MOC_LITERAL(41, 13),  // "onNameChanged"
-        QT_MOC_LITERAL(55, 11),  // "onAdChanged"
-        QT_MOC_LITERAL(67, 11),  // "onSrChanged"
-        QT_MOC_LITERAL(79, 11),  // "onWtChanged"
-        QT_MOC_LITERAL(91, 11),  // "onPtChanged"
-        QT_MOC_LITERAL(103, 11),  // "onFtChanged"
-        QT_MOC_LITERAL(115, 17),  // "onVibParamChanged"
-        QT_MOC_LITERAL(133, 17),  // "onVibDelayChanged"
-        QT_MOC_LITERAL(151, 13),  // "onGateChanged"
-        QT_MOC_LITERAL(165, 18),  // "onFirstWaveChanged"
-        QT_MOC_LITERAL(184, 15),  // "onGotoWaveTable"
-        QT_MOC_LITERAL(200, 16),  // "onGotoPulseTable"
-        QT_MOC_LITERAL(217, 17),  // "onGotoFilterTable"
-        QT_MOC_LITERAL(235, 10),  // "onTestNote"
-        QT_MOC_LITERAL(246, 17),  // "onSilenceTestNote"
-        QT_MOC_LITERAL(264, 11),  // "applyPreset"
-        QT_MOC_LITERAL(276, 5)   // "index"
+        QT_MOC_LITERAL(23, 13),  // "onNameChanged"
+        QT_MOC_LITERAL(37, 11),  // "onAdChanged"
+        QT_MOC_LITERAL(49, 11),  // "onSrChanged"
+        QT_MOC_LITERAL(61, 11),  // "onWtChanged"
+        QT_MOC_LITERAL(73, 11),  // "onPtChanged"
+        QT_MOC_LITERAL(85, 11),  // "onFtChanged"
+        QT_MOC_LITERAL(97, 17),  // "onVibParamChanged"
+        QT_MOC_LITERAL(115, 17),  // "onVibDelayChanged"
+        QT_MOC_LITERAL(133, 13),  // "onGateChanged"
+        QT_MOC_LITERAL(147, 18),  // "onFirstWaveChanged"
+        QT_MOC_LITERAL(166, 15),  // "onGotoWaveTable"
+        QT_MOC_LITERAL(182, 16),  // "onGotoPulseTable"
+        QT_MOC_LITERAL(199, 17),  // "onGotoFilterTable"
+        QT_MOC_LITERAL(217, 10),  // "onTestNote"
+        QT_MOC_LITERAL(228, 17),  // "onSilenceTestNote"
+        QT_MOC_LITERAL(246, 11),  // "applyPreset"
+        QT_MOC_LITERAL(258, 5)   // "index"
     },
     "InstrumentView",
     "edited",
     "",
-    "onListChanged",
-    "row",
     "onNameChanged",
     "onAdChanged",
     "onSrChanged",
@@ -109,7 +103,7 @@ Q_CONSTINIT static const uint qt_meta_data_InstrumentView[] = {
       10,       // revision
        0,       // classname
        0,    0, // classinfo
-      18,   14, // methods
+      17,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
@@ -117,32 +111,30 @@ Q_CONSTINIT static const uint qt_meta_data_InstrumentView[] = {
        1,       // signalCount
 
  // signals: name, argc, parameters, tag, flags, initial metatype offsets
-       1,    0,  122,    2, 0x06,    1 /* Public */,
+       1,    0,  116,    2, 0x06,    1 /* Public */,
 
  // slots: name, argc, parameters, tag, flags, initial metatype offsets
-       3,    1,  123,    2, 0x08,    2 /* Private */,
-       5,    1,  126,    2, 0x08,    4 /* Private */,
-       6,    1,  129,    2, 0x08,    6 /* Private */,
-       7,    1,  132,    2, 0x08,    8 /* Private */,
-       8,    1,  135,    2, 0x08,   10 /* Private */,
-       9,    1,  138,    2, 0x08,   12 /* Private */,
-      10,    1,  141,    2, 0x08,   14 /* Private */,
-      11,    1,  144,    2, 0x08,   16 /* Private */,
-      12,    1,  147,    2, 0x08,   18 /* Private */,
-      13,    1,  150,    2, 0x08,   20 /* Private */,
-      14,    1,  153,    2, 0x08,   22 /* Private */,
-      15,    0,  156,    2, 0x08,   24 /* Private */,
-      16,    0,  157,    2, 0x08,   25 /* Private */,
-      17,    0,  158,    2, 0x08,   26 /* Private */,
-      18,    0,  159,    2, 0x08,   27 /* Private */,
-      19,    0,  160,    2, 0x08,   28 /* Private */,
-      20,    1,  161,    2, 0x08,   29 /* Private */,
+       3,    1,  117,    2, 0x08,    2 /* Private */,
+       4,    1,  120,    2, 0x08,    4 /* Private */,
+       5,    1,  123,    2, 0x08,    6 /* Private */,
+       6,    1,  126,    2, 0x08,    8 /* Private */,
+       7,    1,  129,    2, 0x08,   10 /* Private */,
+       8,    1,  132,    2, 0x08,   12 /* Private */,
+       9,    1,  135,    2, 0x08,   14 /* Private */,
+      10,    1,  138,    2, 0x08,   16 /* Private */,
+      11,    1,  141,    2, 0x08,   18 /* Private */,
+      12,    1,  144,    2, 0x08,   20 /* Private */,
+      13,    0,  147,    2, 0x08,   22 /* Private */,
+      14,    0,  148,    2, 0x08,   23 /* Private */,
+      15,    0,  149,    2, 0x08,   24 /* Private */,
+      16,    0,  150,    2, 0x08,   25 /* Private */,
+      17,    0,  151,    2, 0x08,   26 /* Private */,
+      18,    1,  152,    2, 0x08,   27 /* Private */,
 
  // signals: parameters
     QMetaType::Void,
 
  // slots: parameters
-    QMetaType::Void, QMetaType::Int,    4,
     QMetaType::Void, QMetaType::QString,    2,
     QMetaType::Void, QMetaType::Int,    2,
     QMetaType::Void, QMetaType::Int,    2,
@@ -158,7 +150,7 @@ Q_CONSTINIT static const uint qt_meta_data_InstrumentView[] = {
     QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void,
-    QMetaType::Void, QMetaType::Int,   21,
+    QMetaType::Void, QMetaType::Int,   19,
 
        0        // eod
 };
@@ -174,9 +166,6 @@ Q_CONSTINIT const QMetaObject InstrumentView::staticMetaObject = { {
         QtPrivate::TypeAndForceComplete<InstrumentView, std::true_type>,
         // method 'edited'
         QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        // method 'onListChanged'
-        QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        QtPrivate::TypeAndForceComplete<int, std::false_type>,
         // method 'onNameChanged'
         QtPrivate::TypeAndForceComplete<void, std::false_type>,
         QtPrivate::TypeAndForceComplete<const QString &, std::false_type>,
@@ -231,23 +220,22 @@ void InstrumentView::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _
         (void)_t;
         switch (_id) {
         case 0: _t->edited(); break;
-        case 1: _t->onListChanged((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
-        case 2: _t->onNameChanged((*reinterpret_cast< std::add_pointer_t<QString>>(_a[1]))); break;
-        case 3: _t->onAdChanged((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
-        case 4: _t->onSrChanged((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
-        case 5: _t->onWtChanged((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
-        case 6: _t->onPtChanged((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
-        case 7: _t->onFtChanged((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
-        case 8: _t->onVibParamChanged((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
-        case 9: _t->onVibDelayChanged((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
-        case 10: _t->onGateChanged((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
-        case 11: _t->onFirstWaveChanged((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
-        case 12: _t->onGotoWaveTable(); break;
-        case 13: _t->onGotoPulseTable(); break;
-        case 14: _t->onGotoFilterTable(); break;
-        case 15: _t->onTestNote(); break;
-        case 16: _t->onSilenceTestNote(); break;
-        case 17: _t->applyPreset((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 1: _t->onNameChanged((*reinterpret_cast< std::add_pointer_t<QString>>(_a[1]))); break;
+        case 2: _t->onAdChanged((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 3: _t->onSrChanged((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 4: _t->onWtChanged((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 5: _t->onPtChanged((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 6: _t->onFtChanged((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 7: _t->onVibParamChanged((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 8: _t->onVibDelayChanged((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 9: _t->onGateChanged((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 10: _t->onFirstWaveChanged((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 11: _t->onGotoWaveTable(); break;
+        case 12: _t->onGotoPulseTable(); break;
+        case 13: _t->onGotoFilterTable(); break;
+        case 14: _t->onTestNote(); break;
+        case 15: _t->onSilenceTestNote(); break;
+        case 16: _t->applyPreset((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
         default: ;
         }
     } else if (_c == QMetaObject::IndexOfMethod) {
@@ -281,13 +269,13 @@ int InstrumentView::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 18)
+        if (_id < 17)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 18;
+        _id -= 17;
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 18)
+        if (_id < 17)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 18;
+        _id -= 17;
     }
     return _id;
 }

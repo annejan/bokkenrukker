@@ -51,9 +51,42 @@ void converthex(void);
 void mutechannel(int chnnum);
 void countpatternlengths(void);
 extern char *notename[];
+extern INSTR instr[MAX_INSTR];
 }
 
 static int shownChannels() { return stereo_mode ? MAX_CHN : 3; }
+
+// Instrument background palette — 24 colours sampled from the vecteezy
+// reference image (https://static.vecteezy.com/system/resources/previews/
+// 016/592/367/original/color-palette-set-design-template-multi-color-free
+// -vector.jpg), filtered to luminance 0.10..0.55 so 'ON' text stays
+// readable, then greedy farthest-first to spread the hue space.
+static const QRgb kInstrColors[] = {
+    qRgb(242,  64,  61), qRgb( 45, 217, 197), qRgb( 57, 104,  36),
+    qRgb(185, 160, 252), qRgb(225, 193,  73), qRgb( 14,  97, 163),
+    qRgb(149, 104, 124), qRgb(253, 137, 174), qRgb(148, 166,   6),
+    qRgb(120, 212, 149), qRgb(187,   7,  80), qRgb(231, 156,   5),
+    qRgb( 64, 153, 147), qRgb(193, 173, 136), qRgb(125, 190, 234),
+    qRgb(254, 123,  93), qRgb(123,  97,  62), qRgb(240,  22, 117),
+    qRgb(218,  63,   2), qRgb(115, 112,   0), qRgb( 82, 162,  41),
+    qRgb(  5, 164, 166), qRgb( 57, 110, 102), qRgb(199, 190, 194),
+};
+constexpr int kInstrColorCount =
+    sizeof(kInstrColors) / sizeof(kInstrColors[0]);
+
+// FNV-1a over (instrument name + instrument index). Renames change the
+// colour; empty-name slots still differ between slot numbers.
+static QColor instrColor(unsigned char inum) {
+    if (inum == 0 || inum >= MAX_INSTR) return QColor();
+    uint32_t h = 2166136261u;
+    for (int i = 0; i < MAX_INSTRNAMELEN; i++) {
+        unsigned char ch = (unsigned char)instr[inum].name[i];
+        if (ch == 0) break;
+        h ^= ch; h *= 16777619u;
+    }
+    h ^= inum; h *= 16777619u;
+    return QColor::fromRgb(kInstrColors[h % kInstrColorCount]);
+}
 
 PatternView::PatternView(QWidget *parent) : QAbstractScrollArea(parent) {
     QFont mono = Theme::monoFont(11);
@@ -581,10 +614,21 @@ void PatternView::paintEvent(QPaintEvent *) {
 
             int tx = x + colWidth;
             int ty = lineRect.y() + rowHeight - 5;
+            // Instrument-coloured background — only paints over the 2-digit
+            // instr cell so the rest of the row stays readable.
+            if (instrColorsOn_ && ins) {
+                QRect insBg(tx + 4 * colWidth, lineRect.y(),
+                            2 * colWidth, rowHeight);
+                p.fillRect(insBg, instrColor(ins));
+            }
             p.setPen(note == REST || note == KEYOFF || note == KEYON || note < FIRSTNOTE
                      ? Theme::C::textDim : Theme::C::note);
             p.drawText(QPoint(tx, ty), noteStr);
-            p.setPen(ins ? Theme::C::instr : Theme::C::textDim);
+            // White text on the coloured instr cell for contrast when the
+            // toggle is on; default instr colour otherwise.
+            p.setPen(instrColorsOn_ && ins ? QColor(255, 255, 255)
+                                            : (ins ? Theme::C::instr
+                                                   : Theme::C::textDim));
             p.drawText(QPoint(tx + 4 * colWidth, ty), insStr);
             p.setPen(cmd ? Theme::C::cmdDigit : Theme::C::textDim);
             p.drawText(QPoint(tx + 7 * colWidth, ty), QString(cmdStr[0]));

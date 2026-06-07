@@ -14,6 +14,8 @@ public:
 public slots:
     void refresh();
     void tickScope();
+    void setInstrColorsEnabled(bool on) { instrColorsOn_ = on; viewport()->update(); }
+    bool instrColorsEnabled() const     { return instrColorsOn_; }
 
 signals:
     void patternEdited();
@@ -46,6 +48,7 @@ private:
     int headerStripH_ = 0;
 
     int channelAtX(int x) const;
+    bool instrColorsOn_ = false;
     int lastEppos_ = -1;
     int lastEpchn_ = -1;
     // chn[c].pattptr snapshot taken at the start of refresh() and reused

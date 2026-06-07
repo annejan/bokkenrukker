@@ -382,6 +382,25 @@ void MainWindow::buildUi() {
     connect(blinkA, &QAction::toggled, this,
             [this](bool on){ insQuick_->setBlinkEnabled(on); });
 
+    auto *instrColorA = viewMenu->addAction("&Instrument cell colours");
+    instrColorA->setCheckable(true);
+    instrColorA->setToolTip(
+        "Paint each instrument byte in the pattern grid with a stable "
+        "per-instrument background colour (FNV-1a hash of name + index "
+        "into a 24-colour palette sampled from the vecteezy reference "
+        "image). Quickly shows where each instrument is used.");
+    {
+        QSettings s;
+        bool on = s.value("editor/instrColors", false).toBool();
+        instrColorA->setChecked(on);
+        pattern_->setInstrColorsEnabled(on);
+    }
+    connect(instrColorA, &QAction::toggled, this, [this](bool on) {
+        pattern_->setInstrColorsEnabled(on);
+        QSettings s;
+        s.setValue("editor/instrColors", on);
+    });
+
     // ---- Settings menu (microtonal / tuning / keypreset) ---------------
     auto *settingsMenu = menuBar()->addMenu("&Settings");
 

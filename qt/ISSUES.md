@@ -130,5 +130,16 @@
         bidirectionally bound via valueChanged forwarding; the spinbox
         still fires InstrumentView::onAdChanged / onSrChanged so the
         engine wiring is unchanged.)*
-- [ ] Add a toggle button to give every instrument it's own unique background color and color the instrument bytes in the patterns the background color the instrument has got. (Do something like hash the name, and make sure the colors are ergonomically useful ). Use the colors in this page as a reference, filter out the colors too close to text color: https://static.vecteezy.com/system/resources/previews/016/592/367/original/color-palette-set-design-template-multi-color-free-vector.jpg
+- [x] Add a toggle button to give every instrument it's own unique background color and color the instrument bytes in the patterns the background color the instrument has got. (Do something like hash the name, and make sure the colors are ergonomically useful ). Use the colors in this page as a reference, filter out the colors too close to text color: https://static.vecteezy.com/system/resources/previews/016/592/367/original/color-palette-set-design-template-multi-color-free-vector.jpg
+      *(24-colour palette extracted directly from the linked vecteezy image:
+        sampled the 270 swatches (6×9 palettes × 5 colours), filtered to
+        WCAG-style luminance 0.10..0.55 so neither black nor white text
+        clips, then greedy farthest-first to spread the hue space. Stored
+        as kInstrColors[] in PatternView.cpp.
+        instrColor(inum) hashes the instrument name with FNV-1a and folds
+        the index in too — renames pick a new colour, empty-name slots
+        still differ between numbers. paintEvent fills only the 2-digit
+        instr cell so the rest of the row stays readable; instr text is
+        forced white when the cell is coloured. View > 'Instrument cell
+        colours' toggles + persists via QSettings editor/instrColors.)*
 - [ ] 

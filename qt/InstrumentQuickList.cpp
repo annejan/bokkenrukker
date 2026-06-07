@@ -4,6 +4,7 @@
 
 #include <QBrush>
 #include <QColor>
+#include <QMouseEvent>
 #include <cstring>
 
 extern "C" {
@@ -61,9 +62,29 @@ void InstrumentQuickList::setBlinkEnabled(bool on) {
     }
 }
 
-void InstrumentQuickList::setColorsEnabled(bool on) {
-    colorsOn_ = on;
+void InstrumentQuickList::setAllColored(bool on) {
+    setAllInstrColored(on);
+    saveInstrColorMask();
     refresh();
+    emit colorMaskChanged();
+}
+
+void InstrumentQuickList::mouseDoubleClickEvent(QMouseEvent *e) {
+    // Double-click a row to toggle that instrument's colour bit. Routes
+    // to setInstrColored / saveInstrColorMask in InstrColors.cpp + emits
+    // colorMaskChanged so the pattern view repaints with the new state.
+    auto idx = indexAt(e->pos());
+    if (!idx.isValid()) { QListWidget::mouseDoubleClickEvent(e); return; }
+    int slot = idx.row() + 1;
+    if (slot < 1 || slot >= MAX_INSTR) {
+        QListWidget::mouseDoubleClickEvent(e);
+        return;
+    }
+    setInstrColored((unsigned char)slot, !isInstrColored((unsigned char)slot));
+    saveInstrColorMask();
+    refresh();
+    emit colorMaskChanged();
+    e->accept();
 }
 
 void InstrumentQuickList::tickFlash() {
@@ -96,13 +117,11 @@ void InstrumentQuickList::tickFlash() {
             b += chanColor[c].blue()  * w;
             flash_[i][c] = f - 1;
         }
-        // Resolve the 'cold' background once — palette colour when the
-        // colour toggle is on, theme base otherwise.
+        // Resolve the 'cold' background once — palette colour when this
+        // instrument is opted in via instrColor(), theme base otherwise.
         QColor cold = base;
-        if (colorsOn_) {
-            QColor pc = instrColor((unsigned char)i);
-            if (pc.isValid()) cold = pc;
-        }
+        QColor pc = instrColor((unsigned char)i);
+        if (pc.isValid()) cold = pc;
         if (wSum <= 0.f) {
             // Repaint the cold colour once after the last channel's flash
             // hit zero; skip otherwise to avoid setBackground churn.
@@ -132,19 +151,16 @@ void InstrumentQuickList::refresh() {
         auto *it = item(i - 1);
         it->setText(QString("%1  %2")
             .arg(i, 2, 16, QLatin1Char('0')).toUpper().arg(name));
-        // Apply per-instrument colour when the toggle is on. White text
-        // for readability against any of the 24 palette colours; default
-        // text otherwise.
-        if (colorsOn_) {
-            QColor pc = instrColor((unsigned char)i);
-            if (pc.isValid()) {
-                it->setBackground(QBrush(pc));
-                it->setForeground(QBrush(QColor(255, 255, 255)));
-                continue;
-            }
+        // Per-instrument opt-in: instrColor() returns a valid QColor only
+        // for slots the user toggled on via double-click.
+        QColor pc = instrColor((unsigned char)i);
+        if (pc.isValid()) {
+            it->setBackground(QBrush(pc));
+            it->setForeground(QBrush(QColor(255, 255, 255)));
+        } else {
+            it->setBackground(QBrush());
+            it->setForeground(QBrush(Theme::C::text));
         }
-        it->setBackground(QBrush());
-        it->setForeground(QBrush(Theme::C::text));
     }
     if (einum >= 1 && einum < MAX_INSTR)
         setCurrentRow(einum - 1);

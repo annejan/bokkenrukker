@@ -14,6 +14,9 @@ public:
 public slots:
     void refresh();
     void tickScope();
+    // Master enable for instrument-colour fills in the pattern grid. With
+    // per-instrument opt-in, this is effectively always on; the flag stays
+    // around so the painter can still short-circuit a tight loop.
     void setInstrColorsEnabled(bool on) { instrColorsOn_ = on; viewport()->update(); }
     bool instrColorsEnabled() const     { return instrColorsOn_; }
 

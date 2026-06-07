@@ -1,11 +1,18 @@
 #include "InstrColors.h"
 
+#include <QSettings>
+
 extern "C" {
 #include "gcommon.h"
 extern INSTR instr[MAX_INSTR];
 }
 
 #include <cstdint>
+
+// One bit per slot (MAX_INSTR=64). User toggles via double-click on the
+// right-side instrument list; persisted as editor/instrColorMask in
+// QSettings.
+static uint64_t s_colorMask = 0;
 
 static const QRgb kInstrColors[] = {
     qRgb(242,  64,  61), qRgb( 45, 217, 197), qRgb( 57, 104,  36),
@@ -22,6 +29,7 @@ constexpr int kInstrColorCount =
 
 QColor instrColor(unsigned char inum) {
     if (inum == 0 || inum >= MAX_INSTR) return QColor();
+    if (!(s_colorMask & (1ull << inum))) return QColor();
     uint32_t h = 2166136261u;
     for (int i = 0; i < MAX_INSTRNAMELEN; i++) {
         unsigned char ch = (unsigned char)instr[inum].name[i];
@@ -30,4 +38,37 @@ QColor instrColor(unsigned char inum) {
     }
     h ^= inum; h *= 16777619u;
     return QColor::fromRgb(kInstrColors[h % kInstrColorCount]);
+}
+
+bool isInstrColored(unsigned char inum) {
+    if (inum == 0 || inum >= MAX_INSTR) return false;
+    return (s_colorMask & (1ull << inum)) != 0;
+}
+
+void setInstrColored(unsigned char inum, bool on) {
+    if (inum == 0 || inum >= MAX_INSTR) return;
+    if (on) s_colorMask |=  (1ull << inum);
+    else    s_colorMask &= ~(1ull << inum);
+}
+
+void setAllInstrColored(bool on) {
+    if (on) {
+        // Bits 1..MAX_INSTR-1 (slot 0 is the 'no instrument' sentinel).
+        s_colorMask = (MAX_INSTR >= 64) ? ~0ull
+                                       : (((1ull << MAX_INSTR) - 1) & ~1ull);
+        // Clear bit 0 — never colour the empty slot.
+        s_colorMask &= ~1ull;
+    } else {
+        s_colorMask = 0;
+    }
+}
+
+void loadInstrColorMask() {
+    QSettings s;
+    s_colorMask = s.value("editor/instrColorMask", (qulonglong)0).toULongLong();
+}
+
+void saveInstrColorMask() {
+    QSettings s;
+    s.setValue("editor/instrColorMask", (qulonglong)s_colorMask);
 }

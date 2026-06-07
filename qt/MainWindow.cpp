@@ -41,6 +41,7 @@
 #include <QActionGroup>
 #include "Theme.h"
 #include "PaAudio.h"
+#include "InstrColors.h"
 #include <cstring>
 
 extern "C" {
@@ -296,8 +297,53 @@ void MainWindow::buildUi() {
     resizeDocks({orderMapDock_}, {160}, Qt::Horizontal);
 
     insQuickDock_ = new QDockWidget("Instruments", this);
-    insQuick_ = new InstrumentQuickList(insQuickDock_);
-    insQuickDock_->setWidget(insQuick_);
+    // Wrap: [colour master button] + [instrument list]. Double-clicking a
+    // row in the list toggles that one instrument's colour; the button is
+    // an 'all on' / 'all off' master so the user can flood-fill or wipe in
+    // one click.
+    {
+        auto *iqWrap = new QWidget(insQuickDock_);
+        auto *iqLay = new QVBoxLayout(iqWrap);
+        iqLay->setContentsMargins(4, 4, 4, 4);
+        iqLay->setSpacing(2);
+        auto *colAllBtn = new QToolButton(iqWrap);
+        colAllBtn->setText("Colours: all on");
+        colAllBtn->setToolTip(
+            "Toggle the colour bit on every instrument. Double-click a "
+            "single row in the list below to flip just that one.");
+        colAllBtn->setToolButtonStyle(Qt::ToolButtonTextOnly);
+        iqLay->addWidget(colAllBtn);
+        insQuick_ = new InstrumentQuickList(iqWrap);
+        iqLay->addWidget(insQuick_, 1);
+        insQuickDock_->setWidget(iqWrap);
+
+        // The button label tracks the next action: 'all on' when the mask
+        // is empty, 'all off' otherwise (so a click clears any non-empty
+        // mask first).
+        auto refreshColBtn = [colAllBtn]() {
+            // Probe bit 1 + bit 2 — if any non-zero slot is coloured the
+            // button offers 'all off'; otherwise 'all on'.
+            bool any = false;
+            for (int i = 1; i < 64 && !any; i++)
+                if (isInstrColored((unsigned char)i)) any = true;
+            colAllBtn->setText(any ? "Colours: all off" : "Colours: all on");
+        };
+        loadInstrColorMask();
+        refreshColBtn();
+        connect(colAllBtn, &QToolButton::clicked, this, [this, refreshColBtn]() {
+            bool any = false;
+            for (int i = 1; i < 64 && !any; i++)
+                if (isInstrColored((unsigned char)i)) any = true;
+            insQuick_->setAllColored(!any);
+            refreshColBtn();
+            pattern_->refresh();
+        });
+        connect(insQuick_, &InstrumentQuickList::colorMaskChanged, this,
+                [this, refreshColBtn]() {
+                    refreshColBtn();
+                    pattern_->refresh();
+                });
+    }
     insQuickDock_->setFeatures(QDockWidget::DockWidgetClosable
                               | QDockWidget::DockWidgetMovable);
     addDockWidget(Qt::RightDockWidgetArea, insQuickDock_);
@@ -382,26 +428,11 @@ void MainWindow::buildUi() {
     connect(blinkA, &QAction::toggled, this,
             [this](bool on){ insQuick_->setBlinkEnabled(on); });
 
-    auto *instrColorA = viewMenu->addAction("&Instrument cell colours");
-    instrColorA->setCheckable(true);
-    instrColorA->setToolTip(
-        "Paint each instrument byte in the pattern grid with a stable "
-        "per-instrument background colour (FNV-1a hash of name + index "
-        "into a 24-colour palette sampled from the vecteezy reference "
-        "image). Quickly shows where each instrument is used.");
-    {
-        QSettings s;
-        bool on = s.value("editor/instrColors", false).toBool();
-        instrColorA->setChecked(on);
-        pattern_->setInstrColorsEnabled(on);
-        insQuick_->setColorsEnabled(on);
-    }
-    connect(instrColorA, &QAction::toggled, this, [this](bool on) {
-        pattern_->setInstrColorsEnabled(on);
-        insQuick_->setColorsEnabled(on);
-        QSettings s;
-        s.setValue("editor/instrColors", on);
-    });
+    // Per-instrument colours are opt-in via double-click in the right-side
+    // dock (and the 'Colours: all on/off' master button in the dock
+    // header). No View-menu toggle — opt-in keeps the editor from turning
+    // into a wall of colour by default.
+    pattern_->setInstrColorsEnabled(true);
 
     // ---- Settings menu (microtonal / tuning / keypreset) ---------------
     auto *settingsMenu = menuBar()->addMenu("&Settings");

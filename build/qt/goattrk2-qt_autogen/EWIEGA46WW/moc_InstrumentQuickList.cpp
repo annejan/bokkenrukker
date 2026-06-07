@@ -26,13 +26,14 @@ QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
 namespace {
 struct qt_meta_stringdata_InstrumentQuickList_t {
-    uint offsetsAndSizes[12];
+    uint offsetsAndSizes[14];
     char stringdata0[20];
     char stringdata1[17];
     char stringdata2[1];
-    char stringdata3[13];
-    char stringdata4[4];
-    char stringdata5[10];
+    char stringdata3[17];
+    char stringdata4[13];
+    char stringdata5[4];
+    char stringdata6[10];
 };
 #define QT_MOC_LITERAL(ofs, len) \
     uint(sizeof(qt_meta_stringdata_InstrumentQuickList_t::offsetsAndSizes) + ofs), len 
@@ -41,13 +42,15 @@ Q_CONSTINIT static const qt_meta_stringdata_InstrumentQuickList_t qt_meta_string
         QT_MOC_LITERAL(0, 19),  // "InstrumentQuickList"
         QT_MOC_LITERAL(20, 16),  // "instrumentChosen"
         QT_MOC_LITERAL(37, 0),  // ""
-        QT_MOC_LITERAL(38, 12),  // "onRowChanged"
-        QT_MOC_LITERAL(51, 3),  // "row"
-        QT_MOC_LITERAL(55, 9)   // "tickFlash"
+        QT_MOC_LITERAL(38, 16),  // "colorMaskChanged"
+        QT_MOC_LITERAL(55, 12),  // "onRowChanged"
+        QT_MOC_LITERAL(68, 3),  // "row"
+        QT_MOC_LITERAL(72, 9)   // "tickFlash"
     },
     "InstrumentQuickList",
     "instrumentChosen",
     "",
+    "colorMaskChanged",
     "onRowChanged",
     "row",
     "tickFlash"
@@ -61,25 +64,27 @@ Q_CONSTINIT static const uint qt_meta_data_InstrumentQuickList[] = {
       10,       // revision
        0,       // classname
        0,    0, // classinfo
-       3,   14, // methods
+       4,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
        0,       // flags
-       1,       // signalCount
+       2,       // signalCount
 
  // signals: name, argc, parameters, tag, flags, initial metatype offsets
-       1,    0,   32,    2, 0x06,    1 /* Public */,
+       1,    0,   38,    2, 0x06,    1 /* Public */,
+       3,    0,   39,    2, 0x06,    2 /* Public */,
 
  // slots: name, argc, parameters, tag, flags, initial metatype offsets
-       3,    1,   33,    2, 0x08,    2 /* Private */,
-       5,    0,   36,    2, 0x08,    4 /* Private */,
+       4,    1,   40,    2, 0x08,    3 /* Private */,
+       6,    0,   43,    2, 0x08,    5 /* Private */,
 
  // signals: parameters
     QMetaType::Void,
+    QMetaType::Void,
 
  // slots: parameters
-    QMetaType::Void, QMetaType::Int,    4,
+    QMetaType::Void, QMetaType::Int,    5,
     QMetaType::Void,
 
        0        // eod
@@ -95,6 +100,8 @@ Q_CONSTINIT const QMetaObject InstrumentQuickList::staticMetaObject = { {
         // Q_OBJECT / Q_GADGET
         QtPrivate::TypeAndForceComplete<InstrumentQuickList, std::true_type>,
         // method 'instrumentChosen'
+        QtPrivate::TypeAndForceComplete<void, std::false_type>,
+        // method 'colorMaskChanged'
         QtPrivate::TypeAndForceComplete<void, std::false_type>,
         // method 'onRowChanged'
         QtPrivate::TypeAndForceComplete<void, std::false_type>,
@@ -112,8 +119,9 @@ void InstrumentQuickList::qt_static_metacall(QObject *_o, QMetaObject::Call _c, 
         (void)_t;
         switch (_id) {
         case 0: _t->instrumentChosen(); break;
-        case 1: _t->onRowChanged((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
-        case 2: _t->tickFlash(); break;
+        case 1: _t->colorMaskChanged(); break;
+        case 2: _t->onRowChanged((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 3: _t->tickFlash(); break;
         default: ;
         }
     } else if (_c == QMetaObject::IndexOfMethod) {
@@ -122,6 +130,13 @@ void InstrumentQuickList::qt_static_metacall(QObject *_o, QMetaObject::Call _c, 
             using _t = void (InstrumentQuickList::*)();
             if (_t _q_method = &InstrumentQuickList::instrumentChosen; *reinterpret_cast<_t *>(_a[1]) == _q_method) {
                 *result = 0;
+                return;
+            }
+        }
+        {
+            using _t = void (InstrumentQuickList::*)();
+            if (_t _q_method = &InstrumentQuickList::colorMaskChanged; *reinterpret_cast<_t *>(_a[1]) == _q_method) {
+                *result = 1;
                 return;
             }
         }
@@ -147,13 +162,13 @@ int InstrumentQuickList::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 3)
+        if (_id < 4)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 3;
+        _id -= 4;
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 3)
+        if (_id < 4)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 3;
+        _id -= 4;
     }
     return _id;
 }
@@ -162,6 +177,12 @@ int InstrumentQuickList::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
 void InstrumentQuickList::instrumentChosen()
 {
     QMetaObject::activate(this, &staticMetaObject, 0, nullptr);
+}
+
+// SIGNAL 1
+void InstrumentQuickList::colorMaskChanged()
+{
+    QMetaObject::activate(this, &staticMetaObject, 1, nullptr);
 }
 QT_WARNING_POP
 QT_END_MOC_NAMESPACE

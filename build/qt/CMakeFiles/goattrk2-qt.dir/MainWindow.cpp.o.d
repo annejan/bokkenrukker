@@ -511,6 +511,7 @@ qt/CMakeFiles/goattrk2-qt.dir/MainWindow.cpp.o: \
  /usr/include/x86_64-linux-gnu/qt6/QtGui/QFontDatabase \
  /usr/include/x86_64-linux-gnu/qt6/QtGui/qfontdatabase.h \
  /home/paul/work/c64/goattracker2/qt/PaAudio.h \
+ /home/paul/work/c64/goattracker2/qt/InstrColors.h \
  /home/paul/work/c64/goattracker2/qt/../src/goattrk2.h \
  /usr/include/unistd.h /usr/include/x86_64-linux-gnu/bits/posix_opt.h \
  /usr/include/x86_64-linux-gnu/bits/environments.h \

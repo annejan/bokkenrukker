@@ -41,6 +41,7 @@ private:
     QSpinBox *attack_, *decay_, *sustain_, *release_;
     QSpinBox *wave_, *pulse_, *filter_, *vibParam_;
     QSpinBox *vibDelay_, *gateTimer_, *firstWave_;
+    class QTimer *autoTestTimer_ = nullptr;
     AdsrPreview *adsr_;
     WavetablePreview *wavePrev_;
     QLabel *summary_;

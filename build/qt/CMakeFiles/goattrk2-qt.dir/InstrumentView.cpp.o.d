@@ -388,6 +388,9 @@ qt/CMakeFiles/goattrk2-qt.dir/InstrumentView.cpp.o: \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qspinbox.h \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/QSlider \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qslider.h \
+ /usr/include/x86_64-linux-gnu/qt6/QtCore/QTimer \
+ /usr/include/x86_64-linux-gnu/qt6/QtCore/qtimer.h \
+ /usr/include/x86_64-linux-gnu/qt6/QtCore/qbasictimer.h \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/QLineEdit \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qlineedit.h \
  /usr/include/x86_64-linux-gnu/qt6/QtGui/qtextcursor.h \

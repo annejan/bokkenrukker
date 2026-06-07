@@ -8,6 +8,7 @@
 #include <QListWidget>
 #include <QSpinBox>
 #include <QSlider>
+#include <QTimer>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QComboBox>
@@ -144,11 +145,14 @@ protected:
             p.setPen(Theme::C::sep);
             p.drawRect(r);
         }
-        p.setPen(Theme::C::textDim);
+        // Legend brightness matches the section header above so the user
+        // reads it as 'caption for these tiles', not 'disabled metadata'.
+        // Small font size keeps the visual hierarchy: header > legend in
+        // size, same brightness.
+        p.setPen(Theme::C::text);
         QFont f = font();
         f.setPointSize(8);
         p.setFont(f);
-        // Bottom-aligned legend, in its own reserved strip (no cell overlap)
         p.drawText(QRect(4, H - 12, W - 8, 12),
                    Qt::AlignVCenter,
                    "noise=purple  pulse=blue  saw=orange  tri=green  cmd=red  jump=orange");
@@ -369,10 +373,27 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
                         "on the current channel.");
     auto *stopBtn = new QPushButton("Silence", this);
     stopBtn->setToolTip("Release the test note on the current channel.");
+    auto *autoBtn = new QPushButton("Auto-test", this);
+    autoBtn->setCheckable(true);
+    autoBtn->setToolTip("Retrigger the test note every second so any edit to "
+                        "ADSR / wave / pulse / filter is audible instantly.");
     connect(testBtn, &QPushButton::clicked, this, &InstrumentView::onTestNote);
     connect(stopBtn, &QPushButton::clicked, this, &InstrumentView::onSilenceTestNote);
+    autoTestTimer_ = new QTimer(this);
+    autoTestTimer_->setInterval(1000);
+    connect(autoTestTimer_, &QTimer::timeout, this, &InstrumentView::onTestNote);
+    connect(autoBtn, &QPushButton::toggled, this, [this](bool on) {
+        if (on) {
+            onTestNote();
+            autoTestTimer_->start();
+        } else {
+            autoTestTimer_->stop();
+            onSilenceTestNote();
+        }
+    });
     btnRow->addWidget(testBtn);
     btnRow->addWidget(stopBtn);
+    btnRow->addWidget(autoBtn);
     btnRow->addStretch();
     center->addLayout(btnRow);
 

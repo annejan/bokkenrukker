@@ -25,8 +25,12 @@ unsigned playerversion = 0;
 int fileformat = 0;
 int zeropageadr = 0xfc;
 int playeradr = 0x1000;
-unsigned sidmodel = 0;
-unsigned sid2model = 0;  // Second SID chip (stereo mode only).
+// 8580 default. The 6581 it replaced has more aggressive ADSR-bug clicks
+// + noisier filter, so picking 8580 at first launch gives a cleaner out-
+// of-the-box sound. Loading a .sng restores whatever model the file was
+// saved against.
+unsigned sidmodel = 1;
+unsigned sid2model = 1;  // Second SID chip (stereo mode only).
 int stereo_mode = 0;     // 0 = mono (3 channels, SID1 only). 1 = stereo
                          // (6 channels, SID1 + SID2). Runtime-switchable.
 unsigned multiplier = 1;

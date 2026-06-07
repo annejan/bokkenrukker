@@ -181,9 +181,11 @@ void MainWindow::buildUi() {
     orderMap_ = new OrderMiniMap(omWrap);
     omLay->addWidget(orderMap_, 1);
     orderMapDock_->setWidget(omWrap);
+    // No DockWidgetFloatable: the float / detach button in the dock title
+    // bar (the [↗] icon Qt draws by default) confused users into thinking
+    // it was a 'collapse' button. The Close / X is enough for show / hide.
     orderMapDock_->setFeatures(QDockWidget::DockWidgetClosable
-                              | QDockWidget::DockWidgetMovable
-                              | QDockWidget::DockWidgetFloatable);
+                              | QDockWidget::DockWidgetMovable);
     addDockWidget(Qt::LeftDockWidgetArea, orderMapDock_);
     connect(omToggle, &QToolButton::toggled, this, [this, omToggle](bool on) {
         orderMap_->setSelectAllChannels(on);
@@ -199,8 +201,7 @@ void MainWindow::buildUi() {
     insQuick_ = new InstrumentQuickList(insQuickDock_);
     insQuickDock_->setWidget(insQuick_);
     insQuickDock_->setFeatures(QDockWidget::DockWidgetClosable
-                              | QDockWidget::DockWidgetMovable
-                              | QDockWidget::DockWidgetFloatable);
+                              | QDockWidget::DockWidgetMovable);
     addDockWidget(Qt::RightDockWidgetArea, insQuickDock_);
     connect(insQuick_, &InstrumentQuickList::instrumentChosen, this, &MainWindow::refreshAll);
 

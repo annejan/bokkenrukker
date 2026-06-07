@@ -165,11 +165,14 @@ public:
         QStyleOptionViewItem o = opt;
         int r = i.row(), c = i.column();
         unsigned char v = songorder[esnum][c][r];
-        // Background semantic tint
+        const bool isSpecial = (v >= REPEAT);   // RST / TRANSUP/DOWN / REPEAT
+        // Background semantic tint — RST, transpose and repeat all share a
+        // purple band now so 'this is not a pattern number' reads at a glance.
+        // The shade differs slightly so the three sub-types stay distinct.
         if (r >= songlen[esnum][c] + 2)      p->fillRect(opt.rect, Theme::C::bgBase);
-        else if (v == LOOPSONG)              p->fillRect(opt.rect, QColor(80, 30, 20));
-        else if (v >= TRANSDOWN)             p->fillRect(opt.rect, QColor(20, 50, 70));
-        else if (v >= REPEAT)                p->fillRect(opt.rect, QColor(70, 60, 20));
+        else if (v == LOOPSONG)              p->fillRect(opt.rect, QColor(80, 30, 90));
+        else if (v >= TRANSDOWN)             p->fillRect(opt.rect, QColor(60, 30, 90));
+        else if (v >= REPEAT)                p->fillRect(opt.rect, QColor(50, 25, 80));
         else if (r % 4 == 0)                 p->fillRect(opt.rect, Theme::C::beat);
         // Playback underlay (red) — drawn before the edit cursor so the
         // yellow cursor outline still wins when both land on the same cell.
@@ -177,8 +180,11 @@ public:
         if (pr == r) {
             p->fillRect(opt.rect, Theme::C::playRow);
         }
-        // Edit cursor underlay
-        if (r == espos[c] && c == eschn) {
+        // Edit cursor underlay. Skip on special cells — clicking RST or
+        // a transpose / repeat command shouldn't drop the yellow edit
+        // border onto it; those values aren't hex-editable inline anyway.
+        const bool cursorHere = (r == espos[c] && c == eschn && !isSpecial);
+        if (cursorHere) {
             p->fillRect(opt.rect, Theme::C::editRow);
         }
         QStyledItemDelegate::paint(p, o, i);
@@ -186,8 +192,7 @@ public:
             p->setPen(QPen(Theme::C::vuRed, 1));
             p->drawRect(opt.rect.adjusted(0, 0, -1, -1));
         }
-        // Border on cursor
-        if (r == espos[c] && c == eschn) {
+        if (cursorHere) {
             p->setPen(QPen(Theme::C::highlight, 2));
             p->drawRect(opt.rect.adjusted(0, 0, -1, -1));
         }

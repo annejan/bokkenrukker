@@ -356,8 +356,16 @@ void PatternView::paintEvent(QPaintEvent *) {
         p.setPen(Theme::C::sep);
         p.drawRect(frame);
         if (chn[c].mute) {
-            p.setPen(QColor(120, 60, 60));
+            // Bright red so the muted channel actually pops out of the VU
+            // bar; the previous dark muted red blended into the strip
+            // background. Bold for extra weight in case the rest of the
+            // VU strip is busy.
+            QFont mf = p.font();
+            mf.setBold(true);
+            p.setFont(mf);
+            p.setPen(QColor(255, 80, 80));
             p.drawText(QPoint(x + 4, vuPad + vuH - 2), "MUTE");
+            p.setFont(font());
             continue;
         }
         int filled = (int)((double)levels[c] / 255.0 * (w - 2));

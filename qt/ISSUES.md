@@ -38,8 +38,14 @@
       *(SID2 segment now 3-state cycle on click: off → 6581 → 8580 → off.
         Settings menu 'Dual SID' toggle still flips stereo_mode explicitly.)*
 - [ ] Second SID results in segmentation fault at the moment.
-- [ ] 'Order map' Collapse button doesn't work, and doesn't make sense in context.
-- [ ] 'Note entry layout' doesn't change much in the view
+- [x] 'Order map' Collapse button doesn't work, and doesn't make sense in context.
+      *(dropped DockWidgetFloatable on both Order map + Instruments docks
+        so the [↗] float / detach button no longer appears in the title
+        bar; users were reading it as a collapse toggle. The Close X is
+        the show / hide control.)*
+- [x] 'Note entry layout' doesn't change much in the view
+      *(status strip 'Oct N' segment now reads 'Oct N · Protracker / DMC /
+        Janko' so the current note-entry preset is visible at a glance.)*
 - [x] When changing SID type during playing, a hanging note can occur
       *(AudioFence now zeros every voice's freq / pulse / ctrl (gate=0) / AD /
         SR + master volume + RES_FILT in both sidreg shadows, and sets each
@@ -58,7 +64,17 @@
       *(OrderMiniMap::sizeHint returns QSize(160, 400) + MainWindow uses
         resizeDocks({orderMapDock_}, {160}, Qt::Horizontal) so the dock
         starts at the historical 160 px instead of Qt's tiny default.)*
-- [ ] MUTE in 'UV' bar when channel muted, very dark RED, should be bright and stand out.
+- [x] MUTE in 'UV' bar when channel muted, very dark RED, should be bright and stand out.
+      *(VU-strip MUTE text now bold + bright red (255,80,80) instead of
+        the previous dark muted red that blended into the strip.)*
+- [x] When all channels are selected, the yellow selection window should span all channels.
+      *(OrderMiniMap cursor outline is now drawn on every channel at espos[c]
+        when selectAll_ is true; previously only the eschn column got it.)*
+- [x] Special commands are not handled intuitively in the 'track editor', they should have a color, 'purple'? The user should not be able to click and get the yellow border around a special command cell.
+      *(OrderDelegate now paints RST / TRANSUP/DOWN / REPEAT cells in
+        purple shades and suppresses the yellow edit-cursor underlay +
+        border on cells where v >= REPEAT — clicking a special cell
+        still moves selection but no longer drops the cursor onto it.)*
 - [ ] 
 
 ## Features
@@ -83,4 +99,9 @@
         OrderMiniMap::selectAllChannels — true = plain click moves all chans,
         false = plain click moves only the clicked one. Ctrl-click still
         inverts the active mode for one click so both stay reachable.)*
+- [x] Set 8580 as the default SID version, when starting the application, unless loaded file specifies otherwise.
+      *(qt_globals.c sidmodel + sid2model now initialise to 1 (8580).
+        loadsong() overwrites these from the .sng header, so anything
+        saved against 6581 still loads as 6581.)*
+- [ ] Is Octamed different enough from Protracker to add that style as well ? 
 - [ ] 

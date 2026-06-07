@@ -41,6 +41,7 @@ extern unsigned sid2model;
 extern int stereo_mode;
 extern unsigned multiplier;
 extern unsigned ntsc;
+extern unsigned keypreset;
 extern CHN chn[MAX_CHN];
 extern INSTR instr[MAX_INSTR];
 extern unsigned char pattern[MAX_PATT][MAX_PATTROWS*4+4];
@@ -172,7 +173,10 @@ void StatusStrip::refresh() {
 
     QString mlabel = (multiplier == 0) ? "Spd ½x" : QString("Spd %1x").arg(multiplier);
     tempo_->setText(mlabel);
-    octave_->setText(QString("Oct %1").arg(epoctave));
+    const char *kp = (keypreset == 1) ? "DMC"
+                   : (keypreset == 2) ? "Janko"
+                                      : "Protracker";
+    octave_->setText(QString("Oct %1 · %2").arg(epoctave).arg(kp));
     instr_->setText(QString("Ins %1").arg(einum, 2, 16, QLatin1Char('0')).toUpper());
     sid_->setText(QString("SID1 %1").arg(sidmodel ? "8580" : "6581"));
     if (stereo_mode) {

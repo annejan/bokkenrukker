@@ -81,7 +81,12 @@ void OrderMiniMap::paintEvent(QPaintEvent *) {
                 p.drawRect(QRect(x, y, colW - 2, rowH - 1));
             }
             // Edit cursor — yellow outline
-            if (r == espos[c] && c == eschn) {
+            // In 'All channels' mode every channel at this orderlist row
+            // gets the yellow cursor outline; in 'One channel' mode only
+            // eschn does. Matches the click semantics the dock header
+            // toggle controls.
+            bool drawCursor = (r == espos[c]) && (selectAll_ || c == eschn);
+            if (drawCursor) {
                 p.setPen(QPen(Theme::C::highlight, 2));
                 p.drawRect(QRect(x, y, colW - 2, rowH - 1));
             }

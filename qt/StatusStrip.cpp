@@ -37,6 +37,8 @@ extern int pattlen[MAX_PATT];
 extern int espos[MAX_CHN];
 extern int songlen[MAX_SONGS][MAX_CHN];
 extern unsigned sidmodel;
+extern unsigned sid2model;
+extern int stereo_mode;
 extern unsigned multiplier;
 extern unsigned ntsc;
 extern CHN chn[MAX_CHN];
@@ -90,8 +92,12 @@ StatusStrip::StatusStrip(QWidget *parent) : QFrame(parent) {
     octave_    = makeSegment("Oct 2", Theme::C::text, this);
     instr_     = makeSegment("Ins 01", Theme::C::instr, this);
     sid_       = makeClickable("6581", Theme::C::highlight, this);
-    sid_->setToolTip("Click to toggle SID model (6581 ↔ 8580). Also: Shift+F8.");
+    sid_->setToolTip("SID1 chip model. Click to toggle 6581 ↔ 8580. Also: Shift+F8.");
     connect(sid_, &ClickableLabel::clicked, this, &StatusStrip::sidClicked);
+    sid2_      = makeClickable("--", Theme::C::textDim, this);
+    sid2_->setToolTip("SID2 chip model. Active only when stereo / dual-SID is on. "
+                      "Click to toggle 6581 ↔ 8580 independently of SID1.");
+    connect(sid2_, &ClickableLabel::clicked, this, &StatusStrip::sid2Clicked);
     ntsc_      = makeClickable("PAL", Theme::C::transpose, this);
     ntsc_->setToolTip("Click to toggle PAL 50Hz ↔ NTSC 60Hz timing.");
     connect(ntsc_, &ClickableLabel::clicked, this, &StatusStrip::ntscClicked);
@@ -121,6 +127,7 @@ StatusStrip::StatusStrip(QWidget *parent) : QFrame(parent) {
     layout->addWidget(instr_);
     addSep();
     layout->addWidget(sid_);
+    layout->addWidget(sid2_);
     addSep();
     layout->addWidget(ntsc_);
     addSep();
@@ -167,7 +174,18 @@ void StatusStrip::refresh() {
     tempo_->setText(mlabel);
     octave_->setText(QString("Oct %1").arg(epoctave));
     instr_->setText(QString("Ins %1").arg(einum, 2, 16, QLatin1Char('0')).toUpper());
-    sid_->setText(sidmodel ? "8580" : "6581");
+    sid_->setText(QString("SID1 %1").arg(sidmodel ? "8580" : "6581"));
+    if (stereo_mode) {
+        sid2_->setText(QString("SID2 %1").arg(sid2model ? "8580" : "6581"));
+        QPalette p2 = sid2_->palette();
+        p2.setColor(QPalette::WindowText, Theme::C::highlight);
+        sid2_->setPalette(p2);
+    } else {
+        sid2_->setText("SID2 off");
+        QPalette p2 = sid2_->palette();
+        p2.setColor(QPalette::WindowText, Theme::C::textDim);
+        sid2_->setPalette(p2);
+    }
     ntsc_->setText(ntsc ? "NTSC 60Hz" : "PAL 50Hz");
     follow_->setText(followplay ? "Follow ON" : "Follow off");
     QPalette fp = follow_->palette();

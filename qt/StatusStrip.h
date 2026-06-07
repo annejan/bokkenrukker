@@ -13,6 +13,7 @@ public:
 
 signals:
     void sidClicked();
+    void sid2Clicked();
     void followClicked();
     void tempoClicked();
     void ntscClicked();
@@ -24,6 +25,7 @@ private:
     QLabel *octave_;
     QLabel *instr_;
     ClickableLabel *sid_;
+    ClickableLabel *sid2_;
     ClickableLabel *ntsc_;
     ClickableLabel *follow_;
     QLabel *message_;

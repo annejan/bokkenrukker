@@ -430,9 +430,8 @@ void PatternView::paintEvent(QPaintEvent *) {
         p.drawText(QPoint(x + 8 * colWidth, headerY + headerStripH_ - 6),
                    QString("L%1").arg(pattlen[epnum[c]], 2, 16, QLatin1Char('0')).toUpper());
 
-        // Mute toggle: word labels MUTE / ON are unambiguous across fonts
-        // and locales — emoji speaker glyphs render as boxes on the mono
-        // font many users pick for the editor.
+        // Mute toggle: 1-char glyph fits the narrow muteW box without
+        // clipping. Red filled M = muted; green outlined ♪ = playing.
         QRect muteRect(muteX, headerY + 4, muteW, headerStripH_ - 8);
         QColor muteColor = chn[c].mute ? Theme::C::vuRed : Theme::C::vuGreen;
         p.fillRect(muteRect, chn[c].mute ? QColor(60, 20, 20)
@@ -440,11 +439,9 @@ void PatternView::paintEvent(QPaintEvent *) {
         p.setPen(muteColor);
         p.drawRect(muteRect);
         QFont mf = font();
-        mf.setPointSize(mf.pointSize() - 1);
         mf.setBold(true);
         p.setFont(mf);
-        p.drawText(muteRect, Qt::AlignCenter,
-                   chn[c].mute ? "MUTE" : "ON");
+        p.drawText(muteRect, Qt::AlignCenter, chn[c].mute ? "M" : "♪");
         p.setFont(font());
     }
     p.setPen(Theme::C::sep);

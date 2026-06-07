@@ -23,7 +23,10 @@ int isplaying(void);
 static int activeChannels() { return stereo_mode ? MAX_CHN : 3; }
 
 OrderMiniMap::OrderMiniMap(QWidget *parent) : QWidget(parent) {
-    setMinimumWidth(120);
+    // No hard minimum — the previous 120 px floor stopped the user from
+    // collapsing the Order map dock to zero (and prevented the pattern
+    // editor from claiming the freed space when 'View > Order map' was
+    // toggled). Keep a soft hint via sizeHint() instead.
     setMaximumWidth(160);
     setMouseTracking(true);
     Theme::applyDarkPalette(this);

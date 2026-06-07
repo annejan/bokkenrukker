@@ -146,6 +146,7 @@ void MainWindow::buildUi() {
     statusStrip_ = new StatusStrip(centralWrap);
     centralLay->addWidget(statusStrip_);
     connect(statusStrip_, &StatusStrip::sidClicked, this, &MainWindow::toggleSidModel);
+    connect(statusStrip_, &StatusStrip::sid2Clicked, this, &MainWindow::toggleSid2Model);
     connect(statusStrip_, &StatusStrip::followClicked, this, &MainWindow::toggleFollowPlay);
     connect(statusStrip_, &StatusStrip::ntscClicked, this, &MainWindow::toggleNtsc);
     connect(statusStrip_, &StatusStrip::tempoClicked, this, &MainWindow::cycleMultiplier);
@@ -162,12 +163,18 @@ void MainWindow::buildUi() {
     orderMapDock_ = new QDockWidget("Order map", this);
     orderMap_ = new OrderMiniMap(orderMapDock_);
     orderMapDock_->setWidget(orderMap_);
+    orderMapDock_->setFeatures(QDockWidget::DockWidgetClosable
+                              | QDockWidget::DockWidgetMovable
+                              | QDockWidget::DockWidgetFloatable);
     addDockWidget(Qt::LeftDockWidgetArea, orderMapDock_);
     connect(orderMap_, &OrderMiniMap::positionChanged, this, &MainWindow::refreshAll);
 
     insQuickDock_ = new QDockWidget("Instruments", this);
     insQuick_ = new InstrumentQuickList(insQuickDock_);
     insQuickDock_->setWidget(insQuick_);
+    insQuickDock_->setFeatures(QDockWidget::DockWidgetClosable
+                              | QDockWidget::DockWidgetMovable
+                              | QDockWidget::DockWidgetFloatable);
     addDockWidget(Qt::RightDockWidgetArea, insQuickDock_);
     connect(insQuick_, &InstrumentQuickList::instrumentChosen, this, &MainWindow::refreshAll);
 

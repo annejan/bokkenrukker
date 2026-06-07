@@ -3,7 +3,11 @@
 ## Issues
 
 - [ ] 6581 SID emulation has bad quality audio output
-- [ ] During playback, the blue position bar, and the read active channel don't run in sync. Not being fixed, read channel indicator is one ahead during playback or in sync with blue bar during playback.
+- [x] During playback, the blue position bar, and the read active channel don't run in sync. Not being fixed, read channel indicator is one ahead during playback or in sync with blue bar during playback.
+      *(refresh() now snapshots chn[c].pattptr/4 into playRow_[MAX_CHN] once
+        and paintEvent reads playRow_[c] for both the follow-play cursor pull
+        and the red play-row highlight; audio thread can no longer advance
+        chn[].pattptr between the cursor placement and the paint.)*
 - [x] The timing between a note being played and a note being in the active position is off.
       *(same fix as above — direct chn[c].pattptr reads now match what is heard.)*
 - [x] Instrument "-> table" button not clear what it does.
@@ -18,9 +22,19 @@
 - [x] When selecting field in the Tables editor, the value becomes '...' in the screen, hiding the previous value.
       *(TableCellDelegate::createEditor: QLineEdit + maxLength 2 + hex validator;
         editTriggers reduced to DoubleClicked + EditKeyPressed.)*
-- [ ] Collapse Order map doesn't work, tracker pattern moves right, but Order map doesn't fold.
-- [ ] Audio engine 'dual SID' and 'Second SID' is not clear, when second sid is enabled allow for user to select it in the bottom playback bar, like the first SID is selected.
-- [ ] Mute button
+- [x] Collapse Order map doesn't work, tracker pattern moves right, but Order map doesn't fold.
+      *(OrderMiniMap had setMinimumWidth(120) which kept the dock from
+        shrinking to zero. Dropped the floor; the QDockWidget closable +
+        floatable + movable features are now set explicitly on both docks.)*
+- [x] Audio engine 'dual SID' and 'Second SID' is not clear, when second sid is enabled allow for user to select it in the bottom playback bar, like the first SID is selected.
+      *(StatusStrip now shows two clickable segments: 'SID1 6581/8580' and
+        'SID2 6581/8580 / off'. Clicking SID2 toggles sid2model exactly the
+        way clicking SID1 toggles sidmodel; SID2 shows 'off' + dim colour
+        when stereo_mode is 0.)*
+- [x] Mute button is too narrow for word 'MUTE', obscuring most of the word, just make it a red 'M' fixes the issue.
+      *(reverted to 1-char glyph: bold red 'M' on dark-red fill when muted,
+        green '♪' on dark-green fill when playing.)*
+- [ ] 
 
 ## Features
 

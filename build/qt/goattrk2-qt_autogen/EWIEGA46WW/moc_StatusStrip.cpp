@@ -26,13 +26,14 @@ QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
 namespace {
 struct qt_meta_stringdata_StatusStrip_t {
-    uint offsetsAndSizes[12];
+    uint offsetsAndSizes[14];
     char stringdata0[12];
     char stringdata1[11];
     char stringdata2[1];
-    char stringdata3[14];
-    char stringdata4[13];
-    char stringdata5[12];
+    char stringdata3[12];
+    char stringdata4[14];
+    char stringdata5[13];
+    char stringdata6[12];
 };
 #define QT_MOC_LITERAL(ofs, len) \
     uint(sizeof(qt_meta_stringdata_StatusStrip_t::offsetsAndSizes) + ofs), len 
@@ -41,13 +42,15 @@ Q_CONSTINIT static const qt_meta_stringdata_StatusStrip_t qt_meta_stringdata_Sta
         QT_MOC_LITERAL(0, 11),  // "StatusStrip"
         QT_MOC_LITERAL(12, 10),  // "sidClicked"
         QT_MOC_LITERAL(23, 0),  // ""
-        QT_MOC_LITERAL(24, 13),  // "followClicked"
-        QT_MOC_LITERAL(38, 12),  // "tempoClicked"
-        QT_MOC_LITERAL(51, 11)   // "ntscClicked"
+        QT_MOC_LITERAL(24, 11),  // "sid2Clicked"
+        QT_MOC_LITERAL(36, 13),  // "followClicked"
+        QT_MOC_LITERAL(50, 12),  // "tempoClicked"
+        QT_MOC_LITERAL(63, 11)   // "ntscClicked"
     },
     "StatusStrip",
     "sidClicked",
     "",
+    "sid2Clicked",
     "followClicked",
     "tempoClicked",
     "ntscClicked"
@@ -61,20 +64,22 @@ Q_CONSTINIT static const uint qt_meta_data_StatusStrip[] = {
       10,       // revision
        0,       // classname
        0,    0, // classinfo
-       4,   14, // methods
+       5,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
        0,       // flags
-       4,       // signalCount
+       5,       // signalCount
 
  // signals: name, argc, parameters, tag, flags, initial metatype offsets
-       1,    0,   38,    2, 0x06,    1 /* Public */,
-       3,    0,   39,    2, 0x06,    2 /* Public */,
-       4,    0,   40,    2, 0x06,    3 /* Public */,
-       5,    0,   41,    2, 0x06,    4 /* Public */,
+       1,    0,   44,    2, 0x06,    1 /* Public */,
+       3,    0,   45,    2, 0x06,    2 /* Public */,
+       4,    0,   46,    2, 0x06,    3 /* Public */,
+       5,    0,   47,    2, 0x06,    4 /* Public */,
+       6,    0,   48,    2, 0x06,    5 /* Public */,
 
  // signals: parameters
+    QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void,
@@ -94,6 +99,8 @@ Q_CONSTINIT const QMetaObject StatusStrip::staticMetaObject = { {
         QtPrivate::TypeAndForceComplete<StatusStrip, std::true_type>,
         // method 'sidClicked'
         QtPrivate::TypeAndForceComplete<void, std::false_type>,
+        // method 'sid2Clicked'
+        QtPrivate::TypeAndForceComplete<void, std::false_type>,
         // method 'followClicked'
         QtPrivate::TypeAndForceComplete<void, std::false_type>,
         // method 'tempoClicked'
@@ -111,9 +118,10 @@ void StatusStrip::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id,
         (void)_t;
         switch (_id) {
         case 0: _t->sidClicked(); break;
-        case 1: _t->followClicked(); break;
-        case 2: _t->tempoClicked(); break;
-        case 3: _t->ntscClicked(); break;
+        case 1: _t->sid2Clicked(); break;
+        case 2: _t->followClicked(); break;
+        case 3: _t->tempoClicked(); break;
+        case 4: _t->ntscClicked(); break;
         default: ;
         }
     } else if (_c == QMetaObject::IndexOfMethod) {
@@ -127,22 +135,29 @@ void StatusStrip::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id,
         }
         {
             using _t = void (StatusStrip::*)();
-            if (_t _q_method = &StatusStrip::followClicked; *reinterpret_cast<_t *>(_a[1]) == _q_method) {
+            if (_t _q_method = &StatusStrip::sid2Clicked; *reinterpret_cast<_t *>(_a[1]) == _q_method) {
                 *result = 1;
                 return;
             }
         }
         {
             using _t = void (StatusStrip::*)();
-            if (_t _q_method = &StatusStrip::tempoClicked; *reinterpret_cast<_t *>(_a[1]) == _q_method) {
+            if (_t _q_method = &StatusStrip::followClicked; *reinterpret_cast<_t *>(_a[1]) == _q_method) {
                 *result = 2;
                 return;
             }
         }
         {
             using _t = void (StatusStrip::*)();
-            if (_t _q_method = &StatusStrip::ntscClicked; *reinterpret_cast<_t *>(_a[1]) == _q_method) {
+            if (_t _q_method = &StatusStrip::tempoClicked; *reinterpret_cast<_t *>(_a[1]) == _q_method) {
                 *result = 3;
+                return;
+            }
+        }
+        {
+            using _t = void (StatusStrip::*)();
+            if (_t _q_method = &StatusStrip::ntscClicked; *reinterpret_cast<_t *>(_a[1]) == _q_method) {
+                *result = 4;
                 return;
             }
         }
@@ -169,13 +184,13 @@ int StatusStrip::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 4)
+        if (_id < 5)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 4;
+        _id -= 5;
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 4)
+        if (_id < 5)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 4;
+        _id -= 5;
     }
     return _id;
 }
@@ -187,21 +202,27 @@ void StatusStrip::sidClicked()
 }
 
 // SIGNAL 1
-void StatusStrip::followClicked()
+void StatusStrip::sid2Clicked()
 {
     QMetaObject::activate(this, &staticMetaObject, 1, nullptr);
 }
 
 // SIGNAL 2
-void StatusStrip::tempoClicked()
+void StatusStrip::followClicked()
 {
     QMetaObject::activate(this, &staticMetaObject, 2, nullptr);
 }
 
 // SIGNAL 3
-void StatusStrip::ntscClicked()
+void StatusStrip::tempoClicked()
 {
     QMetaObject::activate(this, &staticMetaObject, 3, nullptr);
+}
+
+// SIGNAL 4
+void StatusStrip::ntscClicked()
+{
+    QMetaObject::activate(this, &staticMetaObject, 4, nullptr);
 }
 QT_WARNING_POP
 QT_END_MOC_NAMESPACE

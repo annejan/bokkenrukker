@@ -6,6 +6,8 @@
 #include <QFrame>
 #include <QTimer>
 #include <QMouseEvent>
+#include <QWheelEvent>
+#include <QEvent>
 
 class ClickableLabel : public QLabel {
     Q_OBJECT
@@ -90,7 +92,23 @@ StatusStrip::StatusStrip(QWidget *parent) : QFrame(parent) {
                        "Multiplier scales pattern-tempo precision; base tick rate "
                        "is set by the PAL/NTSC segment. Also: Shift+F5/F6.");
     connect(tempo_, &ClickableLabel::clicked, this, &StatusStrip::tempoClicked);
-    octave_    = makeSegment("Oct 2", Theme::C::text, this);
+    octave_    = makeClickable("Oct 2", Theme::C::text, this);
+    octave_->setToolTip("Record-mode octave (0..7). Click cycles up; mouse "
+                        "wheel scrolls ±1. Keyboard: * raises, / lowers.");
+    connect(octave_, &ClickableLabel::clicked, this, &StatusStrip::octaveClicked);
+    octave_->installEventFilter(this);
+}
+
+bool StatusStrip::eventFilter(QObject *o, QEvent *e) {
+    if (o == octave_ && e->type() == QEvent::Wheel) {
+        auto *we = static_cast<QWheelEvent*>(e);
+        int dy = we->angleDelta().y();
+        if (dy != 0) {
+            emit octaveDelta(dy > 0 ? +1 : -1);
+            return true;
+        }
+    }
+    return QFrame::eventFilter(o, e);
     instr_     = makeSegment("Ins 01", Theme::C::instr, this);
     sid_       = makeClickable("6581", Theme::C::highlight, this);
     sid_->setToolTip("SID1 chip model. Click to toggle 6581 ↔ 8580. Also: Shift+F8.");

@@ -65,6 +65,7 @@ extern int followplay;
 extern int einum;
 extern int epchn;
 extern int songinit;
+extern int epoctave;
 extern unsigned sidmodel;
 extern unsigned sid2model;
 extern int stereo_mode;
@@ -150,6 +151,19 @@ void MainWindow::buildUi() {
     connect(statusStrip_, &StatusStrip::followClicked, this, &MainWindow::toggleFollowPlay);
     connect(statusStrip_, &StatusStrip::ntscClicked, this, &MainWindow::toggleNtsc);
     connect(statusStrip_, &StatusStrip::tempoClicked, this, &MainWindow::cycleMultiplier);
+    connect(statusStrip_, &StatusStrip::octaveClicked, this, [this]() {
+        epoctave = (epoctave + 1) & 7;
+        statusStrip_->showMessage(QString("Octave %1").arg(epoctave));
+        refreshAll();
+    });
+    connect(statusStrip_, &StatusStrip::octaveDelta, this, [this](int d) {
+        int n = epoctave + d;
+        if (n < 0) n = 0;
+        if (n > 7) n = 7;
+        epoctave = n;
+        statusStrip_->showMessage(QString("Octave %1").arg(epoctave));
+        refreshAll();
+    });
 
     setCentralWidget(centralWrap);
 

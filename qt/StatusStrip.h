@@ -11,18 +11,23 @@ public:
     void refresh();
     void showMessage(const QString &t, int ms = 3000);
 
+protected:
+    bool eventFilter(QObject *o, QEvent *e) override;
+
 signals:
     void sidClicked();
     void sid2Clicked();
     void followClicked();
     void tempoClicked();
     void ntscClicked();
+    void octaveClicked();   // cycle up (wraps 7 -> 0)
+    void octaveDelta(int);  // mouse wheel: ±1
 
 private:
     QLabel *transport_;
     QLabel *position_;
     ClickableLabel *tempo_;
-    QLabel *octave_;
+    ClickableLabel *octave_;
     QLabel *instr_;
     ClickableLabel *sid_;
     ClickableLabel *sid2_;

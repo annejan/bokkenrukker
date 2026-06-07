@@ -778,18 +778,23 @@ void InstrumentView::updatePointerPreview(int t, int startRow) {
 void InstrumentView::refresh() {
     updating_ = true;
     if (einum < 1) einum = 1;
-    // Snapshot the slot we're switching to (or returning to) as the new
-    // baseline. Past edits left over from another slot become the new
-    // 'saved' state implicitly — the user only gets explicit revert
-    // capability within the slot they're actively editing. matches the
-    // user's described workflow.
-    saved_ = instr[einum];
-    savedSlot_ = einum;
-    dirty_ = false;
+    // Only re-snapshot the baseline when the user actually switched
+    // instrument slot. Every edit fires emit edited() -> MainWindow::
+    // refreshAll() -> this refresh(), so unconditionally clearing dirty_
+    // here was wiping the flag the moment a slot was set, leaving Apply /
+    // Reset perpetually disabled. Past edits to the slot we just left
+    // become its new baseline implicitly — that's the documented
+    // 'auto-apply on switch' behaviour.
+    bool slotChanged = (einum != savedSlot_);
+    if (slotChanged) {
+        saved_ = instr[einum];
+        savedSlot_ = einum;
+        dirty_ = false;
+        if (applyBtn_) applyBtn_->setEnabled(false);
+        if (resetBtn_) resetBtn_->setEnabled(false);
+    }
     readFromGlobals();
     updating_ = false;
-    if (applyBtn_) applyBtn_->setEnabled(false);
-    if (resetBtn_) resetBtn_->setEnabled(false);
 }
 
 void InstrumentView::markDirty() {

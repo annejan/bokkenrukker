@@ -74,6 +74,7 @@
         purple shades and suppresses the yellow edit-cursor underlay +
         border on cells where v >= REPEAT — clicking a special cell
         still moves selection but no longer drops the cursor onto it.)*
+- [ ] The instrument editor has an instrument selector on the left, but the instrument selection side bar "instruments" is already present on the right, remove the left one.
 
 ## Features
 
@@ -118,7 +119,6 @@
         starts with the persisted chip model; loadSongFile still overrides
         from the .sng header so songs play back authentically. 'Save as
         profile' deferred — single auto-saved profile is enough for now.)*
-- [ ] 
 - [x] Pair each ADSR spinbox with a 0..15 slider so the value can be scrubbed instead of typed / stepped.
       *(makeNybbleRow wraps the existing nybble spinbox in a row with a
         QSlider(Qt::Horizontal, 0..15, tick=1). Spinbox and slider are

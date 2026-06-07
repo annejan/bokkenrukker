@@ -2,7 +2,7 @@
 
 ## Issues
 
-- [ ] 6581 SID emulation has bad quality audio output
+- [x] 6581 SID emulation has bad quality audio output (Song dependent, ignore)
 - [x] During playback, the blue position bar, and the read active channel don't run in sync. Not being fixed, read channel indicator is one ahead during playback or in sync with blue bar during playback.
       *(refresh() now snapshots chn[c].pattptr/4 into playRow_[MAX_CHN] once
         and paintEvent reads playRow_[c] for both the follow-play cursor pull
@@ -38,7 +38,7 @@
       *(SID2 segment now 3-state cycle on click: off → 6581 → 8580 → off.
         Settings menu 'Dual SID' toggle still flips stereo_mode explicitly.)*
 - [ ] Second SID results in segmentation fault at the moment.
-- [ ] Collapse button doesn't work, and doesn't make sense in context.
+- [ ] 'Order map' Collapse button doesn't work, and doesn't make sense in context.
 - [ ] 'Note entry layout' doesn't change much in the view
 - [x] When changing SID type during playing, a hanging note can occur
       *(AudioFence now zeros every voice's freq / pulse / ctrl (gate=0) / AD /
@@ -54,6 +54,7 @@
       *(decodeCell() now skips the 'note:' suffix when L == $FF (jump) or
         L is in $F0..$FE (execute cmd) — those rows treat R as a target /
         cmd param, not a note byte.)*
+- [ ] Order map at start up too narrow, max width should be default width.
 - [ ] 
 
 ## Features
@@ -72,3 +73,6 @@
 - [ ] Second SID not implemented, because audio mixing resulted in unacceptable audio quality, found out how to implement this correctly.
 - [ ] Add option to select mono or stereo mode for dual sid, keeping things simple for the user.
 - [ ] Add support for external keyboards or samplers via USB, to enable record mode via these devices? (Popular options you can suggest?)
+- [ ] Clear way to set / read the octave in the UI for record mode in the pattern editor
+- [ ] Add switch above order map to select channels together or individually.
+- [ ] 

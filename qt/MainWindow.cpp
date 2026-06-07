@@ -161,13 +161,39 @@ void MainWindow::buildUi() {
 
     // Dock widgets
     orderMapDock_ = new QDockWidget("Order map", this);
-    orderMap_ = new OrderMiniMap(orderMapDock_);
-    orderMapDock_->setWidget(orderMap_);
+    // Wrap: [toggle] + [mini-map]. Toggle picks whether a plain click on
+    // a row moves all channels (legacy 'song' navigation) or just the
+    // clicked channel (per-track). Ctrl-click always inverts the current
+    // mode so the other one stays reachable from the keyboard.
+    auto *omWrap = new QWidget(orderMapDock_);
+    auto *omLay = new QVBoxLayout(omWrap);
+    omLay->setContentsMargins(4, 4, 4, 4);
+    omLay->setSpacing(2);
+    auto *omToggle = new QToolButton(omWrap);
+    omToggle->setCheckable(true);
+    omToggle->setChecked(true);
+    omToggle->setText("All channels");
+    omToggle->setToolTip("Click switches between 'move all channels' (default) "
+                         "and 'move only the clicked channel'. Ctrl-click on a "
+                         "row inverts the mode for that one click.");
+    omToggle->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    omLay->addWidget(omToggle);
+    orderMap_ = new OrderMiniMap(omWrap);
+    omLay->addWidget(orderMap_, 1);
+    orderMapDock_->setWidget(omWrap);
     orderMapDock_->setFeatures(QDockWidget::DockWidgetClosable
                               | QDockWidget::DockWidgetMovable
                               | QDockWidget::DockWidgetFloatable);
     addDockWidget(Qt::LeftDockWidgetArea, orderMapDock_);
+    connect(omToggle, &QToolButton::toggled, this, [this, omToggle](bool on) {
+        orderMap_->setSelectAllChannels(on);
+        omToggle->setText(on ? "All channels" : "One channel");
+    });
     connect(orderMap_, &OrderMiniMap::positionChanged, this, &MainWindow::refreshAll);
+    // Restore the historical 160 px sizing the user expects on first launch —
+    // setMinimumWidth was dropped so the dock could collapse, but Qt picks
+    // a tiny initial width without a hint, leaving the map unreadable.
+    resizeDocks({orderMapDock_}, {160}, Qt::Horizontal);
 
     insQuickDock_ = new QDockWidget("Instruments", this);
     insQuick_ = new InstrumentQuickList(insQuickDock_);

@@ -111,10 +111,11 @@ void OrderMiniMap::mousePressEvent(QMouseEvent *e) {
     int r = (e->pos().y() - 18) / rowH;
     if (r < 0) return;
 
-    // Ctrl-click = only the clicked channel (per-track navigation).
-    // Plain click  = move all channels to the same orderlist row so
-    // play-pattern hits the synchronized 3-channel pattern combination.
+    // The dock header toggle drives the default action; ctrl inverts it so
+    // both modes stay reachable from the keyboard. selectAll_ = true keeps
+    // the legacy 'plain click = all channels' behaviour.
     bool ctrlMod = (e->modifiers() & Qt::ControlModifier) != 0;
+    bool moveAll = selectAll_ ^ ctrlMod;
 
     auto apply = [&](int channel) {
         if (r >= songlen[esnum][channel]) return;
@@ -126,17 +127,14 @@ void OrderMiniMap::mousePressEvent(QMouseEvent *e) {
         }
     };
 
-    if (ctrlMod) {
-        apply(c);
-        eschn = c;
-        epchn = c;
-        eseditpos = r;
-    } else {
+    if (moveAll) {
         for (int cc = 0; cc < nc; cc++) apply(cc);
-        eschn = c;
-        epchn = c;
-        eseditpos = r;
+    } else {
+        apply(c);
     }
+    eschn = c;
+    epchn = c;
+    eseditpos = r;
     update();
     emit positionChanged();
 }

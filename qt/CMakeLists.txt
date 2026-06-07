@@ -88,6 +88,7 @@ set(QT_SRC
     UndoStack.cpp
     RpcServer.cpp
     QtAudio.cpp
+    Log.cpp
     qt_globals.c
     qt_stubs.c
 )

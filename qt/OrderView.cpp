@@ -17,10 +17,13 @@
 #include <QMenu>
 #include <QAction>
 #include <QShortcut>
+#include <QLineEdit>
+#include <QRegularExpressionValidator>
 
 extern "C" {
 #include "gcommon.h"
 #include "gorder.h"
+#include "gplay.h"
 extern unsigned char songorder[MAX_SONGS][MAX_CHN][MAX_SONGLEN+2];
 extern int songlen[MAX_SONGS][MAX_CHN];
 extern int esnum;
@@ -33,9 +36,22 @@ extern char songname[MAX_STR];
 extern int epchn;
 extern int epnum[MAX_CHN];
 extern int editmode;
+extern int lastsonginit;
+extern CHN chn[MAX_CHN];
+int isplaying(void);
 void orderlistcommands(void);
 // Shared note-name lookup defined in qt_globals.c.
 extern char *notename[];
+}
+
+// Active playback row per channel — mirrors OrderMiniMap math.
+static int orderPlayRow(int c) {
+    if (!isplaying()) return -1;
+    int r;
+    if (lastsonginit == PLAY_PATTERN) r = espos[c];
+    else                              r = (int)chn[c].songptr - 1;
+    if (r < 0) r = 0;
+    return r;
 }
 
 // ---------------------------------------------------------------------------
@@ -124,6 +140,24 @@ void OrderListModel::refresh() {
 class OrderDelegate : public QStyledItemDelegate {
 public:
     using QStyledItemDelegate::QStyledItemDelegate;
+
+    // Custom editor: QLineEdit with 2-char hex validator. Default delegate's
+    // editor would commit / re-edit on each keystroke because the model
+    // accepts a 1-char hex value as valid, closing the editor before the user
+    // can type the second nybble. With max-length 2 the QLineEdit keeps focus
+    // until Enter / Escape / focus-out — same UX as the SDL build.
+    QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &,
+                          const QModelIndex &) const override {
+        auto *e = new QLineEdit(parent);
+        e->setMaxLength(2);
+        e->setFont(Theme::monoFont(11));
+        e->setAlignment(Qt::AlignCenter);
+        auto *v = new QRegularExpressionValidator(
+            QRegularExpression("[0-9a-fA-F]{1,2}"), e);
+        e->setValidator(v);
+        return e;
+    }
+
     void paint(QPainter *p, const QStyleOptionViewItem &opt, const QModelIndex &i) const override {
         QStyleOptionViewItem o = opt;
         int r = i.row(), c = i.column();
@@ -134,11 +168,21 @@ public:
         else if (v >= TRANSDOWN)             p->fillRect(opt.rect, QColor(20, 50, 70));
         else if (v >= REPEAT)                p->fillRect(opt.rect, QColor(70, 60, 20));
         else if (r % 4 == 0)                 p->fillRect(opt.rect, Theme::C::beat);
+        // Playback underlay (red) — drawn before the edit cursor so the
+        // yellow cursor outline still wins when both land on the same cell.
+        int pr = orderPlayRow(c);
+        if (pr == r) {
+            p->fillRect(opt.rect, Theme::C::playRow);
+        }
         // Edit cursor underlay
         if (r == espos[c] && c == eschn) {
             p->fillRect(opt.rect, Theme::C::editRow);
         }
         QStyledItemDelegate::paint(p, o, i);
+        if (pr == r) {
+            p->setPen(QPen(Theme::C::vuRed, 1));
+            p->drawRect(opt.rect.adjusted(0, 0, -1, -1));
+        }
         // Border on cursor
         if (r == espos[c] && c == eschn) {
             p->setPen(QPen(Theme::C::highlight, 2));
@@ -203,6 +247,16 @@ OrderView::OrderView(QWidget *parent) : QWidget(parent) {
     table_->setShowGrid(false);
     table_->setSelectionBehavior(QAbstractItemView::SelectItems);
     table_->setSelectionMode(QAbstractItemView::SingleSelection);
+    // Only DoubleClicked + F2/Enter enter edit mode. The user reported that
+    // the first hex digit committed the cell before the second nybble could
+    // be typed — that's the AnyKeyPressed default flow: the digit both opens
+    // the editor and is dispatched to the model, which accepts '4' as valid
+    // hex 0x4, fires dataChanged, and the editor closes again. With this
+    // trigger set, single-clicks just move the selection; double-click (or
+    // F2 / Enter on the focused cell) opens the QLineEdit editor and it
+    // stays open until Return / Escape.
+    table_->setEditTriggers(QAbstractItemView::DoubleClicked
+                            | QAbstractItemView::EditKeyPressed);
     table_->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     table_->verticalHeader()->setDefaultSectionSize(20);
     table_->setAlternatingRowColors(false);
@@ -255,6 +309,15 @@ OrderView::OrderView(QWidget *parent) : QWidget(parent) {
         this);
     tip->setStyleSheet(QString("color:%1").arg(Theme::C::textDim.name()));
     root->addWidget(tip);
+
+    // Repaint the table viewport at ~30 Hz so the play-row tint follows
+    // chn[c].songptr advances. Cheap — only the visible viewport is dirtied,
+    // and the delegate is the only thing that consults playback state.
+    playRefresh_.setInterval(33);
+    connect(&playRefresh_, &QTimer::timeout, this, [this]{
+        if (table_) table_->viewport()->update();
+    });
+    playRefresh_.start();
 
     refresh();
 }

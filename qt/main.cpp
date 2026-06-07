@@ -1,11 +1,15 @@
 #include <QApplication>
 #include <QTimer>
 #include <QStringList>
+#include <QStyleFactory>
+#include <QPalette>
 #include <SDL/SDL.h>
 #include <cstring>
 #include "MainWindow.h"
 #include "RpcServer.h"
 #include "QtAudio.h"
+#include "Theme.h"
+#include "Log.h"
 
 extern "C" {
 #include "gcommon.h"
@@ -38,6 +42,31 @@ void sid_init(int speed, unsigned m, unsigned ntsc, unsigned interpolate,
 
 int main(int argc, char **argv) {
     QApplication app(argc, argv);
+    Log::init();
+    qInfo("argv: argc=%d", argc);
+    for (int i = 0; i < argc; i++) qInfo("  argv[%d]=%s", i, argv[i]);
+
+    // Force Fusion style + an app-wide dark palette so the editor looks the
+    // same across Linux / Windows / macOS. Native Windows style was
+    // rendering QLineEdit / QSpinBox text in the default light-on-white
+    // theme, making instrument fields unreadable.
+    app.setStyle(QStyleFactory::create("Fusion"));
+    QPalette pal;
+    pal.setColor(QPalette::Window,          Theme::C::bgBase);
+    pal.setColor(QPalette::WindowText,      Theme::C::text);
+    pal.setColor(QPalette::Base,            Theme::C::bgBase);
+    pal.setColor(QPalette::AlternateBase,   Theme::C::bgAlt);
+    pal.setColor(QPalette::Text,            Theme::C::text);
+    pal.setColor(QPalette::Button,          Theme::C::bgAlt);
+    pal.setColor(QPalette::ButtonText,      Theme::C::text);
+    pal.setColor(QPalette::Highlight,       Theme::C::editRow);
+    pal.setColor(QPalette::HighlightedText, Theme::C::text);
+    pal.setColor(QPalette::ToolTipBase,     Theme::C::bgAlt);
+    pal.setColor(QPalette::ToolTipText,     Theme::C::text);
+    pal.setColor(QPalette::PlaceholderText, Theme::C::textDim);
+    pal.setColor(QPalette::Disabled, QPalette::Text,       Theme::C::textDim);
+    pal.setColor(QPalette::Disabled, QPalette::ButtonText, Theme::C::textDim);
+    app.setPalette(pal);
 
     // Filter our own flags so Qt's platform parser doesn't choke.
     bool rpcMode = false;

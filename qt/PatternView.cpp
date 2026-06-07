@@ -9,6 +9,7 @@
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QInputDialog>
+#include <QLineEdit>
 #include "SdlKeyMap.h"
 #include "Theme.h"
 #include "UndoStack.h"
@@ -37,10 +38,14 @@ extern int esnum;
 extern int songlen[MAX_SONGS][MAX_CHN];
 extern CHN chn[MAX_CHN];
 extern int stereo_mode;
+extern int hexnybble;
+extern int autoadvance;
 int isplaying(void);
 void patterncommands(void);
 void generalcommands(void);
+void converthex(void);
 void mutechannel(int chnnum);
+void countpatternlengths(void);
 extern char *notename[];
 }
 
@@ -142,7 +147,28 @@ void PatternView::keyPressEvent(QKeyEvent *e) {
     QByteArray before;
     if (!isNav) before = captureSongSnapshot();
     setGoatKeys(e);
+    converthex();
+    int preCol = epcolumn;
+    int prePos = eppos;
     patterncommands();
+    // 2-digit hex field UX: typing the first nybble at instr-hi (col 1) or
+    // param-hi (col 4) should advance INTO the next nybble instead of
+    // dropping to the next row. Typing the lo nybble (col 2 or 5) advances
+    // a row and resets back to the hi nybble — so the user can stream byte
+    // pairs at the row cadence. We let gpattern.c run its default advance
+    // and then patch the result here, instead of forking the C core.
+    if (hexnybble >= 0 && recordmode && autoadvance < 2 && preCol > 0) {
+        if (preCol == 1 || preCol == 4) {
+            // Hi nybble was just written; gpattern advanced eppos. Roll it
+            // back and step epcolumn to the lo nybble.
+            eppos = prePos;
+            epcolumn = preCol + 1;
+        } else if (preCol == 2 || preCol == 5) {
+            // Lo nybble done; row already advanced, snap back to the hi
+            // nybble so the next keystroke starts a fresh byte.
+            epcolumn = preCol - 1;
+        }
+    }
     // generalcommands carries the cross-editor hotkeys: + / - cycle
     // instrument, * / / cycle octave, ; and ' alternates. Without this the
     // Qt build couldn't reach any of those from the pattern view.
@@ -190,6 +216,43 @@ void PatternView::mousePressEvent(QMouseEvent *e) {
                 }
                 return;
             }
+            // Click L## (length) — let user pick a new length in hex.
+            if (xInChan >= 8 * colWidth && xInChan < chnW_ - 32 - 8) {
+                int p = epnum[c];
+                bool ok = false;
+                QString cur = QString("%1").arg(pattlen[p], 0, 16).toUpper();
+                QString s = QInputDialog::getText(this, "Pattern length",
+                    QString("Pattern $%1 length (hex 1..%2):")
+                        .arg(p, 2, 16, QLatin1Char('0')).toUpper()
+                        .arg(MAX_PATTROWS, 0, 16).toUpper(),
+                    QLineEdit::Normal, cur, &ok);
+                if (ok) {
+                    int newLen = s.trimmed().toInt(nullptr, 16);
+                    if (newLen < 1) newLen = 1;
+                    if (newLen > MAX_PATTROWS) newLen = MAX_PATTROWS;
+                    int curLen = pattlen[p];
+                    if (newLen != curLen) {
+                        if (newLen > curLen) {
+                            // Grow: REST-pad current ENDPATT slot through
+                            // newLen-1, then plant ENDPATT at newLen.
+                            for (int r = curLen; r < newLen; r++) {
+                                pattern[p][r*4+0] = REST;
+                                pattern[p][r*4+1] = 0;
+                                pattern[p][r*4+2] = 0;
+                                pattern[p][r*4+3] = 0;
+                            }
+                        }
+                        pattern[p][newLen*4+0] = ENDPATT;
+                        pattern[p][newLen*4+1] = 0;
+                        pattern[p][newLen*4+2] = 0;
+                        pattern[p][newLen*4+3] = 0;
+                        countpatternlengths();
+                        refresh();
+                        emit patternEdited();
+                    }
+                }
+                return;
+            }
             // Plain click on header — switch active channel
             epchn = c;
             epcolumn = 0;
@@ -209,7 +272,25 @@ void PatternView::mousePressEvent(QMouseEvent *e) {
         int c = channelAtX(e->pos().x());
         if (c >= 0) {
             epchn = c;
-            epcolumn = 0;
+            // Map x-within-channel to epcolumn. Layout mirrors paintEvent's
+            // colRect math: note=3w@0, instr=2w@4w, cmd=1w@7w, param=2w@8w.
+            int xInChan = e->pos().x() - (rowNumW_ + c * chnW_);
+            int col = xInChan / colWidth;
+            // Paint code offsets text by +colWidth (tx = x + colWidth), so
+            // the visible digit columns are shifted one col right of the raw
+            // channel-local x. Hit-box layout (col = xInChan/colWidth):
+            //   1..4  note (3 chars at cols 1-3, +slack)
+            //   5     instr hi    (col 5)
+            //   6     instr lo    (col 6)
+            //   7..8  cmd         (col 8 + slack on the left)
+            //   9     param hi    (col 9)
+            //   >=10  param lo    (col 10)
+            if      (col < 5)  epcolumn = 0;
+            else if (col == 5) epcolumn = 1;
+            else if (col == 6) epcolumn = 2;
+            else if (col <= 8) epcolumn = 3;
+            else if (col == 9) epcolumn = 4;
+            else               epcolumn = 5;
         }
         refresh();
         emit patternEdited();
@@ -366,17 +447,30 @@ void PatternView::paintEvent(QPaintEvent *) {
                 if (prow == row) p.fillRect(cellRect, Theme::C::playRow);
             }
 
-            // Edit-column tint on active channel/row
+            // Edit-column tint + white border on active channel/row. The
+            // border narrows down to a single nybble when epcolumn lands on
+            // the hi / lo of a 2-digit field, so the user can see which
+            // nybble the next keystroke will land in.
             if (c == epchn && row == eppos) {
                 int tx = x + colWidth;
-                QRect colRect;
-                if (epcolumn == 0)      colRect = QRect(tx, lineRect.y(), 3 * colWidth, rowHeight);
-                else if (epcolumn <= 2) colRect = QRect(tx + 4 * colWidth, lineRect.y(), 2 * colWidth, rowHeight);
-                else if (epcolumn == 3) colRect = QRect(tx + 7 * colWidth, lineRect.y(), colWidth, rowHeight);
-                else                    colRect = QRect(tx + 8 * colWidth, lineRect.y(), 2 * colWidth, rowHeight);
+                QRect colRect, focusRect;
+                switch (epcolumn) {
+                case 0: colRect = focusRect = QRect(tx, lineRect.y(), 3 * colWidth, rowHeight); break;
+                case 1: colRect = QRect(tx + 4 * colWidth, lineRect.y(), 2 * colWidth, rowHeight);
+                        focusRect = QRect(tx + 4 * colWidth, lineRect.y(), colWidth, rowHeight); break;
+                case 2: colRect = QRect(tx + 4 * colWidth, lineRect.y(), 2 * colWidth, rowHeight);
+                        focusRect = QRect(tx + 5 * colWidth, lineRect.y(), colWidth, rowHeight); break;
+                case 3: colRect = focusRect = QRect(tx + 7 * colWidth, lineRect.y(), colWidth, rowHeight); break;
+                case 4: colRect = QRect(tx + 8 * colWidth, lineRect.y(), 2 * colWidth, rowHeight);
+                        focusRect = QRect(tx + 8 * colWidth, lineRect.y(), colWidth, rowHeight); break;
+                case 5: colRect = QRect(tx + 8 * colWidth, lineRect.y(), 2 * colWidth, rowHeight);
+                        focusRect = QRect(tx + 9 * colWidth, lineRect.y(), colWidth, rowHeight); break;
+                }
                 p.fillRect(colRect, QColor(Theme::C::highlight.red(),
                                            Theme::C::highlight.green(),
                                            Theme::C::highlight.blue(), 35));
+                p.setPen(QPen(QColor(255, 255, 255), 1));
+                p.drawRect(focusRect.adjusted(0, 0, -1, -1));
             }
 
             if (row >= plen) {

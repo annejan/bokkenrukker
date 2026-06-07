@@ -3,6 +3,8 @@
 
 #include <QPainter>
 #include <QMouseEvent>
+#include <QToolTip>
+#include <QEvent>
 
 extern "C" {
 #include "gcommon.h"
@@ -23,6 +25,7 @@ static int activeChannels() { return stereo_mode ? MAX_CHN : 3; }
 OrderMiniMap::OrderMiniMap(QWidget *parent) : QWidget(parent) {
     setMinimumWidth(120);
     setMaximumWidth(160);
+    setMouseTracking(true);
     Theme::applyDarkPalette(this);
 }
 
@@ -133,4 +136,38 @@ void OrderMiniMap::mousePressEvent(QMouseEvent *e) {
     }
     update();
     emit positionChanged();
+}
+
+void OrderMiniMap::mouseMoveEvent(QMouseEvent *e) {
+    int W = width();
+    int nc = activeChannels();
+    int colW = (W - 8) / nc;
+    int x = e->pos().x() - 4;
+    int c = (colW > 0) ? x / colW : -1;
+    if (x < 0 || c < 0 || c >= nc) { QToolTip::hideText(); return; }
+
+    int maxLen = 0;
+    for (int cc = 0; cc < nc; cc++)
+        if (songlen[esnum][cc] > maxLen) maxLen = songlen[esnum][cc];
+    int rowH = qMax(2, height() / qMax(maxLen, 1));
+    int r = (e->pos().y() - 18) / rowH;
+    if (r < 0 || r >= songlen[esnum][c]) { QToolTip::hideText(); return; }
+
+    unsigned char v = songorder[esnum][c][r];
+    QString tip;
+    if (v == LOOPSONG)       tip = QString("CH %1  row %2  RST (loop)").arg(c + 1).arg(r);
+    else if (v >= TRANSDOWN) tip = QString("CH %1  row %2  Transpose -%3")
+                                   .arg(c + 1).arg(r).arg(0xff - v, 2, 16, QLatin1Char('0')).toUpper();
+    else if (v >= TRANSUP)   tip = QString("CH %1  row %2  Transpose +%3")
+                                   .arg(c + 1).arg(r).arg(v - TRANSUP, 2, 16, QLatin1Char('0')).toUpper();
+    else if (v >= REPEAT)    tip = QString("CH %1  row %2  Repeat x%3")
+                                   .arg(c + 1).arg(r).arg(v - REPEAT + 1);
+    else                     tip = QString("CH %1  row %2  pattern $%3 (%4)")
+                                   .arg(c + 1).arg(r)
+                                   .arg(v, 2, 16, QLatin1Char('0')).toUpper().arg(v);
+    QToolTip::showText(e->globalPosition().toPoint(), tip, this);
+}
+
+void OrderMiniMap::leaveEvent(QEvent *) {
+    QToolTip::hideText();
 }

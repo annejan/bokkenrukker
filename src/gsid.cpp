@@ -163,104 +163,53 @@ void sid_getlevels(unsigned char *out)
 // stereo mix path below.
 static int render_sid(reSIDfp::residfp *s, const unsigned char *regs,
                       short *ptr, int samples) {
-  int tdelta;
-  int tdelta2;
-  int result = 0;
-  int total = 0;
-  int c;
-
   if (!s) return 0;
 
+  /*
+   * Cycle-accurate SID register writes without perturbing the libresidfp
+   * resampler. The previous body interleaved the 25 register writes with
+   * ~9-cycle clock(...) calls; each tiny clock perturbs the DECIMATE /
+   * RESAMPLE internal accumulator, which on 6581 turns into audible ticks
+   * because the 6581 voice DC sits ~0x800 (any sample-timing discontinuity
+   * is a step from DC level). 8580 has DC near 0, so the same jitter was
+   * silent — and that explained why our 8580 sounded clean but 6581 ticked.
+   *
+   * New flow: stamp every write at the correct cycle offset via clockSilent
+   * (libresidfp's internal cycle counter advances exactly the same as the
+   * old code, so the SID sees writes at identical clocks), then drain the
+   * rest of the tick budget through a single clock() call. Worst-case loop
+   * if libresidfp under-produces (resampler still needs more cycles to spit
+   * a sample) — bump in 1-cycle clockSilent slices until it does.
+   */
   int badline = rand() % NUMSIDREGS;
 
-  tdelta = clockrate * samples / samplerate;
-  if (tdelta <= 0) return total;
-
-  for (c = 0; c < NUMSIDREGS; c++)
-  {
+  for (int c = 0; c < NUMSIDREGS; c++) {
     unsigned char o = sid_getorder(c);
-
-    /* Extra delay for loading the waveform (and mt_chngate,x) */
     if ((o == 4) || (o == 11) || (o == 18))
-    {
-      tdelta2 = SIDWAVEDELAY;
-      if (samples > 0)
-      {
-        result = s->clock((unsigned)tdelta2, ptr);
-        if (result > samples) result = samples;
-        total += result;
-        ptr += result;
-        samples -= result;
-      }
-      else
-      {
-        s->clockSilent((unsigned)tdelta2);
-      }
-      tdelta -= SIDWAVEDELAY;
-    }
-
-    /* Possible random badline delay once per writing */
-    if ((badline == c) && (residdelay))
-    {
-      tdelta2 = (int)residdelay;
-      if (samples > 0)
-      {
-        result = s->clock((unsigned)tdelta2, ptr);
-        if (result > samples) result = samples;
-        total += result;
-        ptr += result;
-        samples -= result;
-      }
-      else
-      {
-        s->clockSilent((unsigned)tdelta2);
-      }
-      tdelta -= (int)residdelay;
-    }
-
+      s->clockSilent((unsigned)SIDWAVEDELAY);
+    if ((badline == c) && residdelay)
+      s->clockSilent((unsigned)residdelay);
     s->write(o, regs[o]);
+    s->clockSilent((unsigned)SIDWRITEDELAY);
+  }
 
-    tdelta2 = SIDWRITEDELAY;
-    if (samples > 0)
-    {
-      result = s->clock((unsigned)tdelta2, ptr);
-      if (result > samples) result = samples;
-      total += result;
-      ptr += result;
-      samples -= result;
+  int total = 0;
+  while (samples > 0) {
+    int tdelta = (int)((long long)clockrate * (long long)samples
+                       / (long long)samplerate);
+    if (tdelta <= 0) tdelta = 1;
+    int got = s->clock((unsigned)tdelta, ptr);
+    if (got <= 0) {
+      // Resampler needs another cycle of state before emitting; nudge it
+      // forward silently and retry.
+      s->clockSilent(1);
+      continue;
     }
-    else
-    {
-      s->clockSilent((unsigned)tdelta2);
-    }
-    tdelta -= SIDWRITEDELAY;
-
-    if (tdelta <= 0 && samples <= 0) return total;
+    if (got > samples) got = samples;
+    total += got;
+    ptr += got;
+    samples -= got;
   }
-
-  if (tdelta > 0 && samples > 0)
-  {
-    result = s->clock((unsigned)tdelta, ptr);
-    if (result > samples) result = samples;
-    total += result;
-    ptr += result;
-    samples -= result;
-  }
-
-  /* Loop extra cycles until all samples produced */
-  while (samples > 0)
-  {
-    tdelta = clockrate * samples / samplerate;
-    if (tdelta <= 0) return total;
-
-    result = s->clock((unsigned)tdelta, ptr);
-    if (result > samples) result = samples;
-    if (result <= 0) break;
-    total += result;
-    ptr += result;
-    samples -= result;
-  }
-
   return total;
 }
 

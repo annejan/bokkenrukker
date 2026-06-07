@@ -164,13 +164,19 @@ bool PatternView::event(QEvent *e) {
             else if (row % 4 == 0) tag = "beat";
             else                   tag = "step";
             int patnum = epnum[epchn];
+            // Tooltip also advertises the Backspace shortcut — it silences
+            // a note that's still ringing on the active channel without
+            // inserting a row, and it's not bound anywhere else in the
+            // pattern editor.
             QToolTip::showText(he->globalPos(),
-                QString("Row $%1 (%2) — %3, pattern $%4 length $%5")
+                QString("Row $%1 (%2) — %3, pattern $%4 length $%5\n"
+                        "Backspace: silence note on Ch%6")
                     .arg(row, 2, 16, QLatin1Char('0')).toUpper()
                     .arg(row)
                     .arg(tag)
                     .arg(patnum, 2, 16, QLatin1Char('0')).toUpper()
-                    .arg(pattlen[patnum], 2, 16, QLatin1Char('0')).toUpper(),
+                    .arg(pattlen[patnum], 2, 16, QLatin1Char('0')).toUpper()
+                    .arg(epchn + 1),
                 this);
             return true;
         }
@@ -182,6 +188,18 @@ bool PatternView::event(QEvent *e) {
 void PatternView::keyPressEvent(QKeyEvent *e) {
     // Nav keys don't mutate; everything else gets wrapped in an undo command.
     int k = e->key();
+    // Backspace = silence the currently-playing note on the active channel
+    // without inserting a pattern row or moving the edit cursor. The C core
+    // exposes releasenote(chnnum) which writes the gate-off bit on the next
+    // playroutine tick — same code path as the existing 'Silence' button in
+    // the instrument editor. We swallow the key before patterncommands() so
+    // it can't be picked up as a pattern edit, and skip the snapshot/undo
+    // wrap because nothing about the song data changes.
+    if (k == Qt::Key_Backspace) {
+        releasenote(epchn);
+        e->accept();
+        return;
+    }
     bool isNav = (k == Qt::Key_Up || k == Qt::Key_Down
                   || k == Qt::Key_Left || k == Qt::Key_Right
                   || k == Qt::Key_PageUp || k == Qt::Key_PageDown

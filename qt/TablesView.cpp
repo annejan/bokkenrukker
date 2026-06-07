@@ -471,7 +471,12 @@ void TablesView::onCellSelectionChanged() {
 
 static QString tableLegendHtml(int t) {
     // Common style tags. Most lines: "[Range] — what it does. Example."
-    const QString dim   = "color:#5A6470";
+    // The descriptor / 'Examples:' lines used #5A6470 — way too dark
+    // against the dock background, so the explanatory text was almost
+    // unreadable. Bumped to a brighter neutral grey (#B0BCC8) so the
+    // text contrasts properly while staying clearly secondary to the
+    // bold opcode entries.
+    const QString dim   = "color:#B0BCC8";
     const QString hi    = "color:#FFD93D";
     const QString mono  = "font-family:'JetBrains Mono','monospace'";
     switch (t) {

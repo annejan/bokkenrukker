@@ -533,9 +533,27 @@ void PatternView::paintEvent(QPaintEvent *) {
             }
 
             if (row >= plen) {
-                p.setPen(Theme::C::textDim);
-                p.drawText(cellRect.adjusted(colWidth, 0, 0, 0),
-                           Qt::AlignLeft | Qt::AlignVCenter, "---");
+                // The endmark row (row == plen) is the 0xFF ENDPATT byte
+                // in this pattern. Paint it as a bold red 'END  -PATTERN-'
+                // band so the user can spot where the pattern actually
+                // terminates instead of squinting at a sea of '---'.
+                if (row == plen) {
+                    p.fillRect(cellRect, QColor(80, 25, 25));
+                    p.setPen(QPen(QColor(255, 80, 80), 1));
+                    p.drawLine(cellRect.left(),  cellRect.top(),
+                               cellRect.right(), cellRect.top());
+                    QFont ef = font();
+                    ef.setBold(true);
+                    p.setFont(ef);
+                    p.setPen(QColor(255, 200, 200));
+                    p.drawText(cellRect, Qt::AlignCenter,
+                               QString::fromUtf8("══ END ══"));
+                    p.setFont(font());
+                } else {
+                    p.setPen(Theme::C::textDim);
+                    p.drawText(cellRect.adjusted(colWidth, 0, 0, 0),
+                               Qt::AlignLeft | Qt::AlignVCenter, "---");
+                }
                 continue;
             }
 

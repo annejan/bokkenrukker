@@ -254,7 +254,14 @@ void MainWindow::buildUi() {
 
     connect(pattern_, &PatternView::patternEdited, this, &MainWindow::refreshAll);
     connect(order_, &OrderView::edited, this, &MainWindow::refreshAll);
-    connect(instrument_, &InstrumentView::edited, this, &MainWindow::refreshAll);
+    connect(instrument_, &InstrumentView::edited, this, [this]() {
+        // The InstrumentView '→ table' jump buttons set editmode = 3
+        // (EDIT_TABLES) and emit edited(); without syncStack the editmode
+        // change never reaches the QStackedWidget and the user just sees
+        // a refresh of the instrument editor.
+        syncStack();
+        refreshAll();
+    });
     connect(tables_, &TablesView::edited, this, &MainWindow::refreshAll);
     connect(songName_, &SongNameView::edited, this, &MainWindow::refreshAll);
 

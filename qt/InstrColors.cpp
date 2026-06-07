@@ -27,9 +27,26 @@ static const QRgb kInstrColors[] = {
 constexpr int kInstrColorCount =
     sizeof(kInstrColors) / sizeof(kInstrColors[0]);
 
+// Empty instrument = all-zero name + no ADSR / wave / pulse / filter
+// pointers + no firstwave. Those slots are factory defaults and
+// shouldn't get coloured even if their mask bit is set (e.g. via the
+// 'all on' master button) — otherwise the dock fills with palette tiles
+// for instruments the user never even touched.
+static bool instrIsEmpty(unsigned char inum) {
+    if (inum == 0 || inum >= MAX_INSTR) return true;
+    const INSTR &x = instr[inum];
+    for (int i = 0; i < MAX_INSTRNAMELEN; i++)
+        if (x.name[i] != 0 && x.name[i] != ' ') return false;
+    if (x.ad || x.sr) return false;
+    if (x.ptr[WTBL] || x.ptr[PTBL] || x.ptr[FTBL]) return false;
+    if (x.firstwave) return false;
+    return true;
+}
+
 QColor instrColor(unsigned char inum) {
     if (inum == 0 || inum >= MAX_INSTR) return QColor();
     if (!(s_colorMask & (1ull << inum))) return QColor();
+    if (instrIsEmpty(inum)) return QColor();
     uint32_t h = 2166136261u;
     for (int i = 0; i < MAX_INSTRNAMELEN; i++) {
         unsigned char ch = (unsigned char)instr[inum].name[i];

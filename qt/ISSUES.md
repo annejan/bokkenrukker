@@ -82,6 +82,7 @@
         einum into the editor.)*
 - [ ] Wave table program color explanation text color is too dark, make brighter.
 - [ ] Table pointers '-> table' button doesn't work.
+- [ ] Color is also shown of instrument entries that are empty
 
 ## Features
 

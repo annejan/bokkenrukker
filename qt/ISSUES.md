@@ -81,8 +81,15 @@
         firing instrumentChosen -> MainWindow::refreshAll which re-reads
         einum into the editor.)*
 - [ ] Wave table program color explanation text color is too dark, make brighter.
-- [ ] Table pointers '-> table' button doesn't work.
-- [ ] Color is also shown of instrument entries that are empty
+- [x] Table pointers '-> table' button doesn't work.
+      *(InstrumentView::edited connection in MainWindow now also calls
+        syncStack() — the jump slots set editmode=3 (EDIT_TABLES) and
+        emit edited(), but the previous refreshAll-only connection
+        never propagated the editmode change to the QStackedWidget.)*
+- [x] Color is also shown of instrument entries that are empty
+      *(instrColor() short-circuits to an invalid QColor when the
+        instrument slot is 'factory empty' — blank name, zero ADSR,
+        zero wave / pulse / filter pointers and zero firstwave.)*
 
 ## Features
 
@@ -146,3 +153,6 @@
         forced white when the cell is coloured. View > 'Instrument cell
         colours' toggles + persists via QSettings editor/instrColors.)*
 - [ ] When Table pointer variable is selected, use the left over space in the UI on the bottom right (left of instrument selection) to show the location listing of the relevent table the instrument in jumping to.
+- [ ] Instruments are now changed directly in the configuration, it would be better, if we change a copy of the instrument, and have a button next to 'Play test note' and 'Silence', that allows to 'Apply' the changed instrument, or reset in back to the current state using 'Reset'. 
+- [ ] Add a toggle button in the instrument editor that keeps playing the note every second on repeat, so the changes in the variables can be changed and reviewed instantly.
+- [ ] 

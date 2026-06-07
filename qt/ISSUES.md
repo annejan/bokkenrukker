@@ -125,3 +125,5 @@
         bidirectionally bound via valueChanged forwarding; the spinbox
         still fires InstrumentView::onAdChanged / onSrChanged so the
         engine wiring is unchanged.)*
+- [ ] Add a toggle button to give every instrument it's own unique color and color the instrument bytes in the patterns the color the instrument has got. (Do something like hash the name, and make sure the colors are ergonomically useful ). Use the colors in this page as a reference, filter out the colors too close to text color: https://static.vecteezy.com/system/resources/previews/016/592/367/original/color-palette-set-design-template-multi-color-free-vector.jpg
+- [ ] 

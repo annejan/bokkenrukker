@@ -37,7 +37,7 @@
 #include <QInputDialog>
 #include <QActionGroup>
 #include "Theme.h"
-#include "QtAudio.h"
+#include "PaAudio.h"
 #include <cstring>
 
 extern "C" {

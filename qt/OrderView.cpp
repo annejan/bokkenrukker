@@ -19,7 +19,6 @@
 #include <QShortcut>
 #include <QLineEdit>
 #include <QRegularExpressionValidator>
-#include "QtAudio.h"
 
 extern "C" {
 #include "gcommon.h"
@@ -45,19 +44,12 @@ void orderlistcommands(void);
 extern char *notename[];
 }
 
-// Active playback row per channel — mirrors OrderMiniMap math, reads
-// songptr from the audio-side snapshot for latency-compensated display.
+// Active playback row per channel — mirrors OrderMiniMap math.
 static int orderPlayRow(int c) {
     if (!isplaying()) return -1;
     int r;
-    if (lastsonginit == PLAY_PATTERN) {
-        r = espos[c];
-    } else {
-        auto snap = QtAudio::instance()
-                      ? QtAudio::instance()->currentSnapshot()
-                      : QtAudio::PlaySnapshot{};
-        r = snap.songptr[c] - 1;
-    }
+    if (lastsonginit == PLAY_PATTERN) r = espos[c];
+    else                              r = (int)chn[c].songptr - 1;
     if (r < 0) r = 0;
     return r;
 }

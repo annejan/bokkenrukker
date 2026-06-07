@@ -1,6 +1,5 @@
 #include "InstrumentQuickList.h"
 #include "Theme.h"
-#include "QtAudio.h"
 
 #include <QBrush>
 #include <QColor>
@@ -66,15 +65,11 @@ void InstrumentQuickList::tickFlash() {
     if (songinit != PLAY_STOPPED) {
         int nc = song_channels;
         if (nc <= 0 || nc > MAX_CHN) nc = MAX_CHN;
-        // Read instr from the audio-side snapshot so the blink lines up
-        // with what is being heard, not with what's being filled ~200 ms
-        // ahead of the speaker.
-        auto snap = QtAudio::instance()
-                      ? QtAudio::instance()->currentSnapshot()
-                      : QtAudio::PlaySnapshot{};
+        // PortAudio runs at ~10 ms latency — chn[c].instr is close enough to
+        // what's audible that we don't need a snapshot ring to compensate.
         for (int c = 0; c < nc; c++) {
-            unsigned ins = (unsigned)snap.instr[c];
-            if (ins >= 1 && ins < MAX_INSTR) flash_[ins][c] = 12; // ~360 ms tail
+            unsigned ins = chn[c].instr;
+            if (ins >= 1 && ins < MAX_INSTR) flash_[ins][c] = 12;
         }
     }
     // Paint + decay. Sum weighted channel colours over the base for each row.

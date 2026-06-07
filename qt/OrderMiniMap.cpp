@@ -23,7 +23,10 @@ int isplaying(void);
 static int activeChannels() { return stereo_mode ? MAX_CHN : 3; }
 
 OrderMiniMap::OrderMiniMap(QWidget *parent) : QWidget(parent) {
-    setMinimumWidth(120);
+    // No hard minimum — the previous 120 px floor stopped the user from
+    // collapsing the Order map dock to zero (and prevented the pattern
+    // editor from claiming the freed space when 'View > Order map' was
+    // toggled). Keep a soft hint via sizeHint() instead.
     setMaximumWidth(160);
     setMouseTracking(true);
     Theme::applyDarkPalette(this);
@@ -63,9 +66,12 @@ void OrderMiniMap::paintEvent(QPaintEvent *) {
             unsigned char v = songorder[esnum][c][r];
             int y = startY + r * rowH;
             QColor cell = Theme::C::bgAlt;
-            if (v == LOOPSONG)       cell = Theme::C::rst;
-            else if (v >= TRANSDOWN) cell = Theme::C::transpose;
-            else if (v >= REPEAT)    cell = Theme::C::repeatCol;
+            // Match OrderView's bright purple palette so control blocks
+            // pop out in both views. Three shades keep RST / transpose /
+            // repeat distinguishable inside the family.
+            if (v == LOOPSONG)       cell = QColor(180, 80, 220);
+            else if (v >= TRANSDOWN) cell = QColor(150, 70, 210);
+            else if (v >= REPEAT)    cell = QColor(130, 60, 200);
             else {
                 int t = qMin(255, 40 + v * 4);
                 cell = QColor(t / 3, t / 2, t);
@@ -78,7 +84,12 @@ void OrderMiniMap::paintEvent(QPaintEvent *) {
                 p.drawRect(QRect(x, y, colW - 2, rowH - 1));
             }
             // Edit cursor — yellow outline
-            if (r == espos[c] && c == eschn) {
+            // In 'All channels' mode every channel at this orderlist row
+            // gets the yellow cursor outline; in 'One channel' mode only
+            // eschn does. Matches the click semantics the dock header
+            // toggle controls.
+            bool drawCursor = (r == espos[c]) && (selectAll_ || c == eschn);
+            if (drawCursor) {
                 p.setPen(QPen(Theme::C::highlight, 2));
                 p.drawRect(QRect(x, y, colW - 2, rowH - 1));
             }
@@ -108,10 +119,11 @@ void OrderMiniMap::mousePressEvent(QMouseEvent *e) {
     int r = (e->pos().y() - 18) / rowH;
     if (r < 0) return;
 
-    // Ctrl-click = only the clicked channel (per-track navigation).
-    // Plain click  = move all channels to the same orderlist row so
-    // play-pattern hits the synchronized 3-channel pattern combination.
+    // The dock header toggle drives the default action; ctrl inverts it so
+    // both modes stay reachable from the keyboard. selectAll_ = true keeps
+    // the legacy 'plain click = all channels' behaviour.
     bool ctrlMod = (e->modifiers() & Qt::ControlModifier) != 0;
+    bool moveAll = selectAll_ ^ ctrlMod;
 
     auto apply = [&](int channel) {
         if (r >= songlen[esnum][channel]) return;
@@ -123,17 +135,14 @@ void OrderMiniMap::mousePressEvent(QMouseEvent *e) {
         }
     };
 
-    if (ctrlMod) {
-        apply(c);
-        eschn = c;
-        epchn = c;
-        eseditpos = r;
-    } else {
+    if (moveAll) {
         for (int cc = 0; cc < nc; cc++) apply(cc);
-        eschn = c;
-        epchn = c;
-        eseditpos = r;
+    } else {
+        apply(c);
     }
+    eschn = c;
+    epchn = c;
+    eseditpos = r;
     update();
     emit positionChanged();
 }

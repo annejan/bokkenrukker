@@ -1,7 +1,9 @@
 #pragma once
 #include <QWidget>
+extern "C" {
+#include "gcommon.h"     // INSTR
+}
 
-class QListWidget;
 class QSpinBox;
 class QLineEdit;
 class QComboBox;
@@ -19,7 +21,6 @@ signals:
     void edited();
 
 private slots:
-    void onListChanged(int row);
     void onNameChanged(const QString &);
     void onAdChanged(int);
     void onSrChanged(int);
@@ -36,20 +37,43 @@ private slots:
     void onTestNote();
     void onSilenceTestNote();
     void applyPreset(int index);
+    void onApplyEdits();   // commit current state as the new revert baseline
+    void onResetEdits();   // roll back to the last applied baseline
 
 private:
-    QListWidget *list_ = nullptr;
     class QComboBox *presetBox_ = nullptr;
     QLineEdit *name_ = nullptr;
     QSpinBox *attack_, *decay_, *sustain_, *release_;
     QSpinBox *wave_, *pulse_, *filter_, *vibParam_;
     QSpinBox *vibDelay_, *gateTimer_, *firstWave_;
+    class QTimer *autoTestTimer_ = nullptr;
     AdsrPreview *adsr_;
     WavetablePreview *wavePrev_;
     QLabel *summary_;
     bool updating_ = false;
 
+    // Snapshot of instr[einum] at the moment it was last loaded or the
+    // user last clicked Apply. Reset copies this back into instr[einum]
+    // so the user can experiment freely on the live slot then roll back.
+    // Switching to a different instrument auto-applies (saved_ is just
+    // re-snapshotted from the new slot — past edits become the new
+    // baseline implicitly).
+    INSTR saved_{};
+    int savedSlot_ = 0;
+    int  *applyBtnDirtyPaint_ = nullptr;   // sentinel, unused; future hook
+    class QPushButton *applyBtn_ = nullptr;
+    class QPushButton *resetBtn_ = nullptr;
+    bool dirty_ = false;
+    void markDirty();
+
     void readFromGlobals();
+    void updatePointerPreview(int t, int startRow);
+    int  pointerTable_ = -1;
+    QLabel *pointerPrev_ = nullptr;
+
+protected:
+    bool eventFilter(QObject *o, QEvent *e) override;
+private:
     void writeAd();
     void writeSr();
 };

@@ -8,12 +8,16 @@
 #include <QFontDatabase>
 #include <QKeyEvent>
 #include <QMouseEvent>
+#include <QWheelEvent>
 #include <QInputDialog>
 #include <QLineEdit>
+#include <QToolTip>
+#include <QHelpEvent>
 #include "SdlKeyMap.h"
 #include "Theme.h"
 #include "UndoStack.h"
 #include "MainWindow.h"
+#include "InstrColors.h"
 
 extern "C" {
 #include "gcommon.h"
@@ -23,6 +27,7 @@ extern unsigned char pattern[MAX_PATT][MAX_PATTROWS*4+4];
 extern int pattlen[MAX_PATT];
 extern int epnum[MAX_CHN];
 extern int eppos;
+extern int epoctave;
 extern int epview;
 extern int epcolumn;
 extern int epchn;
@@ -47,6 +52,7 @@ void converthex(void);
 void mutechannel(int chnnum);
 void countpatternlengths(void);
 extern char *notename[];
+extern INSTR instr[MAX_INSTR];
 }
 
 static int shownChannels() { return stereo_mode ? MAX_CHN : 3; }
@@ -93,15 +99,20 @@ void PatternView::resizeEvent(QResizeEvent *) {
 void PatternView::refresh() {
     bool playing = isplaying() != 0;
 
-    // Follow-play: track which pattern each channel is currently playing
-    // and move the edit cursor onto it, mirroring gdisplay.c:100-126.
+    // Snapshot chn[c].pattptr/4 ONCE per refresh. paintEvent reads
+    // playRow_[c] — so the editor cursor row (eppos = playRow_[epchn] in
+    // follow-play) and the per-channel red play-row highlight read the
+    // same chn[].pattptr value. Without this, the audio thread advanced
+    // pattptr between the cursor-pull in refresh() and the play-row read
+    // in paintEvent — the red row appeared one step ahead of the cursor.
+    for (int c = 0; c < MAX_CHN; c++) playRow_[c] = chn[c].pattptr / 4;
+
     if (followplay && playing) {
         for (int c = 0; c < shownChannels(); c++) {
             if (chn[c].advance) epnum[c] = chn[c].pattnum;
-            int newpos = chn[c].pattptr / 4;
+            int newpos = playRow_[c];
             if (newpos > pattlen[epnum[c]]) newpos = pattlen[epnum[c]];
             if (c == epchn) eppos = newpos;
-            // Mirror to orderlist position so the order view stays in sync
             int songpos = chn[c].songptr - 1;
             if (songpos < 0) songpos = 0;
             if (songpos > songlen[esnum][c]) songpos = songlen[esnum][c];
@@ -112,15 +123,22 @@ void PatternView::refresh() {
     updateScrollRange();
     int rowOffset = verticalScrollBar()->value();
     int rows = visibleRows();
+    // Only auto-pull the scrollbar to keep the cursor visible when the
+    // cursor actually moved this refresh — otherwise a mouse-wheel scroll
+    // past eppos kept getting yanked back because the periodic refresh()
+    // (tickScope at ~50 Hz) re-evaluated the visibility clause every tick.
+    bool cursorMoved = (eppos != lastEppos_) || (epchn != lastEpchn_);
     if (followplay && playing) {
-        int prow = chn[epchn].pattptr / 4;
+        int prow = playRow_[epchn];
         int center = std::max(0, prow - rows / 2);
         verticalScrollBar()->setValue(center);
-    } else if (rows > 0) {
+    } else if (cursorMoved && rows > 0) {
         if (eppos < rowOffset) verticalScrollBar()->setValue(eppos);
         else if (eppos >= rowOffset + rows)
             verticalScrollBar()->setValue(eppos - rows + 1);
     }
+    lastEppos_ = eppos;
+    lastEpchn_ = epchn;
     viewport()->update();
 }
 
@@ -133,6 +151,31 @@ void PatternView::tickScope() {
 }
 
 bool PatternView::event(QEvent *e) {
+    if (e->type() == QEvent::ToolTip) {
+        auto *he = static_cast<QHelpEvent*>(e);
+        QPoint pos = he->pos();
+        // Row-number column hover: show pattern step in hex + dec, the row
+        // type (beat / downbeat) and pattern length context.
+        if (pos.x() < rowNumW_ && pos.y() >= gridTopOffset()) {
+            int row = verticalScrollBar()->value()
+                      + (pos.y() - gridTopOffset()) / rowHeight;
+            QString tag;
+            if (row % 16 == 0)     tag = "downbeat";
+            else if (row % 4 == 0) tag = "beat";
+            else                   tag = "step";
+            int patnum = epnum[epchn];
+            QToolTip::showText(he->globalPos(),
+                QString("Row $%1 (%2) — %3, pattern $%4 length $%5")
+                    .arg(row, 2, 16, QLatin1Char('0')).toUpper()
+                    .arg(row)
+                    .arg(tag)
+                    .arg(patnum, 2, 16, QLatin1Char('0')).toUpper()
+                    .arg(pattlen[patnum], 2, 16, QLatin1Char('0')).toUpper(),
+                this);
+            return true;
+        }
+        QToolTip::hideText();
+    }
     return QAbstractScrollArea::event(e);
 }
 
@@ -317,8 +360,16 @@ void PatternView::paintEvent(QPaintEvent *) {
         p.setPen(Theme::C::sep);
         p.drawRect(frame);
         if (chn[c].mute) {
-            p.setPen(QColor(120, 60, 60));
+            // Bright red so the muted channel actually pops out of the VU
+            // bar; the previous dark muted red blended into the strip
+            // background. Bold for extra weight in case the rest of the
+            // VU strip is busy.
+            QFont mf = p.font();
+            mf.setBold(true);
+            p.setFont(mf);
+            p.setPen(QColor(255, 80, 80));
             p.drawText(QPoint(x + 4, vuPad + vuH - 2), "MUTE");
+            p.setFont(font());
             continue;
         }
         int filled = (int)((double)levels[c] / 255.0 * (w - 2));
@@ -391,10 +442,19 @@ void PatternView::paintEvent(QPaintEvent *) {
         p.drawText(QPoint(x + 8 * colWidth, headerY + headerStripH_ - 6),
                    QString("L%1").arg(pattlen[epnum[c]], 2, 16, QLatin1Char('0')).toUpper());
 
+        // Mute toggle: 1-char glyph fits the narrow muteW box without
+        // clipping. Red filled M = muted; green outlined ♪ = playing.
         QRect muteRect(muteX, headerY + 4, muteW, headerStripH_ - 8);
-        p.setPen(chn[c].mute ? Theme::C::vuRed : Theme::C::vuGreen);
+        QColor muteColor = chn[c].mute ? Theme::C::vuRed : Theme::C::vuGreen;
+        p.fillRect(muteRect, chn[c].mute ? QColor(60, 20, 20)
+                                         : QColor(20, 50, 25));
+        p.setPen(muteColor);
         p.drawRect(muteRect);
-        p.drawText(muteRect, Qt::AlignCenter, chn[c].mute ? "M" : "·");
+        QFont mf = font();
+        mf.setBold(true);
+        p.setFont(mf);
+        p.drawText(muteRect, Qt::AlignCenter, chn[c].mute ? "M" : "♪");
+        p.setFont(font());
     }
     p.setPen(Theme::C::sep);
     p.drawLine(0, headerY + headerStripH_, W, headerY + headerStripH_);
@@ -441,19 +501,25 @@ void PatternView::paintEvent(QPaintEvent *) {
                 }
             }
 
-            // Playback row highlight per channel
+            // Playback row highlight per channel — reads playRow_[c] snap
+            // taken in refresh() so the red row matches the edit cursor
+            // row in follow-play (was off by one because the audio thread
+            // advanced chn[].pattptr between refresh and paint).
             if (playing) {
-                int prow = chn[c].pattptr / 4;
+                int prow = playRow_[c];
                 if (prow == row) p.fillRect(cellRect, Theme::C::playRow);
             }
 
-            // Edit-column tint + white border on active channel/row. The
-            // border narrows down to a single nybble when epcolumn lands on
-            // the hi / lo of a 2-digit field, so the user can see which
-            // nybble the next keystroke will land in.
+            // Edit-column tint on active channel/row. The white focus
+            // border around the active nybble is drawn LATER, after the
+            // instrument-coloured background — otherwise the per-
+            // instrument fill paints over the border and the user can't
+            // see which nybble has focus on a coloured cell.
+            QRect focusRect;
+            bool hasFocusRect = false;
             if (c == epchn && row == eppos) {
                 int tx = x + colWidth;
-                QRect colRect, focusRect;
+                QRect colRect;
                 switch (epcolumn) {
                 case 0: colRect = focusRect = QRect(tx, lineRect.y(), 3 * colWidth, rowHeight); break;
                 case 1: colRect = QRect(tx + 4 * colWidth, lineRect.y(), 2 * colWidth, rowHeight);
@@ -469,14 +535,31 @@ void PatternView::paintEvent(QPaintEvent *) {
                 p.fillRect(colRect, QColor(Theme::C::highlight.red(),
                                            Theme::C::highlight.green(),
                                            Theme::C::highlight.blue(), 35));
-                p.setPen(QPen(QColor(255, 255, 255), 1));
-                p.drawRect(focusRect.adjusted(0, 0, -1, -1));
+                hasFocusRect = true;
             }
 
             if (row >= plen) {
-                p.setPen(Theme::C::textDim);
-                p.drawText(cellRect.adjusted(colWidth, 0, 0, 0),
-                           Qt::AlignLeft | Qt::AlignVCenter, "---");
+                // The endmark row (row == plen) is the 0xFF ENDPATT byte
+                // in this pattern. Paint it as a bold red 'END  -PATTERN-'
+                // band so the user can spot where the pattern actually
+                // terminates instead of squinting at a sea of '---'.
+                if (row == plen) {
+                    p.fillRect(cellRect, QColor(80, 25, 25));
+                    p.setPen(QPen(QColor(255, 80, 80), 1));
+                    p.drawLine(cellRect.left(),  cellRect.top(),
+                               cellRect.right(), cellRect.top());
+                    QFont ef = font();
+                    ef.setBold(true);
+                    p.setFont(ef);
+                    p.setPen(QColor(255, 200, 200));
+                    p.drawText(cellRect, Qt::AlignCenter,
+                               QString::fromUtf8("══ END ══"));
+                    p.setFont(font());
+                } else {
+                    p.setPen(Theme::C::textDim);
+                    p.drawText(cellRect.adjusted(colWidth, 0, 0, 0),
+                               Qt::AlignLeft | Qt::AlignVCenter, "---");
+                }
                 continue;
             }
 
@@ -502,15 +585,35 @@ void PatternView::paintEvent(QPaintEvent *) {
 
             int tx = x + colWidth;
             int ty = lineRect.y() + rowHeight - 5;
+            // Instrument-coloured background — only paints over the 2-digit
+            // instr cell so the rest of the row stays readable.
+            if (instrColorsOn_ && ins) {
+                QRect insBg(tx + 4 * colWidth, lineRect.y(),
+                            2 * colWidth, rowHeight);
+                p.fillRect(insBg, instrColor(ins));
+            }
             p.setPen(note == REST || note == KEYOFF || note == KEYON || note < FIRSTNOTE
                      ? Theme::C::textDim : Theme::C::note);
             p.drawText(QPoint(tx, ty), noteStr);
-            p.setPen(ins ? Theme::C::instr : Theme::C::textDim);
+            // White text on the coloured instr cell for contrast when the
+            // toggle is on; default instr colour otherwise.
+            p.setPen(instrColorsOn_ && ins ? QColor(255, 255, 255)
+                                            : (ins ? Theme::C::instr
+                                                   : Theme::C::textDim));
             p.drawText(QPoint(tx + 4 * colWidth, ty), insStr);
             p.setPen(cmd ? Theme::C::cmdDigit : Theme::C::textDim);
             p.drawText(QPoint(tx + 7 * colWidth, ty), QString(cmdStr[0]));
             p.setPen(cmd || param ? Theme::C::cmdParam : Theme::C::textDim);
             p.drawText(QPoint(tx + 8 * colWidth, ty), cmdStr.mid(1));
+
+            // White focus border drawn last so it sits on top of the
+            // instrument-coloured background fill. Without this re-order
+            // the per-instrument colour fill painted earlier covered the
+            // border whenever the cursor landed on a coloured instr cell.
+            if (hasFocusRect) {
+                p.setPen(QPen(QColor(255, 255, 255), 1));
+                p.drawRect(focusRect.adjusted(0, 0, -1, -1));
+            }
         }
     }
 }

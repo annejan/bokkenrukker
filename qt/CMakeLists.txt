@@ -6,10 +6,17 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Multimedia)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SDL REQUIRED sdl)
 pkg_check_modules(JACK REQUIRED jack)
+
+# PortAudio replaces QtMultimedia for audio output — Qt 6.4's pull-mode
+# QAudioSink forced a fat sink buffer to avoid PipeWire/Pulse underruns
+# (callback start() only landed in Qt 6.11). PortAudio gives us a direct
+# RT-priority callback at ~10 ms latency on all hosts we ship.
+find_library(PORTAUDIO_LIB portaudio REQUIRED)
+find_path(PORTAUDIO_INCLUDE portaudio.h REQUIRED)
 
 # Some SDL 1.2 pkg-config files (notably macOS sdl12-compat) list -lSDLmain,
 # which hijacks main() and may not even exist as a separate library. This app
@@ -27,7 +34,6 @@ link_directories(${SDL_LIBRARY_DIRS} ${JACK_LIBRARY_DIRS})
 # an SDLmain library to supply the real entry point. This app owns its entry
 # point via Qt, so tell SDL to keep its hands off main().
 add_compile_definitions(SDL_MAIN_HANDLED)
-
 
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../src)
 
@@ -87,7 +93,8 @@ set(QT_SRC
     StatusStrip.cpp
     UndoStack.cpp
     RpcServer.cpp
-    QtAudio.cpp
+    PaAudio.cpp
+    InstrColors.cpp
     Log.cpp
     qt_globals.c
     qt_stubs.c
@@ -114,6 +121,7 @@ target_include_directories(goattrk2-qt PRIVATE
     ${SRC_DIR}/residfp/residfp
     ${SDL_INCLUDE_DIRS}
     ${JACK_INCLUDE_DIRS}
+    ${PORTAUDIO_INCLUDE}
 )
 
 target_compile_options(goattrk2-qt PRIVATE
@@ -125,9 +133,10 @@ target_compile_options(goattrk2-qt PRIVATE
 )
 
 target_link_libraries(goattrk2-qt PRIVATE
-    Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Multimedia
+    Qt6::Core Qt6::Gui Qt6::Widgets
     ${SDL_LIBRARIES}
     ${JACK_LIBRARIES}
+    ${PORTAUDIO_LIB}
     m pthread
 )
 

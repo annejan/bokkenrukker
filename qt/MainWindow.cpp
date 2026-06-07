@@ -33,11 +33,15 @@
 #include <QWidget>
 #include <QVBoxLayout>
 #include <QToolButton>
+#include <QFrame>
+#include <QMouseEvent>
+#include <QLabel>
 #include <QStyle>
 #include <QInputDialog>
 #include <QActionGroup>
 #include "Theme.h"
-#include "QtAudio.h"
+#include "PaAudio.h"
+#include "InstrColors.h"
 #include <cstring>
 
 extern "C" {
@@ -65,6 +69,11 @@ extern int followplay;
 extern int einum;
 extern int epchn;
 extern int songinit;
+extern int epoctave;
+extern unsigned char pattern[MAX_PATT][MAX_PATTROWS*4+4];
+extern int pattlen[MAX_PATT];
+extern int epnum[MAX_CHN];
+void countpatternlengths(void);
 extern unsigned sidmodel;
 extern unsigned sid2model;
 extern int stereo_mode;
@@ -130,6 +139,78 @@ void MainWindow::buildUi() {
     centralLay->setContentsMargins(0, 0, 0, 0);
     centralLay->setSpacing(0);
 
+    // ---- Pattern editor toolbar ------------------------------------------
+    // Sits above the stack, only visible when the pattern editor is the
+    // active tab. Holds the recording-octave + pattern-length controls so
+    // the user has proper Qt buttons (with hover, focus, keyboard nav)
+    // instead of a painted pill on the grid canvas.
+    patternBar_ = new QWidget(centralWrap);
+    auto *pbLay = new QHBoxLayout(patternBar_);
+    pbLay->setContentsMargins(10, 4, 10, 4);
+    pbLay->setSpacing(6);
+
+    auto makeStep = [&](const QString &label, const QString &tip) {
+        auto *b = new QToolButton(patternBar_);
+        b->setText(label);
+        b->setToolTip(tip);
+        b->setAutoRaise(false);
+        b->setMinimumWidth(28);
+        return b;
+    };
+
+    pbLay->addWidget(new QLabel("Octave", patternBar_));
+    auto *octDown = makeStep("−", "Lower recording octave by 1 (key: /)");
+    auto *octShow = new QLabel("0", patternBar_);
+    octShow->setMinimumWidth(22);
+    octShow->setAlignment(Qt::AlignCenter);
+    QFont obf = octShow->font(); obf.setBold(true);
+    octShow->setFont(obf);
+    auto *octUp   = makeStep("+", "Raise recording octave by 1 (key: *). "
+                                  "Right-click = lower by 1.");
+    octUp->setContextMenuPolicy(Qt::PreventContextMenu);
+    pbLay->addWidget(octDown);
+    pbLay->addWidget(octShow);
+    pbLay->addWidget(octUp);
+    patternBarOct_ = octShow;
+
+    connect(octDown, &QToolButton::clicked, this, [this]() {
+        if (epoctave > 0) { epoctave--; refreshAll(); }
+    });
+    connect(octUp, &QToolButton::clicked, this, [this]() {
+        if (epoctave < 7) { epoctave++; refreshAll(); }
+    });
+    // Right-click on + lowers — matches the user's "left=up, right=down"
+    // request without losing the explicit '−' button.
+    octUp->installEventFilter(this);
+
+    auto *sep1 = new QFrame(patternBar_);
+    sep1->setFrameShape(QFrame::VLine);
+    sep1->setFrameShadow(QFrame::Sunken);
+    pbLay->addSpacing(8);
+    pbLay->addWidget(sep1);
+    pbLay->addSpacing(8);
+
+    pbLay->addWidget(new QLabel("Pattern length", patternBar_));
+    auto *lenDown = makeStep("−", "Shrink active pattern by 1 row "
+                                  "(pulls ENDPATT back one row).");
+    auto *lenShow = new QLabel("00", patternBar_);
+    lenShow->setMinimumWidth(28);
+    lenShow->setAlignment(Qt::AlignCenter);
+    QFont lbf = lenShow->font(); lbf.setBold(true);
+    lenShow->setFont(lbf);
+    auto *lenUp   = makeStep("+", "Grow active pattern by 1 row "
+                                  "(REST + ENDPATT).");
+    pbLay->addWidget(lenDown);
+    pbLay->addWidget(lenShow);
+    pbLay->addWidget(lenUp);
+    patternBarLen_ = lenShow;
+
+    connect(lenDown, &QToolButton::clicked, this, &MainWindow::shrinkPattern);
+    connect(lenUp,   &QToolButton::clicked, this, &MainWindow::growPattern);
+
+    pbLay->addStretch(1);
+    centralLay->addWidget(patternBar_);
+
     stack_ = new QStackedWidget(centralWrap);
     pattern_    = new PatternView(stack_);
     order_      = new OrderView(stack_);
@@ -141,33 +222,137 @@ void MainWindow::buildUi() {
     stack_->insertWidget(EDIT_INSTRUMENT, instrument_);
     stack_->insertWidget(EDIT_TABLES, tables_);
     stack_->insertWidget(EDIT_NAMES, songName_);
+    // Toolbar only relevant while the pattern editor is active.
+    connect(stack_, &QStackedWidget::currentChanged, this, [this](int idx) {
+        if (patternBar_) patternBar_->setVisible(idx == EDIT_PATTERN);
+    });
+    patternBar_->setVisible(stack_->currentIndex() == EDIT_PATTERN);
     centralLay->addWidget(stack_, 1);
 
     statusStrip_ = new StatusStrip(centralWrap);
     centralLay->addWidget(statusStrip_);
     connect(statusStrip_, &StatusStrip::sidClicked, this, &MainWindow::toggleSidModel);
+    connect(statusStrip_, &StatusStrip::sid2Clicked, this, &MainWindow::cycleSid2);
     connect(statusStrip_, &StatusStrip::followClicked, this, &MainWindow::toggleFollowPlay);
     connect(statusStrip_, &StatusStrip::ntscClicked, this, &MainWindow::toggleNtsc);
     connect(statusStrip_, &StatusStrip::tempoClicked, this, &MainWindow::cycleMultiplier);
+    connect(statusStrip_, &StatusStrip::octaveClicked, this, [this]() {
+        epoctave = (epoctave + 1) & 7;
+        statusStrip_->showMessage(QString("Octave %1").arg(epoctave));
+        refreshAll();
+    });
+    connect(statusStrip_, &StatusStrip::octaveDelta, this, [this](int d) {
+        int n = epoctave + d;
+        if (n < 0) n = 0;
+        if (n > 7) n = 7;
+        epoctave = n;
+        statusStrip_->showMessage(QString("Octave %1").arg(epoctave));
+        refreshAll();
+    });
 
     setCentralWidget(centralWrap);
 
     connect(pattern_, &PatternView::patternEdited, this, &MainWindow::refreshAll);
     connect(order_, &OrderView::edited, this, &MainWindow::refreshAll);
-    connect(instrument_, &InstrumentView::edited, this, &MainWindow::refreshAll);
+    connect(instrument_, &InstrumentView::edited, this, [this]() {
+        // The InstrumentView '→ table' jump buttons set editmode = 3
+        // (EDIT_TABLES) and emit edited(); without syncStack the editmode
+        // change never reaches the QStackedWidget and the user just sees
+        // a refresh of the instrument editor.
+        syncStack();
+        refreshAll();
+    });
     connect(tables_, &TablesView::edited, this, &MainWindow::refreshAll);
     connect(songName_, &SongNameView::edited, this, &MainWindow::refreshAll);
 
     // Dock widgets
     orderMapDock_ = new QDockWidget("Order map", this);
-    orderMap_ = new OrderMiniMap(orderMapDock_);
-    orderMapDock_->setWidget(orderMap_);
+    // Wrap: [toggle] + [mini-map]. Toggle picks whether a plain click on
+    // a row moves all channels (legacy 'song' navigation) or just the
+    // clicked channel (per-track). Ctrl-click always inverts the current
+    // mode so the other one stays reachable from the keyboard.
+    auto *omWrap = new QWidget(orderMapDock_);
+    auto *omLay = new QVBoxLayout(omWrap);
+    omLay->setContentsMargins(4, 4, 4, 4);
+    omLay->setSpacing(2);
+    auto *omToggle = new QToolButton(omWrap);
+    omToggle->setCheckable(true);
+    omToggle->setChecked(true);
+    omToggle->setText("All channels");
+    omToggle->setToolTip("Click switches between 'move all channels' (default) "
+                         "and 'move only the clicked channel'. Ctrl-click on a "
+                         "row inverts the mode for that one click.");
+    omToggle->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    omLay->addWidget(omToggle);
+    orderMap_ = new OrderMiniMap(omWrap);
+    omLay->addWidget(orderMap_, 1);
+    orderMapDock_->setWidget(omWrap);
+    // No DockWidgetFloatable: the float / detach button in the dock title
+    // bar (the [↗] icon Qt draws by default) confused users into thinking
+    // it was a 'collapse' button. The Close / X is enough for show / hide.
+    orderMapDock_->setFeatures(QDockWidget::DockWidgetClosable
+                              | QDockWidget::DockWidgetMovable);
     addDockWidget(Qt::LeftDockWidgetArea, orderMapDock_);
+    connect(omToggle, &QToolButton::toggled, this, [this, omToggle](bool on) {
+        orderMap_->setSelectAllChannels(on);
+        omToggle->setText(on ? "All channels" : "One channel");
+    });
     connect(orderMap_, &OrderMiniMap::positionChanged, this, &MainWindow::refreshAll);
+    // Restore the historical 160 px sizing the user expects on first launch —
+    // setMinimumWidth was dropped so the dock could collapse, but Qt picks
+    // a tiny initial width without a hint, leaving the map unreadable.
+    resizeDocks({orderMapDock_}, {160}, Qt::Horizontal);
 
     insQuickDock_ = new QDockWidget("Instruments", this);
-    insQuick_ = new InstrumentQuickList(insQuickDock_);
-    insQuickDock_->setWidget(insQuick_);
+    // Wrap: [colour master button] + [instrument list]. Double-clicking a
+    // row in the list toggles that one instrument's colour; the button is
+    // an 'all on' / 'all off' master so the user can flood-fill or wipe in
+    // one click.
+    {
+        auto *iqWrap = new QWidget(insQuickDock_);
+        auto *iqLay = new QVBoxLayout(iqWrap);
+        iqLay->setContentsMargins(4, 4, 4, 4);
+        iqLay->setSpacing(2);
+        auto *colAllBtn = new QToolButton(iqWrap);
+        colAllBtn->setText("Colours: all on");
+        colAllBtn->setToolTip(
+            "Toggle the colour bit on every instrument. Double-click a "
+            "single row in the list below to flip just that one.");
+        colAllBtn->setToolButtonStyle(Qt::ToolButtonTextOnly);
+        iqLay->addWidget(colAllBtn);
+        insQuick_ = new InstrumentQuickList(iqWrap);
+        iqLay->addWidget(insQuick_, 1);
+        insQuickDock_->setWidget(iqWrap);
+
+        // The button label tracks the next action: 'all on' when the mask
+        // is empty, 'all off' otherwise (so a click clears any non-empty
+        // mask first).
+        auto refreshColBtn = [colAllBtn]() {
+            // Probe bit 1 + bit 2 — if any non-zero slot is coloured the
+            // button offers 'all off'; otherwise 'all on'.
+            bool any = false;
+            for (int i = 1; i < 64 && !any; i++)
+                if (isInstrColored((unsigned char)i)) any = true;
+            colAllBtn->setText(any ? "Colours: all off" : "Colours: all on");
+        };
+        loadInstrColorMask();
+        refreshColBtn();
+        connect(colAllBtn, &QToolButton::clicked, this, [this, refreshColBtn]() {
+            bool any = false;
+            for (int i = 1; i < 64 && !any; i++)
+                if (isInstrColored((unsigned char)i)) any = true;
+            insQuick_->setAllColored(!any);
+            refreshColBtn();
+            pattern_->refresh();
+        });
+        connect(insQuick_, &InstrumentQuickList::colorMaskChanged, this,
+                [this, refreshColBtn]() {
+                    refreshColBtn();
+                    pattern_->refresh();
+                });
+    }
+    insQuickDock_->setFeatures(QDockWidget::DockWidgetClosable
+                              | QDockWidget::DockWidgetMovable);
     addDockWidget(Qt::RightDockWidgetArea, insQuickDock_);
     connect(insQuick_, &InstrumentQuickList::instrumentChosen, this, &MainWindow::refreshAll);
 
@@ -249,6 +434,12 @@ void MainWindow::buildUi() {
     blinkA->setChecked(false);
     connect(blinkA, &QAction::toggled, this,
             [this](bool on){ insQuick_->setBlinkEnabled(on); });
+
+    // Per-instrument colours are opt-in via double-click in the right-side
+    // dock (and the 'Colours: all on/off' master button in the dock
+    // header). No View-menu toggle — opt-in keeps the editor from turning
+    // into a wall of colour by default.
+    pattern_->setInstrColorsEnabled(true);
 
     // ---- Settings menu (microtonal / tuning / keypreset) ---------------
     auto *settingsMenu = menuBar()->addMenu("&Settings");
@@ -454,14 +645,15 @@ static QString titleForSong(const QString &path) {
 
 void MainWindow::loadSongFile(const QString &path) {
     qInfo("load: path=%s", qPrintable(path));
-    // Bracket the load with sink suspend / resume so the audio thread parks
-    // while loadsong / clearsong rewrite chn[], songorder[], etc.
-    if (auto *a = AudioOut::instance()) a->suspend();
-    // Hard-stop the playroutine before the load, so the next audio fill that
-    // wakes up after resume() doesn't fire playroutine() against the
-    // half-mutated state the load is about to install.
-    stopsong();
-    songinit = PLAY_STOPPED;
+    // AudioFence:
+    //   1. QAudioSink::suspend() (cooperative hint)
+    //   2. lock the audio mutex — waits for the in-flight PullDevice::readData
+    //      to return, so the audio thread can't be inside playroutine() /
+    //      sid_fillbuffer() while we rewrite chn[] / sidreg[] / songorder[]
+    //   3. stopsong + songinit=PLAY_STOPPED so the next fill after resume()
+    //      doesn't reanimate the half-loaded state
+    // Released at end of this scope -> sink resumes against the new song.
+    AudioFence fence;
 
     QByteArray ba = path.toLocal8Bit();
     std::strncpy(songfilename, ba.constData(), MAX_FILENAME - 1);
@@ -483,7 +675,6 @@ void MainWindow::loadSongFile(const QString &path) {
     undoStack_->clear();   // loaded state starts a fresh history
     refreshAll();
     if (auto *w = activeEditorWidget()) w->update();
-    if (auto *a = AudioOut::instance()) a->resume();
     statusStrip_->showMessage(QString("Loaded: %1").arg(path));
 }
 
@@ -678,6 +869,61 @@ void MainWindow::refreshAll() {
     orderMap_->refresh();
     insQuick_->refresh();
     statusStrip_->refresh();
+    if (patternBarOct_)
+        patternBarOct_->setText(QString::number(epoctave));
+    if (patternBarLen_) {
+        int p = epnum[epchn];
+        patternBarLen_->setText(QString("$%1")
+            .arg(pattlen[p], 2, 16, QLatin1Char('0')).toUpper());
+    }
+}
+
+// Toolbar shrink/grow operate on the channel the cursor is on. Same byte-
+// level invariant the L## header click dialog uses: a single ENDPATT byte
+// (0xff) in the note column at row = pattlen, REST padding before it.
+void MainWindow::shrinkPattern() {
+    int p = epnum[epchn];
+    int cur = pattlen[p];
+    if (cur <= 1) return;
+    int newLen = cur - 1;
+    pattern[p][newLen*4 + 0] = ENDPATT;
+    pattern[p][newLen*4 + 1] = 0;
+    pattern[p][newLen*4 + 2] = 0;
+    pattern[p][newLen*4 + 3] = 0;
+    countpatternlengths();
+    if (eppos >= pattlen[p]) eppos = pattlen[p] - 1;
+    refreshAll();
+}
+void MainWindow::growPattern() {
+    int p = epnum[epchn];
+    int cur = pattlen[p];
+    if (cur >= MAX_PATTROWS) return;
+    int newLen = cur + 1;
+    // Old ENDPATT slot becomes a REST row.
+    pattern[p][cur*4 + 0] = REST;
+    pattern[p][cur*4 + 1] = 0;
+    pattern[p][cur*4 + 2] = 0;
+    pattern[p][cur*4 + 3] = 0;
+    pattern[p][newLen*4 + 0] = ENDPATT;
+    pattern[p][newLen*4 + 1] = 0;
+    pattern[p][newLen*4 + 2] = 0;
+    pattern[p][newLen*4 + 3] = 0;
+    countpatternlengths();
+    refreshAll();
+}
+
+bool MainWindow::eventFilter(QObject *o, QEvent *e) {
+    // Right-click on the Octave [+] button lowers — gives the user the
+    // 'left = up, right = down' affordance they asked for on the same
+    // step button, without losing the explicit [−] / [+] pair.
+    if (e->type() == QEvent::MouseButtonPress) {
+        auto *me = static_cast<QMouseEvent*>(e);
+        if (me->button() == Qt::RightButton) {
+            if (epoctave > 0) { epoctave--; refreshAll(); }
+            return true;
+        }
+    }
+    return QMainWindow::eventFilter(o, e);
 }
 
 void MainWindow::playFromBeginning() { followplay = 1; initsong(esnum, PLAY_BEGINNING); }
@@ -687,24 +933,26 @@ void MainWindow::playFromPos() {
         statusStrip_->showMessage("Paused");
     } else {
         followplay = 1;
-        // Sync each channel's song pointer to where the user's cursor sits
-        // in the order list. Without this, PLAY_POS replays from wherever
-        // the last initsong left chn[c].songptr — usually the beginning.
+        // initsongpos() consumes startpattpos in playroutine — that's the
+        // path that actually survives, because initsong() (no -pos) sets
+        // startpattpos=0 and the playroutine then overwrites every chn[c]
+        // .pattptr with 0. Seeding chn[c].pattptr ourselves before calling
+        // initsong was getting trampled inside playroutine.
         for (int c = 0; c < MAX_CHN; c++) chn[c].songptr = espos[c];
-        initsong(esnum, PLAY_POS);
+        int start = eppos;
+        if (start < 0) start = 0;
+        initsongpos(esnum, PLAY_POS, start);
     }
 }
 void MainWindow::playPattern() {
     followplay = 1;
-    // initsong(PLAY_PATTERN) replays whatever chn[c].pattnum currently holds;
-    // sync to the user's selected pattern in each channel (epnum[c]) and
-    // reset pattptr so playback starts at the top of that pattern.
     for (int c = 0; c < MAX_CHN; c++) {
         chn[c].pattnum = epnum[c];
-        chn[c].pattptr = 0;
         chn[c].songptr = espos[c];
     }
-    initsong(esnum, PLAY_PATTERN);
+    int start = eppos;
+    if (start < 0) start = 0;
+    initsongpos(esnum, PLAY_PATTERN, start);
 }
 void MainWindow::stopSong()          { stopsong(); }
 
@@ -715,7 +963,7 @@ void MainWindow::muteCurrentChannel() {
 void MainWindow::prevMultiplierSlot() { prevmultiplier(); refreshAll(); }
 void MainWindow::nextMultiplierSlot() { nextmultiplier(); refreshAll(); }
 void MainWindow::toggleStereoMode(bool on) {
-    if (auto *a = AudioOut::instance()) a->suspend();
+    AudioFence fence;
     stereo_mode = on ? 1 : 0;
     // When promoting an existing mono song to stereo, channels 4-6 normally
     // have songlen=0 (nothing loaded for them) — the order map would render
@@ -733,7 +981,6 @@ void MainWindow::toggleStereoMode(bool on) {
         }
     }
     sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
-    if (auto *a = AudioOut::instance()) a->resume();
     statusStrip_->showMessage(on
         ? "Stereo ON — 6 channels, dual SID"
         : "Stereo OFF — 3 channels, single SID");
@@ -750,35 +997,53 @@ void MainWindow::toggleSid2Model() {
     refreshAll();
 }
 
+// Status-strip SID2 click cycles 3-state: off -> 6581 -> 8580 -> off.
+// The 'enable dual SID' menu checkbox remains the explicit on/off control;
+// the status-bar segment is a quick 'glance + click' affordance.
+void MainWindow::cycleSid2() {
+    if (!stereo_mode) {
+        sid2model = 0;             // entering stereo defaults to 6581
+        toggleStereoMode(true);    // already audio-fenced
+        statusStrip_->showMessage("SID2 enabled — 6581");
+        return;
+    }
+    if (sid2model == 0) {
+        toggleSid2Model();         // 6581 -> 8580
+        statusStrip_->showMessage("SID2 → 8580");
+        return;
+    }
+    // sid2model == 1 (8580) -> off (stereo_mode off)
+    toggleStereoMode(false);
+    statusStrip_->showMessage("SID2 disabled");
+}
+
 void MainWindow::toggleSidModel() {
-    // sound_init / sid_init tear down + rebuild the libresidfp instance the
-    // audio thread is mid-clock on. Bracket with suspend / resume.
-    if (auto *a = AudioOut::instance()) a->suspend();
+    // sid_init tears down + rebuilds the libresidfp instance the audio
+    // thread is mid-clock on. AudioFence locks the mutex + hard-stops the
+    // playroutine for the rebuild window.
+    AudioFence fence;
     sidmodel ^= 1;
     sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
-    if (auto *a = AudioOut::instance()) a->resume();
     statusStrip_->showMessage(sidmodel ? "Switched to 8580 SID"
                                        : "Switched to 6581 SID");
     refreshAll();
 }
 
 void MainWindow::toggleNtsc() {
-    if (auto *a = AudioOut::instance()) a->suspend();
+    AudioFence fence;
     ntsc ^= 1;
     sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
-    if (auto *a = AudioOut::instance()) a->resume();
     statusStrip_->showMessage(ntsc ? "Switched to NTSC 60Hz"
                                    : "Switched to PAL 50Hz");
     refreshAll();
 }
 
 void MainWindow::cycleMultiplier() {
-    if (auto *a = AudioOut::instance()) a->suspend();
+    AudioFence fence;
     if (multiplier == 0)      multiplier = 1;
     else if (multiplier < 4)  multiplier++;
     else                       multiplier = 0;
     sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
-    if (auto *a = AudioOut::instance()) a->resume();
     statusStrip_->showMessage(QString("Speed multiplier: %1")
         .arg(multiplier == 0 ? "½x" : QString("%1x").arg(multiplier)));
     refreshAll();

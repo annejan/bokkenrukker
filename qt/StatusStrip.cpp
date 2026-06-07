@@ -6,6 +6,8 @@
 #include <QFrame>
 #include <QTimer>
 #include <QMouseEvent>
+#include <QWheelEvent>
+#include <QEvent>
 
 class ClickableLabel : public QLabel {
     Q_OBJECT
@@ -37,8 +39,11 @@ extern int pattlen[MAX_PATT];
 extern int espos[MAX_CHN];
 extern int songlen[MAX_SONGS][MAX_CHN];
 extern unsigned sidmodel;
+extern unsigned sid2model;
+extern int stereo_mode;
 extern unsigned multiplier;
 extern unsigned ntsc;
+extern unsigned keypreset;
 extern CHN chn[MAX_CHN];
 extern INSTR instr[MAX_INSTR];
 extern unsigned char pattern[MAX_PATT][MAX_PATTROWS*4+4];
@@ -87,11 +92,19 @@ StatusStrip::StatusStrip(QWidget *parent) : QFrame(parent) {
                        "Multiplier scales pattern-tempo precision; base tick rate "
                        "is set by the PAL/NTSC segment. Also: Shift+F5/F6.");
     connect(tempo_, &ClickableLabel::clicked, this, &StatusStrip::tempoClicked);
-    octave_    = makeSegment("Oct 2", Theme::C::text, this);
+    octave_    = makeClickable("Oct 2", Theme::C::text, this);
+    octave_->setToolTip("Record-mode octave (0..7). Click cycles up; mouse "
+                        "wheel scrolls ±1. Keyboard: * raises, / lowers.");
+    connect(octave_, &ClickableLabel::clicked, this, &StatusStrip::octaveClicked);
+    octave_->installEventFilter(this);
     instr_     = makeSegment("Ins 01", Theme::C::instr, this);
     sid_       = makeClickable("6581", Theme::C::highlight, this);
-    sid_->setToolTip("Click to toggle SID model (6581 ↔ 8580). Also: Shift+F8.");
+    sid_->setToolTip("SID1 chip model. Click to toggle 6581 ↔ 8580. Also: Shift+F8.");
     connect(sid_, &ClickableLabel::clicked, this, &StatusStrip::sidClicked);
+    sid2_      = makeClickable("--", Theme::C::textDim, this);
+    sid2_->setToolTip("SID2 chip model. Active only when stereo / dual-SID is on. "
+                      "Click to toggle 6581 ↔ 8580 independently of SID1.");
+    connect(sid2_, &ClickableLabel::clicked, this, &StatusStrip::sid2Clicked);
     ntsc_      = makeClickable("PAL", Theme::C::transpose, this);
     ntsc_->setToolTip("Click to toggle PAL 50Hz ↔ NTSC 60Hz timing.");
     connect(ntsc_, &ClickableLabel::clicked, this, &StatusStrip::ntscClicked);
@@ -121,12 +134,25 @@ StatusStrip::StatusStrip(QWidget *parent) : QFrame(parent) {
     layout->addWidget(instr_);
     addSep();
     layout->addWidget(sid_);
+    layout->addWidget(sid2_);
     addSep();
     layout->addWidget(ntsc_);
     addSep();
     layout->addWidget(follow_);
     addSep();
     layout->addWidget(message_, 1);
+}
+
+bool StatusStrip::eventFilter(QObject *o, QEvent *e) {
+    if (o == octave_ && e->type() == QEvent::Wheel) {
+        auto *we = static_cast<QWheelEvent*>(e);
+        int dy = we->angleDelta().y();
+        if (dy != 0) {
+            emit octaveDelta(dy > 0 ? +1 : -1);
+            return true;
+        }
+    }
+    return QFrame::eventFilter(o, e);
 }
 
 // Lightweight validation: scan current instrument + pattern cell for the
@@ -165,9 +191,23 @@ void StatusStrip::refresh() {
 
     QString mlabel = (multiplier == 0) ? "Spd ½x" : QString("Spd %1x").arg(multiplier);
     tempo_->setText(mlabel);
-    octave_->setText(QString("Oct %1").arg(epoctave));
+    const char *kp = (keypreset == 1) ? "DMC"
+                   : (keypreset == 2) ? "Janko"
+                                      : "Protracker";
+    octave_->setText(QString("Oct %1 · %2").arg(epoctave).arg(kp));
     instr_->setText(QString("Ins %1").arg(einum, 2, 16, QLatin1Char('0')).toUpper());
-    sid_->setText(sidmodel ? "8580" : "6581");
+    sid_->setText(QString("SID1 %1").arg(sidmodel ? "8580" : "6581"));
+    if (stereo_mode) {
+        sid2_->setText(QString("SID2 %1").arg(sid2model ? "8580" : "6581"));
+        QPalette p2 = sid2_->palette();
+        p2.setColor(QPalette::WindowText, Theme::C::highlight);
+        sid2_->setPalette(p2);
+    } else {
+        sid2_->setText("SID2 off");
+        QPalette p2 = sid2_->palette();
+        p2.setColor(QPalette::WindowText, Theme::C::textDim);
+        sid2_->setPalette(p2);
+    }
     ntsc_->setText(ntsc ? "NTSC 60Hz" : "PAL 50Hz");
     follow_->setText(followplay ? "Follow ON" : "Follow off");
     QPalette fp = follow_->palette();

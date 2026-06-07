@@ -14,6 +14,11 @@ public:
 public slots:
     void refresh();
     void tickScope();
+    // Master enable for instrument-colour fills in the pattern grid. With
+    // per-instrument opt-in, this is effectively always on; the flag stays
+    // around so the painter can still short-circuit a tight loop.
+    void setInstrColorsEnabled(bool on) { instrColorsOn_ = on; viewport()->update(); }
+    bool instrColorsEnabled() const     { return instrColorsOn_; }
 
 signals:
     void patternEdited();
@@ -46,4 +51,15 @@ private:
     int headerStripH_ = 0;
 
     int channelAtX(int x) const;
+    bool instrColorsOn_ = false;
+    int lastEppos_ = -1;
+    int lastEpchn_ = -1;
+    // chn[c].pattptr snapshot taken at the start of refresh() and reused
+    // by paintEvent() so the editor cursor row (eppos = chn[epchn]/4 in
+    // follow-play) and the per-channel red play row highlight read the
+    // SAME chn[].pattptr value. Without this the audio thread could
+    // advance chn[].pattptr between the refresh() snapshot and the
+    // paintEvent read, putting the red play row one step ahead of the
+    // edit cursor row in follow-play.
+    int playRow_[MAX_CHN] = {0};
 };

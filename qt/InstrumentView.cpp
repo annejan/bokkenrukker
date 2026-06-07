@@ -7,6 +7,8 @@
 #include <QFormLayout>
 #include <QListWidget>
 #include <QSpinBox>
+#include <QSlider>
+#include <QTimer>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QComboBox>
@@ -143,11 +145,14 @@ protected:
             p.setPen(Theme::C::sep);
             p.drawRect(r);
         }
-        p.setPen(Theme::C::textDim);
+        // Legend brightness matches the section header above so the user
+        // reads it as 'caption for these tiles', not 'disabled metadata'.
+        // Small font size keeps the visual hierarchy: header > legend in
+        // size, same brightness.
+        p.setPen(Theme::C::text);
         QFont f = font();
         f.setPointSize(8);
         p.setFont(f);
-        // Bottom-aligned legend, in its own reserved strip (no cell overlap)
         p.drawText(QRect(4, H - 12, W - 8, 12),
                    Qt::AlignVCenter,
                    "noise=purple  pulse=blue  saw=orange  tri=green  cmd=red  jump=orange");
@@ -180,6 +185,31 @@ static QSpinBox *makeNybbleSpin(QWidget *parent) {
     return s;
 }
 
+// Wrap a 0..15 ADSR spinbox in a row with a horizontal slider. Slider and
+// spinbox stay in sync via two-way valueChanged forwarding — dragging the
+// slider drives the spinbox (which in turn fires the InstrumentView's
+// onAdChanged / onSrChanged slot), so the engine wiring stays unchanged.
+static QWidget *makeNybbleRow(QSpinBox *spin, QWidget *parent) {
+    auto *w = new QWidget(parent);
+    auto *h = new QHBoxLayout(w);
+    h->setContentsMargins(0, 0, 0, 0);
+    h->setSpacing(8);
+    auto *slider = new QSlider(Qt::Horizontal, w);
+    slider->setRange(0, 15);
+    slider->setPageStep(1);
+    slider->setTickPosition(QSlider::TicksBelow);
+    slider->setTickInterval(1);
+    slider->setMinimumWidth(160);
+    spin->setMaximumWidth(70);
+    h->addWidget(spin);
+    h->addWidget(slider, 1);
+    QObject::connect(spin, QOverload<int>::of(&QSpinBox::valueChanged),
+                     slider, &QSlider::setValue);
+    QObject::connect(slider, &QSlider::valueChanged,
+                     spin, &QSpinBox::setValue);
+    return w;
+}
+
 // ---------------------------------------------------------------------------
 
 InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
@@ -189,18 +219,9 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     root->setContentsMargins(12, 12, 12, 12);
     root->setSpacing(12);
 
-    // Left: instrument list -----------------------------------------------
-    list_ = new QListWidget(this);
-    list_->setMinimumWidth(200);
-    list_->setMaximumWidth(240);
-    list_->setFont(Theme::monoFont(11));
-    QPalette lp = list_->palette();
-    lp.setColor(QPalette::Base, Theme::C::bgAlt);
-    lp.setColor(QPalette::Text, Theme::C::text);
-    lp.setColor(QPalette::Highlight, Theme::C::editRow);
-    list_->setPalette(lp);
-    connect(list_, &QListWidget::currentRowChanged, this, &InstrumentView::onListChanged);
-    root->addWidget(list_);
+    // Left-side instrument list removed — the 'Instruments' side dock on
+    // the right already provides the same selector and was duplicating
+    // both the screen real-estate and the keep-in-sync churn.
 
     // Center: editor form --------------------------------------------------
     auto *center = new QVBoxLayout();
@@ -275,10 +296,10 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     release_ = makeNybbleSpin(envBox);
     release_->setToolTip("Release rate after key-off ($0 fastest, $F slowest). "
                          "Watch out: A=0, R=1 can ADSR-bug on some chips.");
-    envForm->addRow("Attack", attack_);
-    envForm->addRow("Decay", decay_);
-    envForm->addRow("Sustain", sustain_);
-    envForm->addRow("Release", release_);
+    envForm->addRow("Attack",  makeNybbleRow(attack_,  envBox));
+    envForm->addRow("Decay",   makeNybbleRow(decay_,   envBox));
+    envForm->addRow("Sustain", makeNybbleRow(sustain_, envBox));
+    envForm->addRow("Release", makeNybbleRow(release_, envBox));
     connect(attack_, QOverload<int>::of(&QSpinBox::valueChanged), this, &InstrumentView::onAdChanged);
     connect(decay_,  QOverload<int>::of(&QSpinBox::valueChanged), this, &InstrumentView::onAdChanged);
     connect(sustain_,QOverload<int>::of(&QSpinBox::valueChanged), this, &InstrumentView::onSrChanged);
@@ -307,6 +328,10 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
         row->addWidget(s);
         auto *btn = new QPushButton("→ table", tblBox);
         btn->setMaximumWidth(80);
+        btn->setToolTip("Open the Tables editor and jump the cursor to the "
+                        "row this pointer references — quick way to find / "
+                        "edit the wavetable / pulsetable / filtertable "
+                        "program this instrument runs.");
         connect(btn, &QPushButton::clicked, this, slot);
         row->addWidget(btn);
         return row;
@@ -348,10 +373,40 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
                         "on the current channel.");
     auto *stopBtn = new QPushButton("Silence", this);
     stopBtn->setToolTip("Release the test note on the current channel.");
+    auto *autoBtn = new QPushButton("Auto-test", this);
+    autoBtn->setCheckable(true);
+    autoBtn->setToolTip("Retrigger the test note every second so any edit to "
+                        "ADSR / wave / pulse / filter is audible instantly.");
+    applyBtn_ = new QPushButton("Apply", this);
+    applyBtn_->setToolTip("Commit the current edits as the new revert baseline. "
+                          "After Apply, the Reset button will roll back to "
+                          "THIS state.");
+    resetBtn_ = new QPushButton("Reset", this);
+    resetBtn_->setToolTip("Roll the instrument back to the state at the last "
+                          "Apply (or to the state it was in when this slot was "
+                          "first opened, if you never clicked Apply).");
+    connect(applyBtn_, &QPushButton::clicked, this, &InstrumentView::onApplyEdits);
+    connect(resetBtn_, &QPushButton::clicked, this, &InstrumentView::onResetEdits);
     connect(testBtn, &QPushButton::clicked, this, &InstrumentView::onTestNote);
     connect(stopBtn, &QPushButton::clicked, this, &InstrumentView::onSilenceTestNote);
+    autoTestTimer_ = new QTimer(this);
+    autoTestTimer_->setInterval(1000);
+    connect(autoTestTimer_, &QTimer::timeout, this, &InstrumentView::onTestNote);
+    connect(autoBtn, &QPushButton::toggled, this, [this](bool on) {
+        if (on) {
+            onTestNote();
+            autoTestTimer_->start();
+        } else {
+            autoTestTimer_->stop();
+            onSilenceTestNote();
+        }
+    });
     btnRow->addWidget(testBtn);
     btnRow->addWidget(stopBtn);
+    btnRow->addWidget(autoBtn);
+    btnRow->addSpacing(20);
+    btnRow->addWidget(applyBtn_);
+    btnRow->addWidget(resetBtn_);
     btnRow->addStretch();
     center->addLayout(btnRow);
 
@@ -368,7 +423,25 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     right->addWidget(envHdr);
 
     adsr_ = new AdsrPreview(this);
+    adsr_->setToolTip(
+        "<b>Heights</b> = SID envelope amplitude.<br>"
+        "&nbsp;&nbsp;peak (top) = $FF — SID always attacks to full, A doesn't change this height.<br>"
+        "&nbsp;&nbsp;sustain plateau = S × $11 (S=0 silent, S=$F same as peak).<br>"
+        "&nbsp;&nbsp;baseline = $00.<br>"
+        "<b>Widths</b> = phase duration. A / D / R are schematic linear "
+        "scales; real SID timing is exponential (A=$0 ≈ 2 ms, A=$F ≈ 8 s).");
     right->addWidget(adsr_);
+
+    // Compact caption under the graph so the rules are visible without
+    // hovering. Uses the same dim subtext style as the rest of the editor.
+    auto *adsrLegend = new QLabel(
+        "<span style='color:#B0BCC8;font-size:10px'>"
+        "Heights: peak (top) = $FF (fixed) · sustain = S×$11 · "
+        "baseline = 0  ·  Widths = phase duration"
+        "</span>", this);
+    adsrLegend->setTextFormat(Qt::RichText);
+    adsrLegend->setWordWrap(true);
+    right->addWidget(adsrLegend);
 
     auto *waveHdr = new QLabel("Wavetable program (first 24 steps)", this);
     waveHdr->setFont(eh);
@@ -391,32 +464,151 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     summary_->setPalette(sp);
     right->addWidget(summary_);
 
+    // Pointer preview pane — shows 16 rows of the target table starting
+    // at the currently-focused pointer field. Sticky: stays visible
+    // after focus moves away; replaced only when a different pointer
+    // gets focused.
+    pointerPrev_ = new QLabel(this);
+    pointerPrev_->setTextFormat(Qt::RichText);
+    pointerPrev_->setWordWrap(false);
+    pointerPrev_->setMinimumHeight(220);
+    pointerPrev_->setContentsMargins(10, 8, 10, 8);
+    pointerPrev_->setAutoFillBackground(true);
+    pointerPrev_->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+    QPalette pp = pointerPrev_->palette();
+    pp.setColor(QPalette::Window, Theme::C::bgAlt);
+    pp.setColor(QPalette::WindowText, Theme::C::text);
+    pointerPrev_->setPalette(pp);
+    pointerPrev_->setText("<i style='color:#B0BCC8'>Click a Wavetable / "
+                          "Pulsetable / Filtertable Pos field to see the "
+                          "table rows starting at that pointer.</i>");
+    right->addWidget(pointerPrev_);
+
+    // Focus-driven pointer preview. installEventFilter on the three
+    // pointer spinboxes; the eventFilter override resolves the focused
+    // widget to the target table index and calls updatePointerPreview.
+    wave_->installEventFilter(this);
+    pulse_->installEventFilter(this);
+    filter_->installEventFilter(this);
+    connect(wave_,   QOverload<int>::of(&QSpinBox::valueChanged),
+            this, [this](int v) { if (pointerTable_ == WTBL) updatePointerPreview(WTBL, v); });
+    connect(pulse_,  QOverload<int>::of(&QSpinBox::valueChanged),
+            this, [this](int v) { if (pointerTable_ == PTBL) updatePointerPreview(PTBL, v); });
+    connect(filter_, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, [this](int v) { if (pointerTable_ == FTBL) updatePointerPreview(FTBL, v); });
+
     right->addStretch();
     root->addLayout(right, 1);
 
-    // Populate list
-    for (int i = 1; i < MAX_INSTR; i++) list_->addItem(QString());
     refresh();
+}
+
+bool InstrumentView::eventFilter(QObject *o, QEvent *e) {
+    if (e->type() == QEvent::FocusIn) {
+        if (o == wave_)        updatePointerPreview(WTBL, wave_->value());
+        else if (o == pulse_)  updatePointerPreview(PTBL, pulse_->value());
+        else if (o == filter_) updatePointerPreview(FTBL, filter_->value());
+    }
+    return QWidget::eventFilter(o, e);
+}
+
+void InstrumentView::updatePointerPreview(int t, int startRow) {
+    pointerTable_ = t;
+    static const char *tname[] = {"Wavetable", "Pulsetable", "Filtertable"};
+    QString head = QString("<b style='font-size:12px;color:#E1E5EA'>%1 @ row $%2</b>"
+                           " <span style='color:#B0BCC8;font-size:10px'>"
+                           "&nbsp;(first 16 rows, stops at $FF)</span>")
+                   .arg(tname[t])
+                   .arg(qMax(0, startRow), 2, 16, QLatin1Char('0')).toUpper();
+    QString body = "<table cellspacing='0' cellpadding='2' "
+                   "style='font-family:monospace;font-size:11px'>"
+                   "<tr><th align='left' style='color:#B0BCC8'>idx</th>"
+                   "<th align='left' style='color:#B0BCC8'>L</th>"
+                   "<th align='left' style='color:#B0BCC8'>R</th>"
+                   "<th align='left' style='color:#B0BCC8'>note</th></tr>";
+    int row = qMax(0, startRow - 1);  // pointer is 1-based, table is 0-based
+    int shown = 0;
+    while (shown < 16 && row < MAX_TABLELEN) {
+        unsigned char L = ltable[t][row];
+        unsigned char R = rtable[t][row];
+        QString note;
+        if (L == 0xFF) {
+            note = R == 0 ? QString("<i>stop</i>")
+                          : QString("<i>jump to $%1</i>").arg(R, 2, 16, QLatin1Char('0')).toUpper();
+        } else if (t == WTBL && L >= 0xF0 && L <= 0xFE) {
+            note = QString("cmd %1XY").arg(L - 0xF0, 1, 16).toUpper();
+        }
+        QString rowCol = (row + 1 == startRow) ? "#FFD93D" : "#E1E5EA";
+        body += QString("<tr><td style='color:%5'>$%1</td>"
+                        "<td>$%2</td><td>$%3</td>"
+                        "<td style='color:#B0BCC8'>%4</td></tr>")
+                .arg(row + 1, 2, 16, QLatin1Char('0')).toUpper()
+                .arg(L, 2, 16, QLatin1Char('0')).toUpper()
+                .arg(R, 2, 16, QLatin1Char('0')).toUpper()
+                .arg(note)
+                .arg(rowCol);
+        shown++;
+        if (L == 0xFF) break;       // stop at jump per the spec
+        row++;
+    }
+    body += "</table>";
+    pointerPrev_->setText(head + "<br>" + body);
 }
 
 void InstrumentView::refresh() {
     updating_ = true;
-    // Refresh list contents — names may have changed
-    for (int i = 1; i < MAX_INSTR; i++) {
-        char buf[MAX_INSTRNAMELEN + 1];
-        std::memcpy(buf, instr[i].name, MAX_INSTRNAMELEN);
-        buf[MAX_INSTRNAMELEN] = 0;
-        QString name = QString::fromLocal8Bit(buf).trimmed();
-        if (name.isEmpty()) name = "—";
-        list_->item(i - 1)->setText(
-            QString("%1  %2")
-                .arg(i, 2, 16, QLatin1Char('0')).toUpper()
-                .arg(name));
-    }
     if (einum < 1) einum = 1;
-    list_->setCurrentRow(einum - 1);
+    // Snapshot the slot we're switching to (or returning to) as the new
+    // baseline. Past edits left over from another slot become the new
+    // 'saved' state implicitly — the user only gets explicit revert
+    // capability within the slot they're actively editing. matches the
+    // user's described workflow.
+    saved_ = instr[einum];
+    savedSlot_ = einum;
+    dirty_ = false;
     readFromGlobals();
     updating_ = false;
+    if (applyBtn_) applyBtn_->setEnabled(false);
+    if (resetBtn_) resetBtn_->setEnabled(false);
+}
+
+void InstrumentView::markDirty() {
+    if (updating_) return;
+    if (savedSlot_ != einum) {
+        // refresh() hasn't caught up yet — treat the new slot as the
+        // baseline so we don't roll back the wrong instrument.
+        saved_ = instr[einum];
+        savedSlot_ = einum;
+    }
+    dirty_ = true;
+    if (applyBtn_) applyBtn_->setEnabled(true);
+    if (resetBtn_) resetBtn_->setEnabled(true);
+}
+
+void InstrumentView::onApplyEdits() {
+    if (!dirty_) return;
+    saved_ = instr[einum];
+    savedSlot_ = einum;
+    dirty_ = false;
+    if (applyBtn_) applyBtn_->setEnabled(false);
+    if (resetBtn_) resetBtn_->setEnabled(false);
+    if (summary_) summary_->setText(QString("<i style='color:#A1C181'>"
+                                            "Applied — current state is the "
+                                            "new revert baseline.</i>"));
+    emit edited();
+}
+
+void InstrumentView::onResetEdits() {
+    if (!dirty_) return;
+    instr[einum] = saved_;
+    dirty_ = false;
+    if (applyBtn_) applyBtn_->setEnabled(false);
+    if (resetBtn_) resetBtn_->setEnabled(false);
+    readFromGlobals();
+    if (summary_) summary_->setText(QString("<i style='color:#FFD93D'>"
+                                            "Reset — rolled back to the last "
+                                            "Apply baseline.</i>"));
+    emit edited();
 }
 
 void InstrumentView::readFromGlobals() {
@@ -469,13 +661,6 @@ void InstrumentView::readFromGlobals() {
     updating_ = false;
 }
 
-void InstrumentView::onListChanged(int row) {
-    if (updating_ || row < 0) return;
-    einum = row + 1;
-    readFromGlobals();
-    emit edited();
-}
-
 void InstrumentView::onNameChanged(const QString &t) {
     if (updating_) return;
     QByteArray before = captureSongSnapshot();
@@ -487,10 +672,7 @@ void InstrumentView::onNameChanged(const QString &t) {
     char buf[MAX_INSTRNAMELEN + 1];
     std::memcpy(buf, ins.name, MAX_INSTRNAMELEN);
     buf[MAX_INSTRNAMELEN] = 0;
-    QString name = QString::fromLocal8Bit(buf).trimmed();
-    if (name.isEmpty()) name = "—";
-    list_->item(einum - 1)->setText(
-        QString("%1  %2").arg(einum, 2, 16, QLatin1Char('0')).toUpper().arg(name));
+    markDirty();
     pushEditIfChanged(this, std::move(before), "Instrument name");
     emit edited();
 }
@@ -508,6 +690,7 @@ void InstrumentView::onAdChanged(int) {
     writeAd();
     adsr_->setAdsr(attack_->value(), decay_->value(),
                    sustain_->value(), release_->value());
+    markDirty();
     pushEditIfChanged(this, std::move(before), "Instrument ADSR");
     emit edited();
 }
@@ -517,6 +700,7 @@ void InstrumentView::onSrChanged(int) {
     writeSr();
     adsr_->setAdsr(attack_->value(), decay_->value(),
                    sustain_->value(), release_->value());
+    markDirty();
     pushEditIfChanged(this, std::move(before), "Instrument ADSR");
     emit edited();
 }
@@ -525,38 +709,39 @@ void InstrumentView::onWtChanged(int v) {
     QByteArray before = captureSongSnapshot();
     instr[einum].ptr[WTBL] = v;
     wavePrev_->setStart(v);
+    markDirty();
     pushEditIfChanged(this, std::move(before), "Instrument param");
     emit edited();
 }
 void InstrumentView::onPtChanged(int v) {
     if (updating_) return;
     QByteArray b = captureSongSnapshot(); instr[einum].ptr[PTBL] = v;
-    pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
+    markDirty(); pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
 }
 void InstrumentView::onFtChanged(int v) {
     if (updating_) return;
     QByteArray b = captureSongSnapshot(); instr[einum].ptr[FTBL] = v;
-    pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
+    markDirty(); pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
 }
 void InstrumentView::onVibParamChanged(int v) {
     if (updating_) return;
     QByteArray b = captureSongSnapshot(); instr[einum].ptr[STBL] = v;
-    pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
+    markDirty(); pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
 }
 void InstrumentView::onVibDelayChanged(int v) {
     if (updating_) return;
     QByteArray b = captureSongSnapshot(); instr[einum].vibdelay = v;
-    pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
+    markDirty(); pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
 }
 void InstrumentView::onGateChanged(int v) {
     if (updating_) return;
     QByteArray b = captureSongSnapshot(); instr[einum].gatetimer = v;
-    pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
+    markDirty(); pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
 }
 void InstrumentView::onFirstWaveChanged(int v) {
     if (updating_) return;
     QByteArray b = captureSongSnapshot(); instr[einum].firstwave = v;
-    pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
+    markDirty(); pushEditIfChanged(this, std::move(b), "Instrument param"); emit edited();
 }
 
 void InstrumentView::onGotoWaveTable() {

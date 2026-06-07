@@ -38,7 +38,9 @@ extern int epnum[MAX_CHN];
 extern int editmode;
 extern int lastsonginit;
 extern CHN chn[MAX_CHN];
+extern int stereo_mode;
 int isplaying(void);
+static int orderShownChannels() { return stereo_mode ? MAX_CHN : 3; }
 void orderlistcommands(void);
 // Shared note-name lookup defined in qt_globals.c.
 extern char *notename[];
@@ -62,11 +64,12 @@ OrderListModel::OrderListModel(QObject *parent) : QAbstractTableModel(parent) {}
 
 int OrderListModel::rowCount(const QModelIndex &) const {
     int n = 0;
-    for (int c = 0; c < MAX_CHN; c++)
+    int nc = orderShownChannels();
+    for (int c = 0; c < nc; c++)
         if (songlen[esnum][c] > n) n = songlen[esnum][c];
     return n + 2; // include RST + restart slot
 }
-int OrderListModel::columnCount(const QModelIndex &) const { return MAX_CHN; }
+int OrderListModel::columnCount(const QModelIndex &) const { return orderShownChannels(); }
 
 QVariant OrderListModel::data(const QModelIndex &i, int role) const {
     if (!i.isValid()) return {};
@@ -83,6 +86,12 @@ QVariant OrderListModel::data(const QModelIndex &i, int role) const {
         return QString("%1").arg(v, 2, 16, QLatin1Char('0')).toUpper();
     }
     if (role == Qt::ForegroundRole) {
+        // Bright purple background needs a high-contrast foreground —
+        // Theme::C::rst / transpose / repeatCol are darker tints that
+        // chosen against the previous near-black background and got
+        // unreadable when the cells went bright. Force white on all
+        // three special types.
+        if (v >= REPEAT) return QBrush(QColor(255, 255, 255));
         if (r >= songlen[esnum][c] + 2) return QBrush(Theme::C::textDim);
         if (v == LOOPSONG)       return QBrush(Theme::C::rst);
         if (v >= TRANSDOWN)      return QBrush(Theme::C::transpose);
@@ -162,11 +171,14 @@ public:
         QStyleOptionViewItem o = opt;
         int r = i.row(), c = i.column();
         unsigned char v = songorder[esnum][c][r];
-        // Background semantic tint
+        const bool isSpecial = (v >= REPEAT);   // RST / TRANSUP/DOWN / REPEAT
+        // Background semantic tint — RST, transpose and repeat all share a
+        // bright purple band so control blocks pop out of the order list
+        // at a glance. Three shades keep the sub-types distinguishable.
         if (r >= songlen[esnum][c] + 2)      p->fillRect(opt.rect, Theme::C::bgBase);
-        else if (v == LOOPSONG)              p->fillRect(opt.rect, QColor(80, 30, 20));
-        else if (v >= TRANSDOWN)             p->fillRect(opt.rect, QColor(20, 50, 70));
-        else if (v >= REPEAT)                p->fillRect(opt.rect, QColor(70, 60, 20));
+        else if (v == LOOPSONG)              p->fillRect(opt.rect, QColor(180, 80, 220));
+        else if (v >= TRANSDOWN)             p->fillRect(opt.rect, QColor(150, 70, 210));
+        else if (v >= REPEAT)                p->fillRect(opt.rect, QColor(130, 60, 200));
         else if (r % 4 == 0)                 p->fillRect(opt.rect, Theme::C::beat);
         // Playback underlay (red) — drawn before the edit cursor so the
         // yellow cursor outline still wins when both land on the same cell.
@@ -174,8 +186,11 @@ public:
         if (pr == r) {
             p->fillRect(opt.rect, Theme::C::playRow);
         }
-        // Edit cursor underlay
-        if (r == espos[c] && c == eschn) {
+        // Edit cursor underlay. Skip on special cells — clicking RST or
+        // a transpose / repeat command shouldn't drop the yellow edit
+        // border onto it; those values aren't hex-editable inline anyway.
+        const bool cursorHere = (r == espos[c] && c == eschn && !isSpecial);
+        if (cursorHere) {
             p->fillRect(opt.rect, Theme::C::editRow);
         }
         QStyledItemDelegate::paint(p, o, i);
@@ -183,8 +198,7 @@ public:
             p->setPen(QPen(Theme::C::vuRed, 1));
             p->drawRect(opt.rect.adjusted(0, 0, -1, -1));
         }
-        // Border on cursor
-        if (r == espos[c] && c == eschn) {
+        if (cursorHere) {
             p->setPen(QPen(Theme::C::highlight, 2));
             p->drawRect(opt.rect.adjusted(0, 0, -1, -1));
         }

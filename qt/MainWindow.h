@@ -11,6 +11,7 @@ class OrderMiniMap;
 class InstrumentQuickList;
 class StatusStrip;
 class QStackedWidget;
+class QWidget;
 class QLabel;
 class QTimer;
 class QDockWidget;
@@ -76,6 +77,7 @@ private slots:
     void setKeyPresetJanko();
     void toggleStereoMode(bool on);
     void toggleSid2Model();
+    void cycleSid2();   // status-strip click: off -> 6581 -> 8580 -> off
 
 private:
     QUndoStack *undoStack_ = nullptr;
@@ -91,9 +93,18 @@ private:
     QDockWidget *orderMapDock_ = nullptr;
     QDockWidget *insQuickDock_ = nullptr;
     StatusStrip *statusStrip_ = nullptr;
+    QWidget     *patternBar_ = nullptr;       // toolbar above the stack —
+    QLabel      *patternBarOct_ = nullptr;    // only visible on Pattern
+    QLabel      *patternBarLen_ = nullptr;    // editor.
     QTimer *timer_ = nullptr;
 
     void buildUi();
     void refreshAll();
     void syncStack();
+
+    void shrinkPattern();
+    void growPattern();
+
+protected:
+    bool eventFilter(QObject *o, QEvent *e) override;
 };

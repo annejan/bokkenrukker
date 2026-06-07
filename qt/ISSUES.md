@@ -3,9 +3,7 @@
 ## Issues
 
 - [ ] 6581 SID emulation has bad quality audio output
-- [x] During playback, the blue position bar, and the read active channel don't run in sync
-      *(PortAudio now drives output at ~35 ms latency; was 200 ms QAudioSink buffer.
-        Snapshot ring removed.)*
+- [ ] During playback, the blue position bar, and the read active channel don't run in sync. Not being fixed, read channel indicator is one ahead during playback or in sync with blue bar during playback.
 - [x] The timing between a note being played and a note being in the active position is off.
       *(same fix as above — direct chn[c].pattptr reads now match what is heard.)*
 - [x] Instrument "-> table" button not clear what it does.
@@ -20,6 +18,9 @@
 - [x] When selecting field in the Tables editor, the value becomes '...' in the screen, hiding the previous value.
       *(TableCellDelegate::createEditor: QLineEdit + maxLength 2 + hex validator;
         editTriggers reduced to DoubleClicked + EditKeyPressed.)*
+- [ ] Collapse Order map doesn't work, tracker pattern moves right, but Order map doesn't fold.
+- [ ] Audio engine 'dual SID' and 'Second SID' is not clear, when second sid is enabled allow for user to select it in the bottom playback bar, like the first SID is selected.
+- [ ] Mute button
 
 ## Features
 

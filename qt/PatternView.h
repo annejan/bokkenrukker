@@ -48,4 +48,12 @@ private:
     int channelAtX(int x) const;
     int lastEppos_ = -1;
     int lastEpchn_ = -1;
+    // chn[c].pattptr snapshot taken at the start of refresh() and reused
+    // by paintEvent() so the editor cursor row (eppos = chn[epchn]/4 in
+    // follow-play) and the per-channel red play row highlight read the
+    // SAME chn[].pattptr value. Without this the audio thread could
+    // advance chn[].pattptr between the refresh() snapshot and the
+    // paintEvent read, putting the red play row one step ahead of the
+    // edit cursor row in follow-play.
+    int playRow_[MAX_CHN] = {0};
 };

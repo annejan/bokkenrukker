@@ -95,12 +95,18 @@ void PatternView::resizeEvent(QResizeEvent *) {
 void PatternView::refresh() {
     bool playing = isplaying() != 0;
 
-    // PortAudio callback runs at ~10 ms latency, so chn[c].pattptr matches
-    // what's audible closely enough for direct reads — no snapshot ring.
+    // Snapshot chn[c].pattptr/4 ONCE per refresh. paintEvent reads
+    // playRow_[c] — so the editor cursor row (eppos = playRow_[epchn] in
+    // follow-play) and the per-channel red play-row highlight read the
+    // same chn[].pattptr value. Without this, the audio thread advanced
+    // pattptr between the cursor-pull in refresh() and the play-row read
+    // in paintEvent — the red row appeared one step ahead of the cursor.
+    for (int c = 0; c < MAX_CHN; c++) playRow_[c] = chn[c].pattptr / 4;
+
     if (followplay && playing) {
         for (int c = 0; c < shownChannels(); c++) {
             if (chn[c].advance) epnum[c] = chn[c].pattnum;
-            int newpos = chn[c].pattptr / 4;
+            int newpos = playRow_[c];
             if (newpos > pattlen[epnum[c]]) newpos = pattlen[epnum[c]];
             if (c == epchn) eppos = newpos;
             int songpos = chn[c].songptr - 1;
@@ -119,7 +125,7 @@ void PatternView::refresh() {
     // (tickScope at ~50 Hz) re-evaluated the visibility clause every tick.
     bool cursorMoved = (eppos != lastEppos_) || (epchn != lastEpchn_);
     if (followplay && playing) {
-        int prow = chn[epchn].pattptr / 4;
+        int prow = playRow_[epchn];
         int center = std::max(0, prow - rows / 2);
         verticalScrollBar()->setValue(center);
     } else if (cursorMoved && rows > 0) {
@@ -486,9 +492,12 @@ void PatternView::paintEvent(QPaintEvent *) {
                 }
             }
 
-            // Playback row highlight per channel
+            // Playback row highlight per channel — reads playRow_[c] snap
+            // taken in refresh() so the red row matches the edit cursor
+            // row in follow-play (was off by one because the audio thread
+            // advanced chn[].pattptr between refresh and paint).
             if (playing) {
-                int prow = chn[c].pattptr / 4;
+                int prow = playRow_[c];
                 if (prow == row) p.fillRect(cellRect, Theme::C::playRow);
             }
 

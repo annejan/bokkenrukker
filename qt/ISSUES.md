@@ -99,13 +99,24 @@
         the column-tint pass but the drawRect for the white outline
         happens after the instrument-colour fillRect, so the border
         sits on top of the colour band and stays visible.)*
-- [ ] Wave table index color to dark gray, the places where this dark gray color is used elsewhere should be made lighter as well.
+- [x] Wave table index color to dark gray, the places where this dark gray color is used elsewhere should be made lighter as well.
+      *(Theme::C::textDim bumped from #5A6470 to #B0BCC8 — single
+        source, lifts every dim-grey site (Tables idx column, instr
+        view labels, status strip secondary text, placeholder /
+        disabled palette) in one shot to match the legend brightness
+        from commit 70ca50b.)*
 
 ## Features
 
-- [ ] Record mode present in 'Pattern editor' ?
+- [x] Record mode present in 'Pattern editor' ?
+      *(StatusStrip now has a 'REC' segment — '● REC' in vuRed when
+        recordmode = 1, '○ rec' in textDim when 0. Tooltip notes Space
+        as the toggle key. Refreshes through the existing UI tick.)*
 - [ ] Use key codes, that are not dependent on keyboard layout for Pattern record mode, so alternative keyboard layouts have a music keyboard with the notes in order as well. For the normal commands the preferred layout should be honored, only for notes it should be layout independent.
-- [ ] Have a way to silence a note in the pattern editor once started.
+- [x] Have a way to silence a note in the pattern editor once started.
+      *(Backspace in PatternView::keyPressEvent calls releasenote(epchn)
+        and swallows the key — no pattern row inserted, cursor stays.
+        Row-number tooltip mentions the shortcut for discoverability.)*
 - [x] Mute buttons above pattern channels are not really clear, better Icon for those.
       *(replaced 'M' / '·' with filled colour pill labelled MUTE / ON.)*
 - [x] Create hover over (delay of one second), when hovering over row header.

@@ -28,6 +28,7 @@ private:
     QLabel *position_;
     ClickableLabel *tempo_;
     ClickableLabel *octave_;
+    QLabel *record_;
     QLabel *instr_;
     ClickableLabel *sid_;
     ClickableLabel *sid2_;

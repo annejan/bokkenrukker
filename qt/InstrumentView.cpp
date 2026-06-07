@@ -389,7 +389,25 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     right->addWidget(envHdr);
 
     adsr_ = new AdsrPreview(this);
+    adsr_->setToolTip(
+        "<b>Heights</b> = SID envelope amplitude.<br>"
+        "&nbsp;&nbsp;peak (top) = $FF — SID always attacks to full, A doesn't change this height.<br>"
+        "&nbsp;&nbsp;sustain plateau = S × $11 (S=0 silent, S=$F same as peak).<br>"
+        "&nbsp;&nbsp;baseline = $00.<br>"
+        "<b>Widths</b> = phase duration. A / D / R are schematic linear "
+        "scales; real SID timing is exponential (A=$0 ≈ 2 ms, A=$F ≈ 8 s).");
     right->addWidget(adsr_);
+
+    // Compact caption under the graph so the rules are visible without
+    // hovering. Uses the same dim subtext style as the rest of the editor.
+    auto *adsrLegend = new QLabel(
+        "<span style='color:#B0BCC8;font-size:10px'>"
+        "Heights: peak (top) = $FF (fixed) · sustain = S×$11 · "
+        "baseline = 0  ·  Widths = phase duration"
+        "</span>", this);
+    adsrLegend->setTextFormat(Qt::RichText);
+    adsrLegend->setWordWrap(true);
+    right->addWidget(adsrLegend);
 
     auto *waveHdr = new QLabel("Wavetable program (first 24 steps)", this);
     waveHdr->setFont(eh);

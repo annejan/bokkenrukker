@@ -158,5 +158,9 @@
         colours' toggles + persists via QSettings editor/instrColors.)*
 - [ ] When Table pointer variable is selected, use the left over space in the UI on the bottom right (left of instrument selection) to show the location listing of the relevent table the instrument in jumping to.
 - [ ] Instruments are now changed directly in the configuration, it would be better, if we change a copy of the instrument, and have a button next to 'Play test note' and 'Silence', that allows to 'Apply' the changed instrument, or reset in back to the current state using 'Reset'. 
-- [ ] Add a toggle button in the instrument editor that keeps playing the note every second on repeat, so the changes in the variables can be changed and reviewed instantly.
+- [x] Add a toggle button in the instrument editor that keeps playing the note every second on repeat, so the changes in the variables can be changed and reviewed instantly.
+      *('Auto-test' QPushButton added next to 'Play test note' / 'Silence'.
+        When toggled on a 1 s QTimer retriggers onTestNote so any ADSR /
+        wave / pulse / filter knob change is audible within the next
+        second. Toggling off stops the timer + silences.)*
 - [ ] 

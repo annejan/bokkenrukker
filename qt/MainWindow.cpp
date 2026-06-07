@@ -33,6 +33,9 @@
 #include <QWidget>
 #include <QVBoxLayout>
 #include <QToolButton>
+#include <QFrame>
+#include <QMouseEvent>
+#include <QLabel>
 #include <QStyle>
 #include <QInputDialog>
 #include <QActionGroup>
@@ -66,6 +69,10 @@ extern int einum;
 extern int epchn;
 extern int songinit;
 extern int epoctave;
+extern unsigned char pattern[MAX_PATT][MAX_PATTROWS*4+4];
+extern int pattlen[MAX_PATT];
+extern int epnum[MAX_CHN];
+void countpatternlengths(void);
 extern unsigned sidmodel;
 extern unsigned sid2model;
 extern int stereo_mode;
@@ -131,6 +138,78 @@ void MainWindow::buildUi() {
     centralLay->setContentsMargins(0, 0, 0, 0);
     centralLay->setSpacing(0);
 
+    // ---- Pattern editor toolbar ------------------------------------------
+    // Sits above the stack, only visible when the pattern editor is the
+    // active tab. Holds the recording-octave + pattern-length controls so
+    // the user has proper Qt buttons (with hover, focus, keyboard nav)
+    // instead of a painted pill on the grid canvas.
+    patternBar_ = new QWidget(centralWrap);
+    auto *pbLay = new QHBoxLayout(patternBar_);
+    pbLay->setContentsMargins(10, 4, 10, 4);
+    pbLay->setSpacing(6);
+
+    auto makeStep = [&](const QString &label, const QString &tip) {
+        auto *b = new QToolButton(patternBar_);
+        b->setText(label);
+        b->setToolTip(tip);
+        b->setAutoRaise(false);
+        b->setMinimumWidth(28);
+        return b;
+    };
+
+    pbLay->addWidget(new QLabel("Octave", patternBar_));
+    auto *octDown = makeStep("−", "Lower recording octave by 1 (key: /)");
+    auto *octShow = new QLabel("0", patternBar_);
+    octShow->setMinimumWidth(22);
+    octShow->setAlignment(Qt::AlignCenter);
+    QFont obf = octShow->font(); obf.setBold(true);
+    octShow->setFont(obf);
+    auto *octUp   = makeStep("+", "Raise recording octave by 1 (key: *). "
+                                  "Right-click = lower by 1.");
+    octUp->setContextMenuPolicy(Qt::PreventContextMenu);
+    pbLay->addWidget(octDown);
+    pbLay->addWidget(octShow);
+    pbLay->addWidget(octUp);
+    patternBarOct_ = octShow;
+
+    connect(octDown, &QToolButton::clicked, this, [this]() {
+        if (epoctave > 0) { epoctave--; refreshAll(); }
+    });
+    connect(octUp, &QToolButton::clicked, this, [this]() {
+        if (epoctave < 7) { epoctave++; refreshAll(); }
+    });
+    // Right-click on + lowers — matches the user's "left=up, right=down"
+    // request without losing the explicit '−' button.
+    octUp->installEventFilter(this);
+
+    auto *sep1 = new QFrame(patternBar_);
+    sep1->setFrameShape(QFrame::VLine);
+    sep1->setFrameShadow(QFrame::Sunken);
+    pbLay->addSpacing(8);
+    pbLay->addWidget(sep1);
+    pbLay->addSpacing(8);
+
+    pbLay->addWidget(new QLabel("Pattern length", patternBar_));
+    auto *lenDown = makeStep("−", "Shrink active pattern by 1 row "
+                                  "(pulls ENDPATT back one row).");
+    auto *lenShow = new QLabel("00", patternBar_);
+    lenShow->setMinimumWidth(28);
+    lenShow->setAlignment(Qt::AlignCenter);
+    QFont lbf = lenShow->font(); lbf.setBold(true);
+    lenShow->setFont(lbf);
+    auto *lenUp   = makeStep("+", "Grow active pattern by 1 row "
+                                  "(REST + ENDPATT).");
+    pbLay->addWidget(lenDown);
+    pbLay->addWidget(lenShow);
+    pbLay->addWidget(lenUp);
+    patternBarLen_ = lenShow;
+
+    connect(lenDown, &QToolButton::clicked, this, &MainWindow::shrinkPattern);
+    connect(lenUp,   &QToolButton::clicked, this, &MainWindow::growPattern);
+
+    pbLay->addStretch(1);
+    centralLay->addWidget(patternBar_);
+
     stack_ = new QStackedWidget(centralWrap);
     pattern_    = new PatternView(stack_);
     order_      = new OrderView(stack_);
@@ -142,6 +221,11 @@ void MainWindow::buildUi() {
     stack_->insertWidget(EDIT_INSTRUMENT, instrument_);
     stack_->insertWidget(EDIT_TABLES, tables_);
     stack_->insertWidget(EDIT_NAMES, songName_);
+    // Toolbar only relevant while the pattern editor is active.
+    connect(stack_, &QStackedWidget::currentChanged, this, [this](int idx) {
+        if (patternBar_) patternBar_->setVisible(idx == EDIT_PATTERN);
+    });
+    patternBar_->setVisible(stack_->currentIndex() == EDIT_PATTERN);
     centralLay->addWidget(stack_, 1);
 
     statusStrip_ = new StatusStrip(centralWrap);
@@ -726,6 +810,61 @@ void MainWindow::refreshAll() {
     orderMap_->refresh();
     insQuick_->refresh();
     statusStrip_->refresh();
+    if (patternBarOct_)
+        patternBarOct_->setText(QString::number(epoctave));
+    if (patternBarLen_) {
+        int p = epnum[epchn];
+        patternBarLen_->setText(QString("$%1")
+            .arg(pattlen[p], 2, 16, QLatin1Char('0')).toUpper());
+    }
+}
+
+// Toolbar shrink/grow operate on the channel the cursor is on. Same byte-
+// level invariant the L## header click dialog uses: a single ENDPATT byte
+// (0xff) in the note column at row = pattlen, REST padding before it.
+void MainWindow::shrinkPattern() {
+    int p = epnum[epchn];
+    int cur = pattlen[p];
+    if (cur <= 1) return;
+    int newLen = cur - 1;
+    pattern[p][newLen*4 + 0] = ENDPATT;
+    pattern[p][newLen*4 + 1] = 0;
+    pattern[p][newLen*4 + 2] = 0;
+    pattern[p][newLen*4 + 3] = 0;
+    countpatternlengths();
+    if (eppos >= pattlen[p]) eppos = pattlen[p] - 1;
+    refreshAll();
+}
+void MainWindow::growPattern() {
+    int p = epnum[epchn];
+    int cur = pattlen[p];
+    if (cur >= MAX_PATTROWS) return;
+    int newLen = cur + 1;
+    // Old ENDPATT slot becomes a REST row.
+    pattern[p][cur*4 + 0] = REST;
+    pattern[p][cur*4 + 1] = 0;
+    pattern[p][cur*4 + 2] = 0;
+    pattern[p][cur*4 + 3] = 0;
+    pattern[p][newLen*4 + 0] = ENDPATT;
+    pattern[p][newLen*4 + 1] = 0;
+    pattern[p][newLen*4 + 2] = 0;
+    pattern[p][newLen*4 + 3] = 0;
+    countpatternlengths();
+    refreshAll();
+}
+
+bool MainWindow::eventFilter(QObject *o, QEvent *e) {
+    // Right-click on the Octave [+] button lowers — gives the user the
+    // 'left = up, right = down' affordance they asked for on the same
+    // step button, without losing the explicit [−] / [+] pair.
+    if (e->type() == QEvent::MouseButtonPress) {
+        auto *me = static_cast<QMouseEvent*>(e);
+        if (me->button() == Qt::RightButton) {
+            if (epoctave > 0) { epoctave--; refreshAll(); }
+            return true;
+        }
+    }
+    return QMainWindow::eventFilter(o, e);
 }
 
 void MainWindow::playFromBeginning() { followplay = 1; initsong(esnum, PLAY_BEGINNING); }

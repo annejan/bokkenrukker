@@ -402,6 +402,7 @@ goattrk2-qt_autogen/timestamp: \
 	/usr/include/x86_64-linux-gnu/gnu/stubs.h \
 	/usr/include/x86_64-linux-gnu/qt6/QtCore/QAbstractTableModel \
 	/usr/include/x86_64-linux-gnu/qt6/QtCore/QByteArray \
+	/usr/include/x86_64-linux-gnu/qt6/QtCore/QEvent \
 	/usr/include/x86_64-linux-gnu/qt6/QtCore/QJsonObject \
 	/usr/include/x86_64-linux-gnu/qt6/QtCore/QList \
 	/usr/include/x86_64-linux-gnu/qt6/QtCore/QObject \
@@ -518,6 +519,7 @@ goattrk2-qt_autogen/timestamp: \
 	/usr/include/x86_64-linux-gnu/qt6/QtGui/QMouseEvent \
 	/usr/include/x86_64-linux-gnu/qt6/QtGui/QPalette \
 	/usr/include/x86_64-linux-gnu/qt6/QtGui/QTransform \
+	/usr/include/x86_64-linux-gnu/qt6/QtGui/QWheelEvent \
 	/usr/include/x86_64-linux-gnu/qt6/QtGui/qaction.h \
 	/usr/include/x86_64-linux-gnu/qt6/QtGui/qbitmap.h \
 	/usr/include/x86_64-linux-gnu/qt6/QtGui/qbrush.h \

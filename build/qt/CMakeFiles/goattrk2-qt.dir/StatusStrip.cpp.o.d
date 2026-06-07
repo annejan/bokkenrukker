@@ -385,6 +385,9 @@ qt/CMakeFiles/goattrk2-qt.dir/StatusStrip.cpp.o: \
  /usr/include/x86_64-linux-gnu/qt6/QtGui/QTransform \
  /usr/include/x86_64-linux-gnu/qt6/QtGui/qtransform.h \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/qnativeinterface.h \
+ /usr/include/x86_64-linux-gnu/qt6/QtGui/QWheelEvent \
+ /usr/include/x86_64-linux-gnu/qt6/QtCore/QEvent \
+ /usr/include/x86_64-linux-gnu/qt6/QtCore/qcoreevent.h \
  /home/paul/work/c64/goattracker2/build/qt/goattrk2-qt_autogen/include/StatusStrip.moc \
  /home/paul/work/c64/goattracker2/qt/../src/gcommon.h \
  /home/paul/work/c64/goattracker2/qt/../src/gplay.h

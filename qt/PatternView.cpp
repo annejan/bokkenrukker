@@ -14,6 +14,7 @@
 #include "Theme.h"
 #include "UndoStack.h"
 #include "MainWindow.h"
+#include "QtAudio.h"
 
 extern "C" {
 #include "gcommon.h"
@@ -93,16 +94,23 @@ void PatternView::resizeEvent(QResizeEvent *) {
 void PatternView::refresh() {
     bool playing = isplaying() != 0;
 
+    // Pull the audio-side snapshot once per repaint. The pattptr / songptr
+    // here trail the audio-thread fill cursor by ~one sink buffer (200 ms),
+    // matching what the user actually hears.
+    QtAudio::PlaySnapshot snap = QtAudio::instance()
+                                   ? QtAudio::instance()->currentSnapshot()
+                                   : QtAudio::PlaySnapshot{};
+
     // Follow-play: track which pattern each channel is currently playing
     // and move the edit cursor onto it, mirroring gdisplay.c:100-126.
     if (followplay && playing) {
         for (int c = 0; c < shownChannels(); c++) {
             if (chn[c].advance) epnum[c] = chn[c].pattnum;
-            int newpos = chn[c].pattptr / 4;
+            int newpos = snap.pattptr[c] / 4;
             if (newpos > pattlen[epnum[c]]) newpos = pattlen[epnum[c]];
             if (c == epchn) eppos = newpos;
             // Mirror to orderlist position so the order view stays in sync
-            int songpos = chn[c].songptr - 1;
+            int songpos = snap.songptr[c] - 1;
             if (songpos < 0) songpos = 0;
             if (songpos > songlen[esnum][c]) songpos = songlen[esnum][c];
             if (c == eschn && chn[c].advance) eseditpos = songpos;
@@ -113,7 +121,7 @@ void PatternView::refresh() {
     int rowOffset = verticalScrollBar()->value();
     int rows = visibleRows();
     if (followplay && playing) {
-        int prow = chn[epchn].pattptr / 4;
+        int prow = snap.pattptr[epchn] / 4;
         int center = std::max(0, prow - rows / 2);
         verticalScrollBar()->setValue(center);
     } else if (rows > 0) {
@@ -403,6 +411,10 @@ void PatternView::paintEvent(QPaintEvent *) {
     const int topOffset = gridTopOffset();
     const int rows = (viewport()->height() - topOffset) / rowHeight;
     const bool playing = isplaying() != 0;
+    // Audio-side snapshot for playback row highlights (see refresh()).
+    QtAudio::PlaySnapshot snap = QtAudio::instance()
+                                   ? QtAudio::instance()->currentSnapshot()
+                                   : QtAudio::PlaySnapshot{};
 
     for (int r = 0; r < rows; r++) {
         int row = r + rowOffset;
@@ -441,9 +453,10 @@ void PatternView::paintEvent(QPaintEvent *) {
                 }
             }
 
-            // Playback row highlight per channel
+            // Playback row highlight per channel — use the audio-side
+            // snapshot pattptr so the red row tracks what's audible.
             if (playing) {
-                int prow = chn[c].pattptr / 4;
+                int prow = snap.pattptr[c] / 4;
                 if (prow == row) p.fillRect(cellRect, Theme::C::playRow);
             }
 

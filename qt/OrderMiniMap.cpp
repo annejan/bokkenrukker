@@ -1,5 +1,6 @@
 #include "OrderMiniMap.h"
 #include "Theme.h"
+#include "QtAudio.h"
 
 #include <QPainter>
 #include <QMouseEvent>
@@ -46,17 +47,22 @@ void OrderMiniMap::paintEvent(QPaintEvent *) {
                QString("ORDER %1").arg(esnum + 1));
 
     bool playing = isplaying() != 0;
+    auto snap = QtAudio::instance()
+                  ? QtAudio::instance()->currentSnapshot()
+                  : QtAudio::PlaySnapshot{};
     int startY = 18;
     for (int c = 0; c < MAX_CHN; c++) {
         int x = 4 + c * colW;
         // chn[c].songptr is the *next* slot to fetch in song-play modes; the
         // one currently playing is the slot before. In PLAY_PATTERN mode
         // initsong wipes songptr to 0, so use the user-selected espos[c]
-        // instead — that's the orderlist row the user clicked to play.
+        // instead — that's the orderlist row the user clicked to play. The
+        // songptr read comes from the audio-side snapshot so the marker
+        // tracks what's being heard, not what's being buffered.
         int playRow = -1;
         if (playing) {
             if (lastsonginit == PLAY_PATTERN) playRow = espos[c];
-            else                              playRow = (int)chn[c].songptr - 1;
+            else                              playRow = snap.songptr[c] - 1;
             if (playRow < 0) playRow = 0;
         }
         for (int r = 0; r < songlen[esnum][c]; r++) {

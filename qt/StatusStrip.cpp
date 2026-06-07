@@ -1,5 +1,6 @@
 #include "StatusStrip.h"
 #include "Theme.h"
+#include "QtAudio.h"
 
 #include <QHBoxLayout>
 #include <QLabel>
@@ -154,7 +155,15 @@ void StatusStrip::refresh() {
     transport_->setPalette(tp);
 
     int patnum = epnum[epchn];
-    int currentRow = playing ? (chn[epchn].pattptr / 4) : eppos;
+    int currentRow;
+    if (playing) {
+        auto snap = QtAudio::instance()
+                      ? QtAudio::instance()->currentSnapshot()
+                      : QtAudio::PlaySnapshot{};
+        currentRow = snap.pattptr[epchn] / 4;
+    } else {
+        currentRow = eppos;
+    }
     position_->setText(QString("Row %1/%2  Patt %3  Order %4/%5")
         .arg(currentRow, 3, 16, QLatin1Char('0'))
         .arg(pattlen[patnum], 2, 16, QLatin1Char('0'))

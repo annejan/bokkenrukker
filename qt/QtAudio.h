@@ -31,7 +31,23 @@ public:
     // in-flight readData race the C-globals rewrite.
     QMutex &mutex() { return mtx_; }
 
+    // Display-side snapshot of chn[] taken at each playroutine tick during
+    // a fill. The UI consults this through currentSnapshot() instead of
+    // reading chn[c] directly, so the visible playhead / blink reflects
+    // what is being heard NOW (~200 ms behind the fill thanks to the sink
+    // buffer) instead of what is being filled into the sink.
+    struct PlaySnapshot {
+        int  pattptr[6];   // MAX_CHN
+        int  songptr[6];
+        int  instr  [6];
+    };
+    PlaySnapshot currentSnapshot();
+
     static QtAudio *instance() { return self_; }
+
+    // Push a snapshot of chn[] tagged with the sample cursor at the time
+    // the playroutine ran. Called by PullDevice after each tick.
+    void pushSnapshot(qint64 sampleAt);
 
 private:
     class PullDevice;
@@ -39,6 +55,16 @@ private:
     PullDevice *device_ = nullptr;
     int sampleRate_ = 0;
     QMutex mtx_;
+
+    // Ring buffer of recent ticks. Sized for ~1 s at 50 Hz so the UI can
+    // always find the one matching processedUSecs() even with a fat sink
+    // buffer or follow-play overshoot.
+    static constexpr int kRingN = 128;
+    struct Tick { qint64 sampleAt; PlaySnapshot snap; };
+    Tick    ring_[kRingN];
+    int     ringHead_ = 0;   // next slot to write
+    int     ringFill_ = 0;
+
     static QtAudio *self_;
 };
 

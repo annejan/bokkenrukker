@@ -120,3 +120,9 @@
         from the .sng header so songs play back authentically. 'Save as
         profile' deferred — single auto-saved profile is enough for now.)*
 - [ ] 
+- [x] Pair each ADSR spinbox with a 0..15 slider so the value can be scrubbed instead of typed / stepped.
+      *(makeNybbleRow wraps the existing nybble spinbox in a row with a
+        QSlider(Qt::Horizontal, 0..15, tick=1). Spinbox and slider are
+        bidirectionally bound via valueChanged forwarding; the spinbox
+        still fires InstrumentView::onAdChanged / onSrChanged so the
+        engine wiring is unchanged.)*

@@ -510,13 +510,16 @@ void PatternView::paintEvent(QPaintEvent *) {
                 if (prow == row) p.fillRect(cellRect, Theme::C::playRow);
             }
 
-            // Edit-column tint + white border on active channel/row. The
-            // border narrows down to a single nybble when epcolumn lands on
-            // the hi / lo of a 2-digit field, so the user can see which
-            // nybble the next keystroke will land in.
+            // Edit-column tint on active channel/row. The white focus
+            // border around the active nybble is drawn LATER, after the
+            // instrument-coloured background — otherwise the per-
+            // instrument fill paints over the border and the user can't
+            // see which nybble has focus on a coloured cell.
+            QRect focusRect;
+            bool hasFocusRect = false;
             if (c == epchn && row == eppos) {
                 int tx = x + colWidth;
-                QRect colRect, focusRect;
+                QRect colRect;
                 switch (epcolumn) {
                 case 0: colRect = focusRect = QRect(tx, lineRect.y(), 3 * colWidth, rowHeight); break;
                 case 1: colRect = QRect(tx + 4 * colWidth, lineRect.y(), 2 * colWidth, rowHeight);
@@ -532,8 +535,7 @@ void PatternView::paintEvent(QPaintEvent *) {
                 p.fillRect(colRect, QColor(Theme::C::highlight.red(),
                                            Theme::C::highlight.green(),
                                            Theme::C::highlight.blue(), 35));
-                p.setPen(QPen(QColor(255, 255, 255), 1));
-                p.drawRect(focusRect.adjusted(0, 0, -1, -1));
+                hasFocusRect = true;
             }
 
             if (row >= plen) {
@@ -603,6 +605,15 @@ void PatternView::paintEvent(QPaintEvent *) {
             p.drawText(QPoint(tx + 7 * colWidth, ty), QString(cmdStr[0]));
             p.setPen(cmd || param ? Theme::C::cmdParam : Theme::C::textDim);
             p.drawText(QPoint(tx + 8 * colWidth, ty), cmdStr.mid(1));
+
+            // White focus border drawn last so it sits on top of the
+            // instrument-coloured background fill. Without this re-order
+            // the per-instrument colour fill painted earlier covered the
+            // border whenever the cursor landed on a coloured instr cell.
+            if (hasFocusRect) {
+                p.setPen(QPen(QColor(255, 255, 255), 1));
+                p.drawRect(focusRect.adjusted(0, 0, -1, -1));
+            }
         }
     }
 }

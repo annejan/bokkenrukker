@@ -37,7 +37,6 @@
 - [x] SID 2 off/6581/8580 should be clickable, the dropdown settings should still be there, just stating 'enable dual SID'
       *(SID2 segment now 3-state cycle on click: off → 6581 → 8580 → off.
         Settings menu 'Dual SID' toggle still flips stereo_mode explicitly.)*
-- [ ] Second SID results in segmentation fault at the moment.
 - [x] 'Order map' Collapse button doesn't work, and doesn't make sense in context.
       *(dropped DockWidgetFloatable on both Order map + Instruments docks
         so the [↗] float / detach button no longer appears in the title
@@ -93,7 +92,10 @@
 - [ ] Second SID not implemented, because audio mixing resulted in unacceptable audio quality, found out how to implement this correctly.
 - [ ] Add option to select mono or stereo mode for dual sid, keeping things simple for the user.
 - [ ] Add support for external keyboards or samplers via USB, to enable record mode via these devices? (Popular options you can suggest?)
-- [ ] Clear way to set / read the octave in the UI for record mode in the pattern editor
+- [x] Clear way to set / read the octave in the UI for record mode in the pattern editor
+      *(status-strip 'Oct N · <preset>' segment is now clickable + wheel-
+        scrollable: click cycles 0..7 (wraps), mouse wheel scrolls ±1
+        clamped 0..7. Tooltip shows the * / / keyboard shortcuts.)*
 - [x] Add switch above order map to select channels together or individually.
       *(Dock now wraps a QToolButton header over OrderMiniMap. Button toggles
         OrderMiniMap::selectAllChannels — true = plain click moves all chans,

@@ -80,6 +80,8 @@
         InstrumentQuickList in the right dock is now the single selector,
         firing instrumentChosen -> MainWindow::refreshAll which re-reads
         einum into the editor.)*
+- [ ] Wave table program color explanation text color is too dark, make brighter.
+- [ ] Table pointers '-> table' button doesn't work.
 
 ## Features
 
@@ -142,4 +144,4 @@
         instr cell so the rest of the row stays readable; instr text is
         forced white when the cell is coloured. View > 'Instrument cell
         colours' toggles + persists via QSettings editor/instrColors.)*
-- [ ] 
+- [ ] When Table pointer variable is selected, use the left over space in the UI on the bottom right (left of instrument selection) to show the location listing of the relevent table the instrument in jumping to.

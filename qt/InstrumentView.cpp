@@ -451,10 +451,95 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     summary_->setPalette(sp);
     right->addWidget(summary_);
 
+    // Pointer preview pane — shows 16 rows of the target table starting
+    // at the currently-focused pointer field. Sticky: stays visible
+    // after focus moves away; replaced only when a different pointer
+    // gets focused.
+    pointerPrev_ = new QLabel(this);
+    pointerPrev_->setTextFormat(Qt::RichText);
+    pointerPrev_->setWordWrap(false);
+    pointerPrev_->setMinimumHeight(220);
+    pointerPrev_->setContentsMargins(10, 8, 10, 8);
+    pointerPrev_->setAutoFillBackground(true);
+    pointerPrev_->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+    QPalette pp = pointerPrev_->palette();
+    pp.setColor(QPalette::Window, Theme::C::bgAlt);
+    pp.setColor(QPalette::WindowText, Theme::C::text);
+    pointerPrev_->setPalette(pp);
+    pointerPrev_->setText("<i style='color:#B0BCC8'>Click a Wavetable / "
+                          "Pulsetable / Filtertable Pos field to see the "
+                          "table rows starting at that pointer.</i>");
+    right->addWidget(pointerPrev_);
+
+    // Focus-driven pointer preview. installEventFilter on the three
+    // pointer spinboxes; the eventFilter override resolves the focused
+    // widget to the target table index and calls updatePointerPreview.
+    wave_->installEventFilter(this);
+    pulse_->installEventFilter(this);
+    filter_->installEventFilter(this);
+    connect(wave_,   QOverload<int>::of(&QSpinBox::valueChanged),
+            this, [this](int v) { if (pointerTable_ == WTBL) updatePointerPreview(WTBL, v); });
+    connect(pulse_,  QOverload<int>::of(&QSpinBox::valueChanged),
+            this, [this](int v) { if (pointerTable_ == PTBL) updatePointerPreview(PTBL, v); });
+    connect(filter_, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, [this](int v) { if (pointerTable_ == FTBL) updatePointerPreview(FTBL, v); });
+
     right->addStretch();
     root->addLayout(right, 1);
 
     refresh();
+}
+
+bool InstrumentView::eventFilter(QObject *o, QEvent *e) {
+    if (e->type() == QEvent::FocusIn) {
+        if (o == wave_)        updatePointerPreview(WTBL, wave_->value());
+        else if (o == pulse_)  updatePointerPreview(PTBL, pulse_->value());
+        else if (o == filter_) updatePointerPreview(FTBL, filter_->value());
+    }
+    return QWidget::eventFilter(o, e);
+}
+
+void InstrumentView::updatePointerPreview(int t, int startRow) {
+    pointerTable_ = t;
+    static const char *tname[] = {"Wavetable", "Pulsetable", "Filtertable"};
+    QString head = QString("<b style='font-size:12px;color:#E1E5EA'>%1 @ row $%2</b>"
+                           " <span style='color:#B0BCC8;font-size:10px'>"
+                           "&nbsp;(first 16 rows, stops at $FF)</span>")
+                   .arg(tname[t])
+                   .arg(qMax(0, startRow), 2, 16, QLatin1Char('0')).toUpper();
+    QString body = "<table cellspacing='0' cellpadding='2' "
+                   "style='font-family:monospace;font-size:11px'>"
+                   "<tr><th align='left' style='color:#B0BCC8'>idx</th>"
+                   "<th align='left' style='color:#B0BCC8'>L</th>"
+                   "<th align='left' style='color:#B0BCC8'>R</th>"
+                   "<th align='left' style='color:#B0BCC8'>note</th></tr>";
+    int row = qMax(0, startRow - 1);  // pointer is 1-based, table is 0-based
+    int shown = 0;
+    while (shown < 16 && row < MAX_TABLELEN) {
+        unsigned char L = ltable[t][row];
+        unsigned char R = rtable[t][row];
+        QString note;
+        if (L == 0xFF) {
+            note = R == 0 ? QString("<i>stop</i>")
+                          : QString("<i>jump to $%1</i>").arg(R, 2, 16, QLatin1Char('0')).toUpper();
+        } else if (t == WTBL && L >= 0xF0 && L <= 0xFE) {
+            note = QString("cmd %1XY").arg(L - 0xF0, 1, 16).toUpper();
+        }
+        QString rowCol = (row + 1 == startRow) ? "#FFD93D" : "#E1E5EA";
+        body += QString("<tr><td style='color:%5'>$%1</td>"
+                        "<td>$%2</td><td>$%3</td>"
+                        "<td style='color:#B0BCC8'>%4</td></tr>")
+                .arg(row + 1, 2, 16, QLatin1Char('0')).toUpper()
+                .arg(L, 2, 16, QLatin1Char('0')).toUpper()
+                .arg(R, 2, 16, QLatin1Char('0')).toUpper()
+                .arg(note)
+                .arg(rowCol);
+        shown++;
+        if (L == 0xFF) break;       // stop at jump per the spec
+        row++;
+    }
+    body += "</table>";
+    pointerPrev_->setText(head + "<br>" + body);
 }
 
 void InstrumentView::refresh() {

@@ -48,6 +48,13 @@ private:
     bool updating_ = false;
 
     void readFromGlobals();
+    void updatePointerPreview(int t, int startRow);
+    int  pointerTable_ = -1;
+    QLabel *pointerPrev_ = nullptr;
+
+protected:
+    bool eventFilter(QObject *o, QEvent *e) override;
+private:
     void writeAd();
     void writeSr();
 };

@@ -156,7 +156,13 @@
         instr cell so the rest of the row stays readable; instr text is
         forced white when the cell is coloured. View > 'Instrument cell
         colours' toggles + persists via QSettings editor/instrColors.)*
-- [ ] When Table pointer variable is selected, use the left over space in the UI on the bottom right (left of instrument selection) to show the location listing of the relevent table the instrument in jumping to.
+- [x] When Table pointer variable is selected, use the left over space in the UI on the bottom right (left of instrument selection) to show the location listing of the relevent table the instrument in jumping to.
+      *(pointerPrev_ QLabel below summary_ in the instrument editor. Click
+        a Wavetable / Pulsetable / Filtertable Pos spinbox -> 16 rows of
+        the target table painted, idx / L / R / inline 'jump $xx' or
+        'cmd NXY' decode. Pointer row highlighted yellow. Sticky after
+        focus loss; replaced when a different pointer focuses. Live-
+        updates while the user types in the spinbox.)*
 - [ ] Instruments are now changed directly in the configuration, it would be better, if we change a copy of the instrument, and have a button next to 'Play test note' and 'Silence', that allows to 'Apply' the changed instrument, or reset in back to the current state using 'Reset'. 
 - [x] Add a toggle button in the instrument editor that keeps playing the note every second on repeat, so the changes in the variables can be changed and reviewed instantly.
       *('Auto-test' QPushButton added next to 'Play test note' / 'Silence'.

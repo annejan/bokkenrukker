@@ -153,6 +153,12 @@
 	"HEADERS" : 
 	[
 		[
+			"/home/paul/work/c64/goattracker2/qt/InstrColors.h",
+			"Mu",
+			"EWIEGA46WW/moc_InstrColors.cpp",
+			null
+		],
+		[
 			"/home/paul/work/c64/goattracker2/qt/InstrumentQuickList.h",
 			"Mu",
 			"EWIEGA46WW/moc_InstrumentQuickList.cpp",
@@ -537,6 +543,7 @@
 	"SETTINGS_FILE" : "/home/paul/work/c64/goattracker2/build/qt/CMakeFiles/goattrk2-qt_autogen.dir/AutogenUsed.txt",
 	"SOURCES" : 
 	[
+		[ "/home/paul/work/c64/goattracker2/qt/InstrColors.cpp", "Mu", null ],
 		[
 			"/home/paul/work/c64/goattracker2/qt/InstrumentQuickList.cpp",
 			"Mu",

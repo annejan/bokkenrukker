@@ -33,6 +33,7 @@ set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/home/paul/work/c64/goattracker2/qt/qt_globals.c" "qt/CMakeFiles/goattrk2-qt.dir/qt_globals.c.o" "gcc" "qt/CMakeFiles/goattrk2-qt.dir/qt_globals.c.o.d"
   "/home/paul/work/c64/goattracker2/qt/qt_stubs.c" "qt/CMakeFiles/goattrk2-qt.dir/qt_stubs.c.o" "gcc" "qt/CMakeFiles/goattrk2-qt.dir/qt_stubs.c.o.d"
   "" "qt/goattrk2-qt_autogen/timestamp" "custom" "qt/goattrk2-qt_autogen/deps"
+  "/home/paul/work/c64/goattracker2/qt/InstrColors.cpp" "qt/CMakeFiles/goattrk2-qt.dir/InstrColors.cpp.o" "gcc" "qt/CMakeFiles/goattrk2-qt.dir/InstrColors.cpp.o.d"
   "/home/paul/work/c64/goattracker2/qt/InstrumentQuickList.cpp" "qt/CMakeFiles/goattrk2-qt.dir/InstrumentQuickList.cpp.o" "gcc" "qt/CMakeFiles/goattrk2-qt.dir/InstrumentQuickList.cpp.o.d"
   "/home/paul/work/c64/goattracker2/qt/InstrumentView.cpp" "qt/CMakeFiles/goattrk2-qt.dir/InstrumentView.cpp.o" "gcc" "qt/CMakeFiles/goattrk2-qt.dir/InstrumentView.cpp.o.d"
   "/home/paul/work/c64/goattracker2/qt/Log.cpp" "qt/CMakeFiles/goattrk2-qt.dir/Log.cpp.o" "gcc" "qt/CMakeFiles/goattrk2-qt.dir/Log.cpp.o.d"

@@ -394,9 +394,11 @@ void MainWindow::buildUi() {
         bool on = s.value("editor/instrColors", false).toBool();
         instrColorA->setChecked(on);
         pattern_->setInstrColorsEnabled(on);
+        insQuick_->setColorsEnabled(on);
     }
     connect(instrColorA, &QAction::toggled, this, [this](bool on) {
         pattern_->setInstrColorsEnabled(on);
+        insQuick_->setColorsEnabled(on);
         QSettings s;
         s.setValue("editor/instrColors", on);
     });

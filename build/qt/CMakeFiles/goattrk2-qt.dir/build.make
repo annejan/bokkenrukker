@@ -271,10 +271,24 @@ qt/CMakeFiles/goattrk2-qt.dir/PaAudio.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/goattrk2-qt.dir/PaAudio.cpp.s"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/paul/work/c64/goattracker2/qt/PaAudio.cpp -o CMakeFiles/goattrk2-qt.dir/PaAudio.cpp.s
 
+qt/CMakeFiles/goattrk2-qt.dir/InstrColors.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
+qt/CMakeFiles/goattrk2-qt.dir/InstrColors.cpp.o: /home/paul/work/c64/goattracker2/qt/InstrColors.cpp
+qt/CMakeFiles/goattrk2-qt.dir/InstrColors.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_16) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/InstrColors.cpp.o"
+	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/InstrColors.cpp.o -MF CMakeFiles/goattrk2-qt.dir/InstrColors.cpp.o.d -o CMakeFiles/goattrk2-qt.dir/InstrColors.cpp.o -c /home/paul/work/c64/goattracker2/qt/InstrColors.cpp
+
+qt/CMakeFiles/goattrk2-qt.dir/InstrColors.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/goattrk2-qt.dir/InstrColors.cpp.i"
+	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/paul/work/c64/goattracker2/qt/InstrColors.cpp > CMakeFiles/goattrk2-qt.dir/InstrColors.cpp.i
+
+qt/CMakeFiles/goattrk2-qt.dir/InstrColors.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/goattrk2-qt.dir/InstrColors.cpp.s"
+	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/paul/work/c64/goattracker2/qt/InstrColors.cpp -o CMakeFiles/goattrk2-qt.dir/InstrColors.cpp.s
+
 qt/CMakeFiles/goattrk2-qt.dir/Log.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/Log.cpp.o: /home/paul/work/c64/goattracker2/qt/Log.cpp
 qt/CMakeFiles/goattrk2-qt.dir/Log.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_16) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/Log.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_17) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/Log.cpp.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/Log.cpp.o -MF CMakeFiles/goattrk2-qt.dir/Log.cpp.o.d -o CMakeFiles/goattrk2-qt.dir/Log.cpp.o -c /home/paul/work/c64/goattracker2/qt/Log.cpp
 
 qt/CMakeFiles/goattrk2-qt.dir/Log.cpp.i: cmake_force
@@ -288,7 +302,7 @@ qt/CMakeFiles/goattrk2-qt.dir/Log.cpp.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/qt_globals.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/qt_globals.c.o: /home/paul/work/c64/goattracker2/qt/qt_globals.c
 qt/CMakeFiles/goattrk2-qt.dir/qt_globals.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_17) "Building C object qt/CMakeFiles/goattrk2-qt.dir/qt_globals.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_18) "Building C object qt/CMakeFiles/goattrk2-qt.dir/qt_globals.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/qt_globals.c.o -MF CMakeFiles/goattrk2-qt.dir/qt_globals.c.o.d -o CMakeFiles/goattrk2-qt.dir/qt_globals.c.o -c /home/paul/work/c64/goattracker2/qt/qt_globals.c
 
 qt/CMakeFiles/goattrk2-qt.dir/qt_globals.c.i: cmake_force
@@ -302,7 +316,7 @@ qt/CMakeFiles/goattrk2-qt.dir/qt_globals.c.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/qt_stubs.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/qt_stubs.c.o: /home/paul/work/c64/goattracker2/qt/qt_stubs.c
 qt/CMakeFiles/goattrk2-qt.dir/qt_stubs.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_18) "Building C object qt/CMakeFiles/goattrk2-qt.dir/qt_stubs.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_19) "Building C object qt/CMakeFiles/goattrk2-qt.dir/qt_stubs.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/qt_stubs.c.o -MF CMakeFiles/goattrk2-qt.dir/qt_stubs.c.o.d -o CMakeFiles/goattrk2-qt.dir/qt_stubs.c.o -c /home/paul/work/c64/goattracker2/qt/qt_stubs.c
 
 qt/CMakeFiles/goattrk2-qt.dir/qt_stubs.c.i: cmake_force
@@ -316,7 +330,7 @@ qt/CMakeFiles/goattrk2-qt.dir/qt_stubs.c.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gsong.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gsong.c.o: /home/paul/work/c64/goattracker2/src/gsong.c
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gsong.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_19) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/gsong.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_20) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/gsong.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/gsong.c.o -MF CMakeFiles/goattrk2-qt.dir/__/src/gsong.c.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/gsong.c.o -c /home/paul/work/c64/goattracker2/src/gsong.c
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gsong.c.i: cmake_force
@@ -330,7 +344,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/gsong.c.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gorder.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gorder.c.o: /home/paul/work/c64/goattracker2/src/gorder.c
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gorder.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_20) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/gorder.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_21) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/gorder.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/gorder.c.o -MF CMakeFiles/goattrk2-qt.dir/__/src/gorder.c.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/gorder.c.o -c /home/paul/work/c64/goattracker2/src/gorder.c
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gorder.c.i: cmake_force
@@ -344,7 +358,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/gorder.c.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gpattern.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gpattern.c.o: /home/paul/work/c64/goattracker2/src/gpattern.c
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gpattern.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_21) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/gpattern.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_22) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/gpattern.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/gpattern.c.o -MF CMakeFiles/goattrk2-qt.dir/__/src/gpattern.c.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/gpattern.c.o -c /home/paul/work/c64/goattracker2/src/gpattern.c
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gpattern.c.i: cmake_force
@@ -358,7 +372,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/gpattern.c.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/ginstr.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/ginstr.c.o: /home/paul/work/c64/goattracker2/src/ginstr.c
 qt/CMakeFiles/goattrk2-qt.dir/__/src/ginstr.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_22) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/ginstr.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_23) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/ginstr.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/ginstr.c.o -MF CMakeFiles/goattrk2-qt.dir/__/src/ginstr.c.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/ginstr.c.o -c /home/paul/work/c64/goattracker2/src/ginstr.c
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/ginstr.c.i: cmake_force
@@ -372,7 +386,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/ginstr.c.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gtable.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gtable.c.o: /home/paul/work/c64/goattracker2/src/gtable.c
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gtable.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_23) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/gtable.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_24) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/gtable.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/gtable.c.o -MF CMakeFiles/goattrk2-qt.dir/__/src/gtable.c.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/gtable.c.o -c /home/paul/work/c64/goattracker2/src/gtable.c
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gtable.c.i: cmake_force
@@ -386,7 +400,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/gtable.c.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gplay.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gplay.c.o: /home/paul/work/c64/goattracker2/src/gplay.c
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gplay.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_24) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/gplay.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_25) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/gplay.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/gplay.c.o -MF CMakeFiles/goattrk2-qt.dir/__/src/gplay.c.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/gplay.c.o -c /home/paul/work/c64/goattracker2/src/gplay.c
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gplay.c.i: cmake_force
@@ -400,7 +414,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/gplay.c.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gsound.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gsound.c.o: /home/paul/work/c64/goattracker2/src/gsound.c
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gsound.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_25) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/gsound.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_26) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/gsound.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/gsound.c.o -MF CMakeFiles/goattrk2-qt.dir/__/src/gsound.c.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/gsound.c.o -c /home/paul/work/c64/goattracker2/src/gsound.c
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gsound.c.i: cmake_force
@@ -414,7 +428,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/gsound.c.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gsid.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gsid.cpp.o: /home/paul/work/c64/goattracker2/src/gsid.cpp
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gsid.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_26) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/gsid.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_27) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/gsid.cpp.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/gsid.cpp.o -MF CMakeFiles/goattrk2-qt.dir/__/src/gsid.cpp.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/gsid.cpp.o -c /home/paul/work/c64/goattracker2/src/gsid.cpp
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/gsid.cpp.i: cmake_force
@@ -428,7 +442,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/gsid.cpp.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Dac.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Dac.cpp.o: /home/paul/work/c64/goattracker2/src/residfp/Dac.cpp
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Dac.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_27) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Dac.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_28) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Dac.cpp.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Dac.cpp.o -MF CMakeFiles/goattrk2-qt.dir/__/src/residfp/Dac.cpp.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/residfp/Dac.cpp.o -c /home/paul/work/c64/goattracker2/src/residfp/Dac.cpp
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Dac.cpp.i: cmake_force
@@ -442,7 +456,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Dac.cpp.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/EnvelopeGenerator.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/EnvelopeGenerator.cpp.o: /home/paul/work/c64/goattracker2/src/residfp/EnvelopeGenerator.cpp
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/EnvelopeGenerator.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_28) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/EnvelopeGenerator.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_29) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/EnvelopeGenerator.cpp.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/EnvelopeGenerator.cpp.o -MF CMakeFiles/goattrk2-qt.dir/__/src/residfp/EnvelopeGenerator.cpp.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/residfp/EnvelopeGenerator.cpp.o -c /home/paul/work/c64/goattracker2/src/residfp/EnvelopeGenerator.cpp
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/EnvelopeGenerator.cpp.i: cmake_force
@@ -456,7 +470,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/EnvelopeGenerator.cpp.s: cmake_forc
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/ExternalFilter.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/ExternalFilter.cpp.o: /home/paul/work/c64/goattracker2/src/residfp/ExternalFilter.cpp
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/ExternalFilter.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_29) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/ExternalFilter.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_30) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/ExternalFilter.cpp.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/ExternalFilter.cpp.o -MF CMakeFiles/goattrk2-qt.dir/__/src/residfp/ExternalFilter.cpp.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/residfp/ExternalFilter.cpp.o -c /home/paul/work/c64/goattracker2/src/residfp/ExternalFilter.cpp
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/ExternalFilter.cpp.i: cmake_force
@@ -470,7 +484,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/ExternalFilter.cpp.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter.cpp.o: /home/paul/work/c64/goattracker2/src/residfp/Filter.cpp
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_30) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_31) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter.cpp.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter.cpp.o -MF CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter.cpp.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter.cpp.o -c /home/paul/work/c64/goattracker2/src/residfp/Filter.cpp
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter.cpp.i: cmake_force
@@ -484,7 +498,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter.cpp.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter6581.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter6581.cpp.o: /home/paul/work/c64/goattracker2/src/residfp/Filter6581.cpp
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter6581.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_31) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter6581.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_32) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter6581.cpp.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter6581.cpp.o -MF CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter6581.cpp.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter6581.cpp.o -c /home/paul/work/c64/goattracker2/src/residfp/Filter6581.cpp
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter6581.cpp.i: cmake_force
@@ -498,7 +512,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter6581.cpp.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter8580.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter8580.cpp.o: /home/paul/work/c64/goattracker2/src/residfp/Filter8580.cpp
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter8580.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_32) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter8580.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_33) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter8580.cpp.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter8580.cpp.o -MF CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter8580.cpp.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter8580.cpp.o -c /home/paul/work/c64/goattracker2/src/residfp/Filter8580.cpp
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter8580.cpp.i: cmake_force
@@ -512,7 +526,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Filter8580.cpp.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig.cpp.o: /home/paul/work/c64/goattracker2/src/residfp/FilterModelConfig.cpp
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_33) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_34) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig.cpp.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig.cpp.o -MF CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig.cpp.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig.cpp.o -c /home/paul/work/c64/goattracker2/src/residfp/FilterModelConfig.cpp
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig.cpp.i: cmake_force
@@ -526,7 +540,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig.cpp.s: cmake_forc
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig6581.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig6581.cpp.o: /home/paul/work/c64/goattracker2/src/residfp/FilterModelConfig6581.cpp
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig6581.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_34) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig6581.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_35) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig6581.cpp.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig6581.cpp.o -MF CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig6581.cpp.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig6581.cpp.o -c /home/paul/work/c64/goattracker2/src/residfp/FilterModelConfig6581.cpp
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig6581.cpp.i: cmake_force
@@ -540,7 +554,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig6581.cpp.s: cmake_
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig8580.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig8580.cpp.o: /home/paul/work/c64/goattracker2/src/residfp/FilterModelConfig8580.cpp
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig8580.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_35) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig8580.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_36) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig8580.cpp.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig8580.cpp.o -MF CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig8580.cpp.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig8580.cpp.o -c /home/paul/work/c64/goattracker2/src/residfp/FilterModelConfig8580.cpp
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig8580.cpp.i: cmake_force
@@ -554,7 +568,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/FilterModelConfig8580.cpp.s: cmake_
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Integrator6581.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Integrator6581.cpp.o: /home/paul/work/c64/goattracker2/src/residfp/Integrator6581.cpp
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Integrator6581.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_36) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Integrator6581.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_37) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Integrator6581.cpp.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Integrator6581.cpp.o -MF CMakeFiles/goattrk2-qt.dir/__/src/residfp/Integrator6581.cpp.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/residfp/Integrator6581.cpp.o -c /home/paul/work/c64/goattracker2/src/residfp/Integrator6581.cpp
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Integrator6581.cpp.i: cmake_force
@@ -568,7 +582,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Integrator6581.cpp.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Integrator8580.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Integrator8580.cpp.o: /home/paul/work/c64/goattracker2/src/residfp/Integrator8580.cpp
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Integrator8580.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_37) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Integrator8580.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_38) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Integrator8580.cpp.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Integrator8580.cpp.o -MF CMakeFiles/goattrk2-qt.dir/__/src/residfp/Integrator8580.cpp.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/residfp/Integrator8580.cpp.o -c /home/paul/work/c64/goattracker2/src/residfp/Integrator8580.cpp
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Integrator8580.cpp.i: cmake_force
@@ -582,7 +596,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Integrator8580.cpp.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/OpAmp.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/OpAmp.cpp.o: /home/paul/work/c64/goattracker2/src/residfp/OpAmp.cpp
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/OpAmp.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_38) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/OpAmp.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_39) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/OpAmp.cpp.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/OpAmp.cpp.o -MF CMakeFiles/goattrk2-qt.dir/__/src/residfp/OpAmp.cpp.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/residfp/OpAmp.cpp.o -c /home/paul/work/c64/goattracker2/src/residfp/OpAmp.cpp
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/OpAmp.cpp.i: cmake_force
@@ -596,7 +610,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/OpAmp.cpp.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/SID.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/SID.cpp.o: /home/paul/work/c64/goattracker2/src/residfp/SID.cpp
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/SID.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_39) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/SID.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_40) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/SID.cpp.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/SID.cpp.o -MF CMakeFiles/goattrk2-qt.dir/__/src/residfp/SID.cpp.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/residfp/SID.cpp.o -c /home/paul/work/c64/goattracker2/src/residfp/SID.cpp
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/SID.cpp.i: cmake_force
@@ -610,7 +624,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/SID.cpp.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Spline.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Spline.cpp.o: /home/paul/work/c64/goattracker2/src/residfp/Spline.cpp
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Spline.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_40) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Spline.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_41) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Spline.cpp.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Spline.cpp.o -MF CMakeFiles/goattrk2-qt.dir/__/src/residfp/Spline.cpp.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/residfp/Spline.cpp.o -c /home/paul/work/c64/goattracker2/src/residfp/Spline.cpp
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Spline.cpp.i: cmake_force
@@ -624,7 +638,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/Spline.cpp.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/version.cc.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/version.cc.o: /home/paul/work/c64/goattracker2/src/residfp/version.cc
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/version.cc.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_41) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/version.cc.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_42) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/version.cc.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/version.cc.o -MF CMakeFiles/goattrk2-qt.dir/__/src/residfp/version.cc.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/residfp/version.cc.o -c /home/paul/work/c64/goattracker2/src/residfp/version.cc
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/version.cc.i: cmake_force
@@ -638,7 +652,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/version.cc.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/WaveformCalculator.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/WaveformCalculator.cpp.o: /home/paul/work/c64/goattracker2/src/residfp/WaveformCalculator.cpp
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/WaveformCalculator.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_42) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/WaveformCalculator.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_43) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/WaveformCalculator.cpp.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/WaveformCalculator.cpp.o -MF CMakeFiles/goattrk2-qt.dir/__/src/residfp/WaveformCalculator.cpp.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/residfp/WaveformCalculator.cpp.o -c /home/paul/work/c64/goattracker2/src/residfp/WaveformCalculator.cpp
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/WaveformCalculator.cpp.i: cmake_force
@@ -652,7 +666,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/WaveformCalculator.cpp.s: cmake_for
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/WaveformGenerator.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/WaveformGenerator.cpp.o: /home/paul/work/c64/goattracker2/src/residfp/WaveformGenerator.cpp
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/WaveformGenerator.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_43) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/WaveformGenerator.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_44) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/WaveformGenerator.cpp.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/WaveformGenerator.cpp.o -MF CMakeFiles/goattrk2-qt.dir/__/src/residfp/WaveformGenerator.cpp.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/residfp/WaveformGenerator.cpp.o -c /home/paul/work/c64/goattracker2/src/residfp/WaveformGenerator.cpp
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/WaveformGenerator.cpp.i: cmake_force
@@ -666,7 +680,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/WaveformGenerator.cpp.s: cmake_forc
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/resample/SincResampler.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/resample/SincResampler.cpp.o: /home/paul/work/c64/goattracker2/src/residfp/resample/SincResampler.cpp
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/resample/SincResampler.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_44) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/resample/SincResampler.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_45) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/resample/SincResampler.cpp.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/resample/SincResampler.cpp.o -MF CMakeFiles/goattrk2-qt.dir/__/src/residfp/resample/SincResampler.cpp.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/residfp/resample/SincResampler.cpp.o -c /home/paul/work/c64/goattracker2/src/residfp/resample/SincResampler.cpp
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/resample/SincResampler.cpp.i: cmake_force
@@ -680,7 +694,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/resample/SincResampler.cpp.s: cmake
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/residfp/residfp.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/residfp/residfp.cpp.o: /home/paul/work/c64/goattracker2/src/residfp/residfp/residfp.cpp
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/residfp/residfp.cpp.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_45) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/residfp/residfp.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_46) "Building CXX object qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/residfp/residfp.cpp.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/residfp/residfp.cpp.o -MF CMakeFiles/goattrk2-qt.dir/__/src/residfp/residfp/residfp.cpp.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/residfp/residfp/residfp.cpp.o -c /home/paul/work/c64/goattracker2/src/residfp/residfp/residfp.cpp
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/residfp/residfp.cpp.i: cmake_force
@@ -694,7 +708,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/residfp/residfp/residfp.cpp.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/asmtab.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/asmtab.c.o: /home/paul/work/c64/goattracker2/src/asm/asmtab.c
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/asmtab.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_46) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/asmtab.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_47) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/asmtab.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/asmtab.c.o -MF CMakeFiles/goattrk2-qt.dir/__/src/asm/asmtab.c.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/asm/asmtab.c.o -c /home/paul/work/c64/goattracker2/src/asm/asmtab.c
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/asmtab.c.i: cmake_force
@@ -708,7 +722,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/asmtab.c.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/chnkpool.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/chnkpool.c.o: /home/paul/work/c64/goattracker2/src/asm/chnkpool.c
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/chnkpool.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_47) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/chnkpool.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_48) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/chnkpool.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/chnkpool.c.o -MF CMakeFiles/goattrk2-qt.dir/__/src/asm/chnkpool.c.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/asm/chnkpool.c.o -c /home/paul/work/c64/goattracker2/src/asm/chnkpool.c
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/chnkpool.c.i: cmake_force
@@ -722,7 +736,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/chnkpool.c.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/expr.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/expr.c.o: /home/paul/work/c64/goattracker2/src/asm/expr.c
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/expr.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_48) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/expr.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_49) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/expr.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/expr.c.o -MF CMakeFiles/goattrk2-qt.dir/__/src/asm/expr.c.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/asm/expr.c.o -c /home/paul/work/c64/goattracker2/src/asm/expr.c
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/expr.c.i: cmake_force
@@ -736,7 +750,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/expr.c.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/lexyy.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/lexyy.c.o: /home/paul/work/c64/goattracker2/src/asm/lexyy.c
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/lexyy.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_49) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/lexyy.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_50) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/lexyy.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/lexyy.c.o -MF CMakeFiles/goattrk2-qt.dir/__/src/asm/lexyy.c.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/asm/lexyy.c.o -c /home/paul/work/c64/goattracker2/src/asm/lexyy.c
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/lexyy.c.i: cmake_force
@@ -750,7 +764,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/lexyy.c.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/log.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/log.c.o: /home/paul/work/c64/goattracker2/src/asm/log.c
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/log.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_50) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/log.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_51) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/log.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/log.c.o -MF CMakeFiles/goattrk2-qt.dir/__/src/asm/log.c.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/asm/log.c.o -c /home/paul/work/c64/goattracker2/src/asm/log.c
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/log.c.i: cmake_force
@@ -764,7 +778,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/log.c.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/membuf.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/membuf.c.o: /home/paul/work/c64/goattracker2/src/asm/membuf.c
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/membuf.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_51) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/membuf.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_52) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/membuf.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/membuf.c.o -MF CMakeFiles/goattrk2-qt.dir/__/src/asm/membuf.c.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/asm/membuf.c.o -c /home/paul/work/c64/goattracker2/src/asm/membuf.c
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/membuf.c.i: cmake_force
@@ -778,7 +792,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/membuf.c.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/membufio.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/membufio.c.o: /home/paul/work/c64/goattracker2/src/asm/membufio.c
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/membufio.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_52) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/membufio.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_53) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/membufio.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/membufio.c.o -MF CMakeFiles/goattrk2-qt.dir/__/src/asm/membufio.c.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/asm/membufio.c.o -c /home/paul/work/c64/goattracker2/src/asm/membufio.c
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/membufio.c.i: cmake_force
@@ -792,7 +806,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/membufio.c.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/namedbuf.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/namedbuf.c.o: /home/paul/work/c64/goattracker2/src/asm/namedbuf.c
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/namedbuf.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_53) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/namedbuf.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_54) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/namedbuf.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/namedbuf.c.o -MF CMakeFiles/goattrk2-qt.dir/__/src/asm/namedbuf.c.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/asm/namedbuf.c.o -c /home/paul/work/c64/goattracker2/src/asm/namedbuf.c
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/namedbuf.c.i: cmake_force
@@ -806,7 +820,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/namedbuf.c.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/parse.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/parse.c.o: /home/paul/work/c64/goattracker2/src/asm/parse.c
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/parse.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_54) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/parse.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_55) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/parse.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/parse.c.o -MF CMakeFiles/goattrk2-qt.dir/__/src/asm/parse.c.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/asm/parse.c.o -c /home/paul/work/c64/goattracker2/src/asm/parse.c
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/parse.c.i: cmake_force
@@ -820,7 +834,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/parse.c.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/pc.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/pc.c.o: /home/paul/work/c64/goattracker2/src/asm/pc.c
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/pc.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_55) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/pc.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_56) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/pc.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/pc.c.o -MF CMakeFiles/goattrk2-qt.dir/__/src/asm/pc.c.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/asm/pc.c.o -c /home/paul/work/c64/goattracker2/src/asm/pc.c
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/pc.c.i: cmake_force
@@ -834,7 +848,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/pc.c.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/vec.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/vec.c.o: /home/paul/work/c64/goattracker2/src/asm/vec.c
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/vec.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_56) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/vec.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_57) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/vec.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/vec.c.o -MF CMakeFiles/goattrk2-qt.dir/__/src/asm/vec.c.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/asm/vec.c.o -c /home/paul/work/c64/goattracker2/src/asm/vec.c
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/vec.c.i: cmake_force
@@ -848,7 +862,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/asm/vec.c.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme.c.o: /home/paul/work/c64/goattracker2/src/bme/bme.c
 qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_57) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_58) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme.c.o -MF CMakeFiles/goattrk2-qt.dir/__/src/bme/bme.c.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/bme/bme.c.o -c /home/paul/work/c64/goattracker2/src/bme/bme.c
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme.c.i: cmake_force
@@ -862,7 +876,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme.c.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_snd.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_snd.c.o: /home/paul/work/c64/goattracker2/src/bme/bme_snd.c
 qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_snd.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_58) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_snd.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_59) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_snd.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_snd.c.o -MF CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_snd.c.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_snd.c.o -c /home/paul/work/c64/goattracker2/src/bme/bme_snd.c
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_snd.c.i: cmake_force
@@ -876,7 +890,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_snd.c.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_io.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_io.c.o: /home/paul/work/c64/goattracker2/src/bme/bme_io.c
 qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_io.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_59) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_io.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_60) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_io.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_io.c.o -MF CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_io.c.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_io.c.o -c /home/paul/work/c64/goattracker2/src/bme/bme_io.c
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_io.c.i: cmake_force
@@ -890,7 +904,7 @@ qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_io.c.s: cmake_force
 qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_end.c.o: qt/CMakeFiles/goattrk2-qt.dir/flags.make
 qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_end.c.o: /home/paul/work/c64/goattracker2/src/bme/bme_end.c
 qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_end.c.o: qt/CMakeFiles/goattrk2-qt.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_60) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_end.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_61) "Building C object qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_end.c.o"
 	cd /home/paul/work/c64/goattracker2/build/qt && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_end.c.o -MF CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_end.c.o.d -o CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_end.c.o -c /home/paul/work/c64/goattracker2/src/bme/bme_end.c
 
 qt/CMakeFiles/goattrk2-qt.dir/__/src/bme/bme_end.c.i: cmake_force
@@ -917,6 +931,7 @@ goattrk2__qt_OBJECTS = \
 "CMakeFiles/goattrk2-qt.dir/UndoStack.cpp.o" \
 "CMakeFiles/goattrk2-qt.dir/Rpc.cpp.o" \
 "CMakeFiles/goattrk2-qt.dir/PaAudio.cpp.o" \
+"CMakeFiles/goattrk2-qt.dir/InstrColors.cpp.o" \
 "CMakeFiles/goattrk2-qt.dir/Log.cpp.o" \
 "CMakeFiles/goattrk2-qt.dir/qt_globals.c.o" \
 "CMakeFiles/goattrk2-qt.dir/qt_stubs.c.o" \
@@ -980,6 +995,7 @@ qt/goattrk2-qt: qt/CMakeFiles/goattrk2-qt.dir/StatusStrip.cpp.o
 qt/goattrk2-qt: qt/CMakeFiles/goattrk2-qt.dir/UndoStack.cpp.o
 qt/goattrk2-qt: qt/CMakeFiles/goattrk2-qt.dir/Rpc.cpp.o
 qt/goattrk2-qt: qt/CMakeFiles/goattrk2-qt.dir/PaAudio.cpp.o
+qt/goattrk2-qt: qt/CMakeFiles/goattrk2-qt.dir/InstrColors.cpp.o
 qt/goattrk2-qt: qt/CMakeFiles/goattrk2-qt.dir/Log.cpp.o
 qt/goattrk2-qt: qt/CMakeFiles/goattrk2-qt.dir/qt_globals.c.o
 qt/goattrk2-qt: qt/CMakeFiles/goattrk2-qt.dir/qt_stubs.c.o
@@ -1034,7 +1050,7 @@ qt/goattrk2-qt: /usr/lib/x86_64-linux-gnu/libGLX.so
 qt/goattrk2-qt: /usr/lib/x86_64-linux-gnu/libOpenGL.so
 qt/goattrk2-qt: /usr/lib/x86_64-linux-gnu/libportaudio.so
 qt/goattrk2-qt: qt/CMakeFiles/goattrk2-qt.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_61) "Linking CXX executable goattrk2-qt"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/paul/work/c64/goattracker2/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_62) "Linking CXX executable goattrk2-qt"
 	cd /home/paul/work/c64/goattracker2/build/qt && $(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/goattrk2-qt.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

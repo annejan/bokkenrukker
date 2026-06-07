@@ -415,5 +415,6 @@ qt/CMakeFiles/goattrk2-qt.dir/PatternView.cpp.o: \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/QMainWindow \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qmainwindow.h \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qtabwidget.h \
+ /home/paul/work/c64/goattracker2/qt/InstrColors.h \
  /home/paul/work/c64/goattracker2/qt/../src/gplay.h \
  /home/paul/work/c64/goattracker2/qt/../src/gsid.h

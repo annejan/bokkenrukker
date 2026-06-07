@@ -1,6 +1,8 @@
 goattrk2-qt_autogen/timestamp: \
 	/home/paul/work/c64/goattracker2/build/qt/goattrk2-qt_autogen/moc_predefs.h \
 	/home/paul/work/c64/goattracker2/qt/CMakeLists.txt \
+	/home/paul/work/c64/goattracker2/qt/InstrColors.cpp \
+	/home/paul/work/c64/goattracker2/qt/InstrColors.h \
 	/home/paul/work/c64/goattracker2/qt/InstrumentQuickList.cpp \
 	/home/paul/work/c64/goattracker2/qt/InstrumentQuickList.h \
 	/home/paul/work/c64/goattracker2/qt/InstrumentView.cpp \

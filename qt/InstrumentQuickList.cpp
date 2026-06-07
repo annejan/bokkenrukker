@@ -1,5 +1,6 @@
 #include "InstrumentQuickList.h"
 #include "Theme.h"
+#include "InstrColors.h"
 
 #include <QBrush>
 #include <QColor>
@@ -51,12 +52,18 @@ void InstrumentQuickList::setBlinkEnabled(bool on) {
         flashTimer_.start();
     } else {
         flashTimer_.stop();
-        // Clear lingering tinted backgrounds.
+        // Clear lingering tinted backgrounds — but keep the per-instrument
+        // colour if that toggle is on. paintCold() picks the right base.
         for (int i = 1; i < MAX_INSTR; i++) {
             for (int c = 0; c < 6; c++) flash_[i][c] = 0;
-            if (auto *it = item(i - 1)) it->setBackground(QBrush());
         }
+        refresh();
     }
+}
+
+void InstrumentQuickList::setColorsEnabled(bool on) {
+    colorsOn_ = on;
+    refresh();
 }
 
 void InstrumentQuickList::tickFlash() {
@@ -89,22 +96,27 @@ void InstrumentQuickList::tickFlash() {
             b += chanColor[c].blue()  * w;
             flash_[i][c] = f - 1;
         }
+        // Resolve the 'cold' background once — palette colour when the
+        // colour toggle is on, theme base otherwise.
+        QColor cold = base;
+        if (colorsOn_) {
+            QColor pc = instrColor((unsigned char)i);
+            if (pc.isValid()) cold = pc;
+        }
         if (wSum <= 0.f) {
-            // Repaint the base once after the last channel's flash hit zero;
-            // skip otherwise to avoid setBackground churn on cold rows.
-            if (it->background() != QBrush()) it->setBackground(QBrush(base));
+            // Repaint the cold colour once after the last channel's flash
+            // hit zero; skip otherwise to avoid setBackground churn.
+            if (it->background().color() != cold) it->setBackground(QBrush(cold));
             continue;
         }
-        // Normalise the colour by total weight, then lerp from base towards
-        // it by min(wSum,1) so a single faint channel stays subtle and many
-        // concurrent channels saturate.
+        // Lerp cold -> hot mix by min(wSum,1).
         float invW = 1.f / wSum;
         QColor hot(int(r * invW), int(g * invW), int(b * invW));
         float t = qMin(wSum, 1.0f);
         QColor mix(
-            int(base.red()   * (1 - t) + hot.red()   * t),
-            int(base.green() * (1 - t) + hot.green() * t),
-            int(base.blue()  * (1 - t) + hot.blue()  * t));
+            int(cold.red()   * (1 - t) + hot.red()   * t),
+            int(cold.green() * (1 - t) + hot.green() * t),
+            int(cold.blue()  * (1 - t) + hot.blue()  * t));
         it->setBackground(QBrush(mix));
     }
 }
@@ -117,8 +129,22 @@ void InstrumentQuickList::refresh() {
         buf[MAX_INSTRNAMELEN] = 0;
         QString name = QString::fromLocal8Bit(buf).trimmed();
         if (name.isEmpty()) name = "—";
-        item(i - 1)->setText(QString("%1  %2")
+        auto *it = item(i - 1);
+        it->setText(QString("%1  %2")
             .arg(i, 2, 16, QLatin1Char('0')).toUpper().arg(name));
+        // Apply per-instrument colour when the toggle is on. White text
+        // for readability against any of the 24 palette colours; default
+        // text otherwise.
+        if (colorsOn_) {
+            QColor pc = instrColor((unsigned char)i);
+            if (pc.isValid()) {
+                it->setBackground(QBrush(pc));
+                it->setForeground(QBrush(QColor(255, 255, 255)));
+                continue;
+            }
+        }
+        it->setBackground(QBrush());
+        it->setForeground(QBrush(Theme::C::text));
     }
     if (einum >= 1 && einum < MAX_INSTR)
         setCurrentRow(einum - 1);

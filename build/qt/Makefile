@@ -200,6 +200,30 @@ gt2reloc_autogen/fast:
 	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f qt/CMakeFiles/gt2reloc_autogen.dir/build.make qt/CMakeFiles/gt2reloc_autogen.dir/build
 .PHONY : gt2reloc_autogen/fast
 
+InstrColors.o: InstrColors.cpp.o
+.PHONY : InstrColors.o
+
+# target to build an object file
+InstrColors.cpp.o:
+	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f qt/CMakeFiles/goattrk2-qt.dir/build.make qt/CMakeFiles/goattrk2-qt.dir/InstrColors.cpp.o
+.PHONY : InstrColors.cpp.o
+
+InstrColors.i: InstrColors.cpp.i
+.PHONY : InstrColors.i
+
+# target to preprocess a source file
+InstrColors.cpp.i:
+	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f qt/CMakeFiles/goattrk2-qt.dir/build.make qt/CMakeFiles/goattrk2-qt.dir/InstrColors.cpp.i
+.PHONY : InstrColors.cpp.i
+
+InstrColors.s: InstrColors.cpp.s
+.PHONY : InstrColors.s
+
+# target to generate assembly for a file
+InstrColors.cpp.s:
+	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f qt/CMakeFiles/goattrk2-qt.dir/build.make qt/CMakeFiles/goattrk2-qt.dir/InstrColors.cpp.s
+.PHONY : InstrColors.cpp.s
+
 InstrumentQuickList.o: InstrumentQuickList.cpp.o
 .PHONY : InstrumentQuickList.o
 
@@ -2020,6 +2044,9 @@ help:
 	@echo "... gt2reloc_autogen_timestamp_deps"
 	@echo "... goattrk2-qt"
 	@echo "... gt2reloc"
+	@echo "... InstrColors.o"
+	@echo "... InstrColors.i"
+	@echo "... InstrColors.s"
 	@echo "... InstrumentQuickList.o"
 	@echo "... InstrumentQuickList.i"
 	@echo "... InstrumentQuickList.s"

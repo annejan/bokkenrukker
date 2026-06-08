@@ -191,4 +191,78 @@
         wave / pulse / filter knob change is audible within the next
         second. Toggling off stops the timer + silences.)*
 - [ ] Add midi protocol support, so a midi keyboard can be used to record notes in the pattern channel selected. (Over USB or what ever just make sure it's Windows and Linux and OSX compatible)
+      *(Design: RtMidi, event/callback (no polling), vendored single
+        RtMidi.h/.cpp. RtMidi callback thread -> Qt queued signal
+        noteEvent(midiNote,on) -> main-thread slot -> existing
+        insertnote() (recordmode) / playtestnote() (jam). Note mapping
+        config-toggle: Absolute (piano pitch) vs Relative (epoctave),
+        QSettings midi/noteMode + midi/octaveOffset. Settings > MIDI
+        submenu: device list (auto-open first / saved by name) + note
+        mode. Retire JACK MIDI poll in bme_snd.c. Blocked on the
+        polling->notification refactor below for the capture hook.)*
+
+## Polling -> Qt notification refactor
+
+Goal: the Qt frontend currently drives almost all UI updates from periodic
+QTimers that re-read C-core globals every frame ("polling"). Replace with an
+event/notification pattern: the C core (and audio/playroutine thread) publishes
+state-change notifications that a thin Qt bridge converts to **queued signals**
+(thread-safe, land on the GUI thread), so views update on change instead of on a
+clock. Continuous analog-style meters (VU / SID envelope) are inherently sampled
+and may keep a timer — flagged below as "sampling OK". Solve top-down: item 0 is
+the enabling infrastructure every other item depends on.
+
+- [x] **0. Notification bridge (infrastructure, do first).** Add a C-callable
+      notifier the playroutine / editor core can call on state change (transport
+      start/stop, row advance, order-position change, instrument trigger,
+      selection/cursor move, recordmode toggle). A Qt singleton (e.g.
+      `CoreEvents : QObject`) re-emits each as a `Qt::QueuedConnection` signal so
+      audio-thread origins are marshalled safely to the GUI thread. All items
+      below consume this. *(Same thread-hop pattern as the MIDI design.)*
+      *(qt/CoreEvents.h/.cpp: `CoreEvents : QObject` singleton with signals
+        transportChanged(bool) / rowChanged() / orderPosChanged(). pump() is
+        called from the PortAudio callback (qt/PaAudio.cpp, right after
+        playroutine()) on the audio thread; it diffs isplaying() + cheap
+        signatures over chn[].pattptr / chn[].songptr and emits only on an
+        edge. CoreEvents lives on the GUI thread so the default connection is
+        delivered queued — slots run on the GUI thread, no widget touched from
+        audio. instrTriggered + cursor/recordmode notifications deferred to the
+        phase-2 consumers that need them.)*
+- [ ] **1. Main UI tick.** [MainWindow.cpp:117-123](MainWindow.cpp#L117-L123)
+      40 ms (25 Hz) `timer_` -> [MainWindow::tick()](MainWindow.cpp#L1061) drives
+      every view refresh unconditionally. Master poll. Decompose into the items
+      below; keep a timer only for true meters.
+- [ ] **2. Pattern follow-play cursor / row highlight.**
+      [MainWindow.cpp:1068](MainWindow.cpp#L1068) `pattern_->refresh()` +
+      `tickScope()` poll `chn[].pattptr` / `eppos` each tick. Notify on row
+      advance and on cursor/selection move.
+- [ ] **3. Transport button relabel.**
+      [MainWindow.cpp:1078](MainWindow.cpp#L1078) polls `isplaying()` every tick
+      to flip the Pos/Pause button text. Notify on transport state change.
+- [ ] **4. Order view play cursor.**
+      [OrderView.cpp:330-334](OrderView.cpp#L330-L334) 33 ms `playRefresh_`
+      repaints the order viewport from `chn[].songptr`. Notify on
+      order-position change.
+- [ ] **5. Instrument quick-list flash.**
+      [InstrumentQuickList.cpp:35](InstrumentQuickList.cpp#L35) /
+      [tickFlash()](InstrumentQuickList.cpp#L90) polls `chn[].instr` to flash
+      sounding instruments. Notify on instrument-trigger (note-on) event.
+- [ ] **6. Instrument editor live ADSR meter.**
+      [InstrumentView.cpp:700-704](InstrumentView.cpp#L700-L704) 30 ms
+      `playbackTimer_` -> `tickPlayback()` polls `sid_getlevels()` envelope
+      level. **Sampling OK** — continuous signal; keep a timer but make it run
+      only while a note sounds / the editor is visible (drive start/stop from a
+      transport notification).
+- [ ] **7. Scope / VU strip.**
+      [MainWindow.cpp:1068](MainWindow.cpp#L1068) `pattern_->tickScope()` pushes
+      the scope meter per tick. **Sampling OK** — continuous; keep but gate on
+      transport-active notification so it idles when stopped.
+- [ ] **8. JACK MIDI input poll.**
+      [bme_snd.c:80-113](../src/bme/bme_snd.c#L80-L113) polls
+      `jack_midi_get_event_count()` inside the JACK process callback. Superseded
+      by the RtMidi callback in the MIDI item above — remove when MIDI lands.
+- [ ] **9. RPC timer control (low priority).**
+      [Rpc.cpp:492-498](Rpc.cpp#L492-L498) test harness starts/stops the main
+      `QTimer` by `findChild<QTimer*>()`. Revisit once item 1 changes the tick's
+      role; may need a stable handle instead of child lookup.
 - [ ] 

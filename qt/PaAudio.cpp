@@ -6,6 +6,8 @@
 #include <QDebug>
 #include <cstring>
 
+#include "CoreEvents.h"
+
 extern "C" {
 #include "gcommon.h"
 #include "gplay.h"
@@ -46,6 +48,10 @@ int PaAudio::paCallback(const void * /*in*/, void *out, unsigned long frames,
     while (produced < frames) {
         if (self->sampleAccumF_ <= 0.0) {
             playroutine();
+            // Detect playback-state edges and notify the GUI thread (queued).
+            // Replaces the old per-frame polling of chn[]/isplaying() in the
+            // UI tick — views now wake only when something actually changed.
+            if (auto *ev = CoreEvents::instance()) ev->pump();
             self->sampleAccumF_ += samplesPerTickF;
         }
         long chunk = (long)self->sampleAccumF_;

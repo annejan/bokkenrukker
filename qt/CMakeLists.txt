@@ -77,6 +77,7 @@ set(QT_SRC
     UndoStack.cpp
     Rpc.cpp
     PaAudio.cpp
+    CoreEvents.cpp
     InstrColors.cpp
     Log.cpp
     qt_globals.c

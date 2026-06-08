@@ -313,4 +313,33 @@ the enabling infrastructure every other item depends on.
         findChild<QTimer*>(), which was ambiguous now that child views own their
         own QTimers. Resume restarts at the real 40 ms UI rate (was a magic
         20 ms).)*
+
+### Engine (src/) audit
+
+The pure tracker core (gplay.c / gsong.c / gtable.c / ginstr.c) is
+callback-driven and has no polling — the audio callback is its clock by design.
+Beyond the JACK MIDI drain (item 8), two engine-side polls are real. The rest of
+the `while(!flag)` / `SDL_Delay` hits live in non-Qt code (goattrk2.c main loop,
+greloc.c relocator, bme_kbd.c / bme_win.c — the standalone SDL app + gt2reloc
+tool, replaced by Qt + qt_stubs.c) and are out of scope.
+
+- [ ] **10. Fixed-delay mixer-stop wait.**
+      [gsound.c:233-235](../src/gsound.c#L233-L235) `sound_uninit()` does
+      `SDL_Delay(50)` to "make sure the sound timer thread is not mixing anymore"
+      before freeing buffers. A guess-delay, not a real handshake — too long in
+      the common case and not actually a guarantee. Runs on every audio re-init
+      (SID-model / multiplier change). Replace with condition-based
+      synchronisation (audio fence / lock the audio device, or wait on an
+      explicit "mixer idle" flag) instead of sleeping a magic 50 ms. Low risk,
+      low frequency — minor.
+- [ ] **11. Win32 HardSID player-thread busy-loop (conditional).**
+      [gsound.c:359](../src/gsound.c#L359) `while (runplayerthread) { … }` with
+      the `suspendplayroutine` / `flushplayerthread` volatile flags
+      ([gsound.c:54-56](../src/gsound.c#L54-L56)). All `#ifdef __WIN32__` +
+      HardSID, so NOT compiled in the current Linux build — but it WILL compile
+      once the cross-platform MIDI feature (item 193) brings up a Windows build.
+      Same RT-thread hazard as the no-sound fix: it calls `playroutine()` and
+      reads editor state from a raw thread spinning on volatile flags. Revisit
+      together with the Windows MIDI port; route any UI-affecting state through
+      the GUI-thread hop (see [[audio-thread-no-qt]]).
 - [ ] 

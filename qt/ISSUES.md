@@ -323,15 +323,18 @@ the `while(!flag)` / `SDL_Delay` hits live in non-Qt code (goattrk2.c main loop,
 greloc.c relocator, bme_kbd.c / bme_win.c — the standalone SDL app + gt2reloc
 tool, replaced by Qt + qt_stubs.c) and are out of scope.
 
-- [ ] **10. Fixed-delay mixer-stop wait.**
-      [gsound.c:233-235](../src/gsound.c#L233-L235) `sound_uninit()` does
+- [x] **10. Fixed-delay mixer-stop wait.**
+      [gsound.c:233-235](../src/gsound.c#L233-L235) `sound_uninit()` did
       `SDL_Delay(50)` to "make sure the sound timer thread is not mixing anymore"
-      before freeing buffers. A guess-delay, not a real handshake — too long in
-      the common case and not actually a guarantee. Runs on every audio re-init
-      (SID-model / multiplier change). Replace with condition-based
-      synchronisation (audio fence / lock the audio device, or wait on an
-      explicit "mixer idle" flag) instead of sleeping a magic 50 ms. Low risk,
-      low frequency — minor.
+      before freeing buffers. A guess-delay, not a real handshake. Runs on every
+      audio re-init (SID-model / multiplier change).
+      *(Replaced with a real handshake: for normal SDL audio it now holds
+        SDL_LockAudio() across the teardown (detach mixer/player + free buffer)
+        and SDL_UnlockAudio() at the end — SDL_LockAudio blocks until any
+        in-flight callback returns and blocks new ones, so no race and no magic
+        sleep. HardSID / Catweasel have no audio-callback lock (they drive from
+        an SDL timer / Win32 thread) so they keep the short settle delay. Gated
+        on `snd_sndinitted` so it's a no-op when SDL audio never opened.)*
 - [ ] **11. Win32 HardSID player-thread busy-loop (conditional).**
       [gsound.c:359](../src/gsound.c#L359) `while (runplayerthread) { … }` with
       the `suspendplayroutine` / `flushplayerthread` volatile flags

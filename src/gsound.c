@@ -226,13 +226,22 @@ int sound_init(unsigned b, unsigned mr, unsigned writer, unsigned hardsid, unsig
 void sound_uninit(void)
 {
   int c;
+  int sdl_audio_active;
 
   if (!initted) return;
   initted = 0;
 
-  // Apparently a delay is needed to make sure the sound timer thread is
-  // not mixing stuff anymore, and we can safely delete related structures
-  SDL_Delay(50);
+  // Before detaching the mixer/player and freeing 'buffer', make sure the
+  // audio side isn't mid-mix touching them. For normal SDL audio, SDL_LockAudio
+  // is a real handshake: it blocks until any in-flight callback returns and
+  // holds off new ones until SDL_UnlockAudio (at the end) — no more guessing.
+  // HardSID / Catweasel drive from an SDL timer (or Win32 thread) with no
+  // audio-callback lock to take, so they keep the old short settle delay.
+  sdl_audio_active = (!usehardsid && !usecatweasel && snd_sndinitted);
+  if (sdl_audio_active)
+    SDL_LockAudio();
+  else
+    SDL_Delay(50);
 
   if (usehardsid || usecatweasel)
   {
@@ -321,6 +330,9 @@ void sound_uninit(void)
     }
     #endif
   }
+
+  if (sdl_audio_active)
+    SDL_UnlockAudio();
 }
 
 void sound_suspend(void)

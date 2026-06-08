@@ -261,10 +261,16 @@ the enabling infrastructure every other item depends on.
         advances) + transportChanged (clear the tint on play/stop). Required
         moving coreEvents_ creation before buildUi() in MainWindow so child
         views can connect from their constructors.)*
-- [ ] **5. Instrument quick-list flash.**
+- [x] **5. Instrument quick-list flash.**
       [InstrumentQuickList.cpp:35](InstrumentQuickList.cpp#L35) /
       [tickFlash()](InstrumentQuickList.cpp#L90) polls `chn[].instr` to flash
       sounding instruments. Notify on instrument-trigger (note-on) event.
+      *(The fade is a continuous animation, so sampling chn[].instr stays — but
+        the timer no longer free-runs. It's gated on CoreEvents::transportChanged
+        (start on play when blink enabled) and self-stops in tickFlash() once the
+        song is stopped and the last flash has decayed. setBlinkEnabled only
+        starts it while already playing. Behaviour while playing is unchanged;
+        it just stops burning 33 Hz when idle.)*
 - [ ] **6. Instrument editor live ADSR meter.**
       [InstrumentView.cpp:700-704](InstrumentView.cpp#L700-L704) 30 ms
       `playbackTimer_` -> `tickPlayback()` polls `sid_getlevels()` envelope

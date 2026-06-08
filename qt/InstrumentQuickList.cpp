@@ -1,6 +1,7 @@
 #include "InstrumentQuickList.h"
 #include "Theme.h"
 #include "InstrColors.h"
+#include "CoreEvents.h"
 
 #include <QBrush>
 #include <QColor>
@@ -29,10 +30,18 @@ InstrumentQuickList::InstrumentQuickList(QWidget *parent) : QListWidget(parent) 
     refresh();
     connect(this, &QListWidget::currentRowChanged, this, &InstrumentQuickList::onRowChanged);
 
-    // Flash polls chn[] at ~33 Hz. Decoupled from audio frame rate — visible
-    // flash for any instrument that fired since the previous poll.
+    // Flash samples chn[] at ~33 Hz to drive the per-instrument fade animation.
+    // The fade itself is a continuous animation (sampling is the right model),
+    // but it only needs to run WHILE the song is playing — gate the timer on
+    // the transport notification so it stops free-running when idle/stopped.
+    // tickFlash() also self-stops once the last flash has decayed after a stop.
     flashTimer_.setInterval(30);
     connect(&flashTimer_, &QTimer::timeout, this, &InstrumentQuickList::tickFlash);
+    if (auto *ev = CoreEvents::instance()) {
+        connect(ev, &CoreEvents::transportChanged, this, [this](bool playing){
+            if (playing && blinkEnabled_) flashTimer_.start();
+        });
+    }
 }
 
 // Per-channel hot colours. Channels 0..2 = SID1 (primary RGB so blends are
@@ -50,7 +59,10 @@ static const QColor chanColor[6] = {
 void InstrumentQuickList::setBlinkEnabled(bool on) {
     blinkEnabled_ = on;
     if (on) {
-        flashTimer_.start();
+        // Only run while the song is actually playing; otherwise wait for the
+        // transportChanged notification to start it (nothing flashes when
+        // stopped — flash is gated on songinit != PLAY_STOPPED).
+        if (songinit != PLAY_STOPPED) flashTimer_.start();
     } else {
         flashTimer_.stop();
         // Clear lingering tinted backgrounds — but keep the per-instrument
@@ -102,6 +114,7 @@ void InstrumentQuickList::tickFlash() {
     }
     // Paint + decay. Sum weighted channel colours over the base for each row.
     QColor base = Theme::C::bgAlt;
+    bool anyActive = false;   // any flash still decaying this frame?
     for (int i = 1; i < MAX_INSTR; i++) {
         auto *it = item(i - 1);
         if (!it) continue;
@@ -137,7 +150,12 @@ void InstrumentQuickList::tickFlash() {
             int(cold.green() * (1 - t) + hot.green() * t),
             int(cold.blue()  * (1 - t) + hot.blue()  * t));
         it->setBackground(QBrush(mix));
+        anyActive = true;
     }
+    // Once the song is stopped and the last flash has faded, stop the timer so
+    // it no longer free-runs while idle. transportChanged restarts it on play.
+    if (songinit == PLAY_STOPPED && !anyActive)
+        flashTimer_.stop();
 }
 
 void InstrumentQuickList::refresh() {

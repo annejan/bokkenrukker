@@ -16,6 +16,7 @@ class QLabel;
 class QTimer;
 class QDockWidget;
 class QUndoStack;
+class CoreEvents;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -24,6 +25,8 @@ public:
     ~MainWindow() override;
 
     void loadSongFile(const QString &path);
+    void loadSidFile(const QString &path, const QStringList &extraOpts = {});
+    void showAbout();
 
     // Editors call beginEdit() before mutating the song, then endEdit(label)
     // to push the resulting state onto the undo stack with the given label.
@@ -33,6 +36,11 @@ public:
     // Exposed to the RPC layer so a test harness can drive time forward
     // deterministically instead of waiting on the 50 Hz QTimer.
     void tickOnce() { tick(); }
+    // Stop / restart the UI tick explicitly. The RPC harness uses these to
+    // freeze auto-ticking for deterministic stepping; addressing timer_
+    // directly avoids findChild<QTimer*>() picking up a child view's timer.
+    void pauseTimer();
+    void resumeTimer();
     QWidget *activeEditorWidget() const;
 
 private slots:
@@ -56,6 +64,12 @@ private slots:
     void toggleFollowPlay();
     void cycleEditMode(bool backwards = false);
     void tick();
+
+    // CoreEvents (audio-thread) notification handlers — replace per-frame
+    // polling. Run on the GUI thread via queued connections.
+    void onTransportChanged(bool playing); // relabel Pos/Pause + sync views
+    void onPlayRowChanged();               // follow-play cursor / row highlight
+    void onOrderPosChanged();              // order map follows the song pointer
 
 private slots:
     void undo();
@@ -82,6 +96,7 @@ private slots:
 private:
     QUndoStack *undoStack_ = nullptr;
     QAction *playPosAction_ = nullptr;
+    QAction *stereoAction_ = nullptr;   // Settings ▸ Audio ▸ Dual-SID toggle
     PatternView *pattern_ = nullptr;
     OrderView *order_ = nullptr;
     InstrumentView *instrument_ = nullptr;
@@ -97,6 +112,7 @@ private:
     QLabel      *patternBarOct_ = nullptr;    // only visible on Pattern
     QLabel      *patternBarLen_ = nullptr;    // editor.
     QTimer *timer_ = nullptr;
+    CoreEvents *coreEvents_ = nullptr;
 
     void buildUi();
     void refreshAll();

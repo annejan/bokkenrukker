@@ -39,6 +39,7 @@ private slots:
     void applyPreset(int index);
     void onApplyEdits();   // commit current state as the new revert baseline
     void onResetEdits();   // roll back to the last applied baseline
+    void tickPlayback();   // 33 Hz pull of envelope level + wavetable pos
 
 private:
     class QComboBox *presetBox_ = nullptr;
@@ -47,6 +48,7 @@ private:
     QSpinBox *wave_, *pulse_, *filter_, *vibParam_;
     QSpinBox *vibDelay_, *gateTimer_, *firstWave_;
     class QTimer *autoTestTimer_ = nullptr;
+    class QTimer *playbackTimer_ = nullptr; // 33 Hz monitor for live previews
     AdsrPreview *adsr_;
     WavetablePreview *wavePrev_;
     QLabel *summary_;
@@ -73,6 +75,12 @@ private:
 
 protected:
     bool eventFilter(QObject *o, QEvent *e) override;
+    // Only sample the live envelope / wavetable previews while this editor is
+    // the visible page — no point polling sid_getlevels when the user is in
+    // the pattern editor. (Stays running while visible so test notes / jam
+    // still animate even when the song is stopped.)
+    void showEvent(QShowEvent *) override;
+    void hideEvent(QHideEvent *) override;
 private:
     void writeAd();
     void writeSr();

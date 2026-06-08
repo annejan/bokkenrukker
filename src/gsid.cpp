@@ -9,6 +9,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <vector>
 #include <algorithm>
 
@@ -264,9 +265,53 @@ static int render_sid(reSIDfp::residfp *s, const unsigned char *regs,
   return total;
 }
 
+extern "C" int isplaying(void);
+
+// True when the SID is (or should be) producing sound: song playing, any voice
+// gated (note attacking), or any envelope still non-zero (sustain / release
+// tail). When false the output is pure silence, so the cycle-exact emulation
+// can be skipped entirely — that ~1 MHz clock + filter DSP is essentially all
+// of the idle CPU cost.
+static bool sid_active()
+{
+  if (isplaying()) return true;
+  static const int ctrl[3] = { 0x04, 0x0b, 0x12 }; // voice control regs (bit0=gate)
+  for (int v = 0; v < 3; v++)
+  {
+    if (sidreg[ctrl[v]] & 0x01) return true;
+    if (sid && sid->envelopeLevel(v) != 0) return true;
+  }
+  if (sid2)
+  {
+    for (int v = 0; v < 3; v++)
+    {
+      if (sidreg2[ctrl[v]] & 0x01) return true;
+      if (sid2->envelopeLevel(v) != 0) return true;
+    }
+  }
+  return false;
+}
+
 int sid_fillbuffer(short *ptr, int samples)
 {
   if (!sid) return 0;
+
+  // Idle short-circuit: when nothing is sounding, emit silence WITHOUT running
+  // the cycle-exact SID emulation (~all of idle CPU — see perf: Filter::clock /
+  // getNormalizedVoice). Keep clocking a ~250 ms tail after the last sound so
+  // release phases + filter ring-out finish cleanly; resume instantly on the
+  // first gated note / playback (sid_active() sees the gate the same callback
+  // that playroutine() set it in).
+  static int idleRunout = 0;
+  if (sid_active())
+    idleRunout = samplerate / 4;
+  if (idleRunout <= 0)
+  {
+    memset(ptr, 0, (size_t)samples * sizeof(short));
+    return samples;
+  }
+  idleRunout -= samples;
+
   if (!sid2) return render_sid(sid, sidreg, ptr, samples);
 
   // Stereo mix path. Two independent render_sid calls — the per-SID tail

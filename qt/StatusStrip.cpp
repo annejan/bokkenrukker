@@ -44,6 +44,7 @@ extern int stereo_mode;
 extern unsigned multiplier;
 extern unsigned ntsc;
 extern unsigned keypreset;
+extern int recordmode;
 extern CHN chn[MAX_CHN];
 extern INSTR instr[MAX_INSTR];
 extern unsigned char pattern[MAX_PATT][MAX_PATTROWS*4+4];
@@ -97,6 +98,10 @@ StatusStrip::StatusStrip(QWidget *parent) : QFrame(parent) {
                         "wheel scrolls ±1. Keyboard: * raises, / lowers.");
     connect(octave_, &ClickableLabel::clicked, this, &StatusStrip::octaveClicked);
     octave_->installEventFilter(this);
+    record_    = makeSegment("● REC", Theme::C::vuRed, this);
+    record_->setToolTip("Pattern-editor record mode. Red = ON: note / hex keys "
+                        "write into the pattern at the cursor. Dim = OFF: keys "
+                        "audition (jam) without modifying the song. Toggle: Space.");
     instr_     = makeSegment("Ins 01", Theme::C::instr, this);
     sid_       = makeClickable("6581", Theme::C::highlight, this);
     sid_->setToolTip("SID1 chip model. Click to toggle 6581 ↔ 8580. Also: Shift+F8.");
@@ -130,6 +135,8 @@ StatusStrip::StatusStrip(QWidget *parent) : QFrame(parent) {
     layout->addWidget(tempo_);
     addSep();
     layout->addWidget(octave_);
+    addSep();
+    layout->addWidget(record_);
     addSep();
     layout->addWidget(instr_);
     addSep();
@@ -195,6 +202,10 @@ void StatusStrip::refresh() {
                    : (keypreset == 2) ? "Janko"
                                       : "Protracker";
     octave_->setText(QString("Oct %1 · %2").arg(epoctave).arg(kp));
+    record_->setText(recordmode ? "● REC" : "○ rec");
+    QPalette rp = record_->palette();
+    rp.setColor(QPalette::WindowText, recordmode ? Theme::C::vuRed : Theme::C::textDim);
+    record_->setPalette(rp);
     instr_->setText(QString("Ins %1").arg(einum, 2, 16, QLatin1Char('0')).toUpper());
     sid_->setText(QString("SID1 %1").arg(sidmodel ? "8580" : "6581"));
     if (stereo_mode) {

@@ -145,6 +145,20 @@ gt2reloc/fast:
 .PHONY : gt2reloc/fast
 
 # Convenience name for target.
+qt/CMakeFiles/sid2sng.dir/rule:
+	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 qt/CMakeFiles/sid2sng.dir/rule
+.PHONY : qt/CMakeFiles/sid2sng.dir/rule
+
+# Convenience name for target.
+sid2sng: qt/CMakeFiles/sid2sng.dir/rule
+.PHONY : sid2sng
+
+# fast build rule for target.
+sid2sng/fast:
+	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f qt/CMakeFiles/sid2sng.dir/build.make qt/CMakeFiles/sid2sng.dir/build
+.PHONY : sid2sng/fast
+
+# Convenience name for target.
 qt/CMakeFiles/goattrk2-qt_autogen_timestamp_deps.dir/rule:
 	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 qt/CMakeFiles/goattrk2-qt_autogen_timestamp_deps.dir/rule
 .PHONY : qt/CMakeFiles/goattrk2-qt_autogen_timestamp_deps.dir/rule
@@ -199,6 +213,58 @@ gt2reloc_autogen: qt/CMakeFiles/gt2reloc_autogen.dir/rule
 gt2reloc_autogen/fast:
 	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f qt/CMakeFiles/gt2reloc_autogen.dir/build.make qt/CMakeFiles/gt2reloc_autogen.dir/build
 .PHONY : gt2reloc_autogen/fast
+
+# Convenience name for target.
+qt/CMakeFiles/sid2sng_autogen_timestamp_deps.dir/rule:
+	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 qt/CMakeFiles/sid2sng_autogen_timestamp_deps.dir/rule
+.PHONY : qt/CMakeFiles/sid2sng_autogen_timestamp_deps.dir/rule
+
+# Convenience name for target.
+sid2sng_autogen_timestamp_deps: qt/CMakeFiles/sid2sng_autogen_timestamp_deps.dir/rule
+.PHONY : sid2sng_autogen_timestamp_deps
+
+# fast build rule for target.
+sid2sng_autogen_timestamp_deps/fast:
+	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f qt/CMakeFiles/sid2sng_autogen_timestamp_deps.dir/build.make qt/CMakeFiles/sid2sng_autogen_timestamp_deps.dir/build
+.PHONY : sid2sng_autogen_timestamp_deps/fast
+
+# Convenience name for target.
+qt/CMakeFiles/sid2sng_autogen.dir/rule:
+	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 qt/CMakeFiles/sid2sng_autogen.dir/rule
+.PHONY : qt/CMakeFiles/sid2sng_autogen.dir/rule
+
+# Convenience name for target.
+sid2sng_autogen: qt/CMakeFiles/sid2sng_autogen.dir/rule
+.PHONY : sid2sng_autogen
+
+# fast build rule for target.
+sid2sng_autogen/fast:
+	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f qt/CMakeFiles/sid2sng_autogen.dir/build.make qt/CMakeFiles/sid2sng_autogen.dir/build
+.PHONY : sid2sng_autogen/fast
+
+CoreEvents.o: CoreEvents.cpp.o
+.PHONY : CoreEvents.o
+
+# target to build an object file
+CoreEvents.cpp.o:
+	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f qt/CMakeFiles/goattrk2-qt.dir/build.make qt/CMakeFiles/goattrk2-qt.dir/CoreEvents.cpp.o
+.PHONY : CoreEvents.cpp.o
+
+CoreEvents.i: CoreEvents.cpp.i
+.PHONY : CoreEvents.i
+
+# target to preprocess a source file
+CoreEvents.cpp.i:
+	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f qt/CMakeFiles/goattrk2-qt.dir/build.make qt/CMakeFiles/goattrk2-qt.dir/CoreEvents.cpp.i
+.PHONY : CoreEvents.cpp.i
+
+CoreEvents.s: CoreEvents.cpp.s
+.PHONY : CoreEvents.s
+
+# target to generate assembly for a file
+CoreEvents.cpp.s:
+	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f qt/CMakeFiles/goattrk2-qt.dir/build.make qt/CMakeFiles/goattrk2-qt.dir/CoreEvents.cpp.s
+.PHONY : CoreEvents.cpp.s
 
 InstrColors.o: InstrColors.cpp.o
 .PHONY : InstrColors.o
@@ -535,6 +601,54 @@ UndoStack.s: UndoStack.cpp.s
 UndoStack.cpp.s:
 	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f qt/CMakeFiles/goattrk2-qt.dir/build.make qt/CMakeFiles/goattrk2-qt.dir/UndoStack.cpp.s
 .PHONY : UndoStack.cpp.s
+
+__/ext/sid2sng/gsong.o: __/ext/sid2sng/gsong.cpp.o
+.PHONY : __/ext/sid2sng/gsong.o
+
+# target to build an object file
+__/ext/sid2sng/gsong.cpp.o:
+	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f qt/CMakeFiles/sid2sng.dir/build.make qt/CMakeFiles/sid2sng.dir/__/ext/sid2sng/gsong.cpp.o
+.PHONY : __/ext/sid2sng/gsong.cpp.o
+
+__/ext/sid2sng/gsong.i: __/ext/sid2sng/gsong.cpp.i
+.PHONY : __/ext/sid2sng/gsong.i
+
+# target to preprocess a source file
+__/ext/sid2sng/gsong.cpp.i:
+	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f qt/CMakeFiles/sid2sng.dir/build.make qt/CMakeFiles/sid2sng.dir/__/ext/sid2sng/gsong.cpp.i
+.PHONY : __/ext/sid2sng/gsong.cpp.i
+
+__/ext/sid2sng/gsong.s: __/ext/sid2sng/gsong.cpp.s
+.PHONY : __/ext/sid2sng/gsong.s
+
+# target to generate assembly for a file
+__/ext/sid2sng/gsong.cpp.s:
+	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f qt/CMakeFiles/sid2sng.dir/build.make qt/CMakeFiles/sid2sng.dir/__/ext/sid2sng/gsong.cpp.s
+.PHONY : __/ext/sid2sng/gsong.cpp.s
+
+__/ext/sid2sng/main.o: __/ext/sid2sng/main.cpp.o
+.PHONY : __/ext/sid2sng/main.o
+
+# target to build an object file
+__/ext/sid2sng/main.cpp.o:
+	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f qt/CMakeFiles/sid2sng.dir/build.make qt/CMakeFiles/sid2sng.dir/__/ext/sid2sng/main.cpp.o
+.PHONY : __/ext/sid2sng/main.cpp.o
+
+__/ext/sid2sng/main.i: __/ext/sid2sng/main.cpp.i
+.PHONY : __/ext/sid2sng/main.i
+
+# target to preprocess a source file
+__/ext/sid2sng/main.cpp.i:
+	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f qt/CMakeFiles/sid2sng.dir/build.make qt/CMakeFiles/sid2sng.dir/__/ext/sid2sng/main.cpp.i
+.PHONY : __/ext/sid2sng/main.cpp.i
+
+__/ext/sid2sng/main.s: __/ext/sid2sng/main.cpp.s
+.PHONY : __/ext/sid2sng/main.s
+
+# target to generate assembly for a file
+__/ext/sid2sng/main.cpp.s:
+	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f qt/CMakeFiles/sid2sng.dir/build.make qt/CMakeFiles/sid2sng.dir/__/ext/sid2sng/main.cpp.s
+.PHONY : __/ext/sid2sng/main.cpp.s
 
 __/src/asm/asmtab.o: __/src/asm/asmtab.c.o
 .PHONY : __/src/asm/asmtab.o
@@ -2030,6 +2144,30 @@ qt_stubs.c.s:
 	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f qt/CMakeFiles/goattrk2-qt.dir/build.make qt/CMakeFiles/goattrk2-qt.dir/qt_stubs.c.s
 .PHONY : qt_stubs.c.s
 
+sid2sng_autogen/mocs_compilation.o: sid2sng_autogen/mocs_compilation.cpp.o
+.PHONY : sid2sng_autogen/mocs_compilation.o
+
+# target to build an object file
+sid2sng_autogen/mocs_compilation.cpp.o:
+	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f qt/CMakeFiles/sid2sng.dir/build.make qt/CMakeFiles/sid2sng.dir/sid2sng_autogen/mocs_compilation.cpp.o
+.PHONY : sid2sng_autogen/mocs_compilation.cpp.o
+
+sid2sng_autogen/mocs_compilation.i: sid2sng_autogen/mocs_compilation.cpp.i
+.PHONY : sid2sng_autogen/mocs_compilation.i
+
+# target to preprocess a source file
+sid2sng_autogen/mocs_compilation.cpp.i:
+	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f qt/CMakeFiles/sid2sng.dir/build.make qt/CMakeFiles/sid2sng.dir/sid2sng_autogen/mocs_compilation.cpp.i
+.PHONY : sid2sng_autogen/mocs_compilation.cpp.i
+
+sid2sng_autogen/mocs_compilation.s: sid2sng_autogen/mocs_compilation.cpp.s
+.PHONY : sid2sng_autogen/mocs_compilation.s
+
+# target to generate assembly for a file
+sid2sng_autogen/mocs_compilation.cpp.s:
+	cd /home/paul/work/c64/goattracker2/build && $(MAKE) $(MAKESILENT) -f qt/CMakeFiles/sid2sng.dir/build.make qt/CMakeFiles/sid2sng.dir/sid2sng_autogen/mocs_compilation.cpp.s
+.PHONY : sid2sng_autogen/mocs_compilation.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -2042,8 +2180,14 @@ help:
 	@echo "... goattrk2-qt_autogen_timestamp_deps"
 	@echo "... gt2reloc_autogen"
 	@echo "... gt2reloc_autogen_timestamp_deps"
+	@echo "... sid2sng_autogen"
+	@echo "... sid2sng_autogen_timestamp_deps"
 	@echo "... goattrk2-qt"
 	@echo "... gt2reloc"
+	@echo "... sid2sng"
+	@echo "... CoreEvents.o"
+	@echo "... CoreEvents.i"
+	@echo "... CoreEvents.s"
 	@echo "... InstrColors.o"
 	@echo "... InstrColors.i"
 	@echo "... InstrColors.s"
@@ -2086,6 +2230,12 @@ help:
 	@echo "... UndoStack.o"
 	@echo "... UndoStack.i"
 	@echo "... UndoStack.s"
+	@echo "... __/ext/sid2sng/gsong.o"
+	@echo "... __/ext/sid2sng/gsong.i"
+	@echo "... __/ext/sid2sng/gsong.s"
+	@echo "... __/ext/sid2sng/main.o"
+	@echo "... __/ext/sid2sng/main.i"
+	@echo "... __/ext/sid2sng/main.s"
 	@echo "... __/src/asm/asmtab.o"
 	@echo "... __/src/asm/asmtab.i"
 	@echo "... __/src/asm/asmtab.s"
@@ -2257,6 +2407,9 @@ help:
 	@echo "... qt_stubs.o"
 	@echo "... qt_stubs.i"
 	@echo "... qt_stubs.s"
+	@echo "... sid2sng_autogen/mocs_compilation.o"
+	@echo "... sid2sng_autogen/mocs_compilation.i"
+	@echo "... sid2sng_autogen/mocs_compilation.s"
 .PHONY : help
 
 

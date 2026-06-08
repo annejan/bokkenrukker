@@ -492,13 +492,11 @@ QJsonObject Rpc::cmdTick(const QJsonObject &c) {
 }
 
 QJsonObject Rpc::cmdPauseTimer() {
-    auto *t = mw_->findChild<QTimer*>();
-    if (t) t->stop();
+    mw_->pauseTimer();
     return {{"paused", true}};
 }
 QJsonObject Rpc::cmdResumeTimer() {
-    auto *t = mw_->findChild<QTimer*>();
-    if (t) t->start(20);
+    mw_->resumeTimer();
     return {{"resumed", true}};
 }
 

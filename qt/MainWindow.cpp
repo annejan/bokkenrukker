@@ -8,10 +8,17 @@
 #include "InstrumentQuickList.h"
 #include "StatusStrip.h"
 #include "UndoStack.h"
+#include "CoreEvents.h"
 #include <QUndoStack>
 
 #include <QDockWidget>
+#include <QApplication>
 #include <QFileDialog>
+#include <QMessageBox>
+#include <QHash>
+#include <QAbstractButton>
+#include <QProcess>
+#include <QDir>
 #include <QMenuBar>
 #include <QToolBar>
 #include <QAction>
@@ -108,12 +115,27 @@ void resetnotenames(void);
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     undoStack_ = new QUndoStack(this);
     undoStack_->setUndoLimit(64);
+
+    // Notification bridge: the audio thread emits transport / row / order-pos
+    // edges; queued connections deliver them on the GUI thread, so the views
+    // no longer poll chn[]/isplaying() every frame. Created BEFORE buildUi() so
+    // child views (OrderView, InstrumentQuickList, …) can connect to
+    // CoreEvents::instance() from their own constructors.
+    coreEvents_ = new CoreEvents(this);
+
     buildUi();
     QSettings s("goattracker2-qt", "goattracker2-qt");
     QByteArray sp = s.value("songpath").toString().toLocal8Bit();
     QByteArray ip = s.value("instrpath").toString().toLocal8Bit();
     if (!sp.isEmpty()) std::strncpy(songpath, sp.constData(), MAX_PATHNAME - 1);
     if (!ip.isEmpty()) std::strncpy(instrpath, ip.constData(), MAX_PATHNAME - 1);
+    connect(coreEvents_, &CoreEvents::transportChanged,
+            this, &MainWindow::onTransportChanged);
+    connect(coreEvents_, &CoreEvents::rowChanged,
+            this, &MainWindow::onPlayRowChanged);
+    connect(coreEvents_, &CoreEvents::orderPosChanged,
+            this, &MainWindow::onOrderPosChanged);
+
     timer_ = new QTimer(this);
     connect(timer_, &QTimer::timeout, this, &MainWindow::tick);
     // 25 Hz UI tick (40 ms). Halved from the previous 50 Hz to leave more
@@ -128,6 +150,9 @@ MainWindow::~MainWindow() {
     s.setValue("songpath",  QString::fromLocal8Bit(songpath));
     s.setValue("instrpath", QString::fromLocal8Bit(instrpath));
 }
+
+void MainWindow::pauseTimer()  { if (timer_) timer_->stop(); }
+void MainWindow::resumeTimer() { if (timer_) timer_->start(40); }
 
 void MainWindow::buildUi() {
     setWindowTitle("GoatTracker Qt");
@@ -502,6 +527,7 @@ void MainWindow::buildUi() {
     settingsMenu->addSeparator();
     auto *audioMenu = settingsMenu->addMenu("&Audio engine");
     auto *stereoA = audioMenu->addAction("Dual-SID / 6-channel mode");
+    stereoAction_ = stereoA;
     stereoA->setCheckable(true);
     stereoA->setChecked(stereo_mode != 0);
     stereoA->setToolTip("UNCHECKED = single SID, 3 channels (default mono).\n"
@@ -547,6 +573,12 @@ void MainWindow::buildUi() {
     auto *sidA = playMenu->addAction("Toggle SID &model (6581/8580)");
     sidA->setShortcut(Qt::SHIFT | Qt::Key_F8);
     connect(sidA, &QAction::triggered, this, &MainWindow::toggleSidModel);
+
+    auto *helpMenu = menuBar()->addMenu("&Help");
+    auto *aboutA = helpMenu->addAction("&About GoatTracker Qt…");
+    connect(aboutA, &QAction::triggered, this, &MainWindow::showAbout);
+    auto *aboutQtA = helpMenu->addAction("About &Qt…");
+    connect(aboutQtA, &QAction::triggered, [this]() { QMessageBox::aboutQt(this); });
 
     auto *tb = addToolBar("Transport");
     tb->setMovable(false);
@@ -669,8 +701,21 @@ void MainWindow::loadSongFile(const QString &path) {
     eschn = 0;
     for (int c = 0; c < MAX_CHN; c++) espos[c] = 0;
     loadsong();
-    qInfo("load: done patterns=%d instr=%d song_channels=%d",
-          highestusedpattern, highestusedinstr, song_channels);
+    // loadsong() set song_channels from the file (3 = mono, 6 = stereo/dual
+    // SID). Mirror that into the runtime stereo state and (re)build SID2 to
+    // match — still inside the AudioFence above, so the audio thread can't be
+    // mid-render while sid_init tears the SID down + rebuilds.
+    stereo_mode = (song_channels >= MAX_CHN) ? 1 : 0;
+    sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
+    // Keep the Settings ▸ Audio ▸ Dual-SID checkbox in sync with the loaded
+    // song. Block its signal so this doesn't re-enter toggleStereoMode (which
+    // would reseed channels + re-init the SID we just set up).
+    if (stereoAction_) {
+        QSignalBlocker block(stereoAction_);
+        stereoAction_->setChecked(stereo_mode != 0);
+    }
+    qInfo("load: done patterns=%d instr=%d song_channels=%d stereo=%d",
+          highestusedpattern, highestusedinstr, song_channels, stereo_mode);
     countpatternlengths();
     undoStack_->clear();   // loaded state starts a fresh history
     refreshAll();
@@ -681,9 +726,190 @@ void MainWindow::loadSongFile(const QString &path) {
 void MainWindow::openSong() {
     QString start = songpath[0] ? QString::fromLocal8Bit(songpath)
                                 : QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
-    QString fn = QFileDialog::getOpenFileName(this, "Open Song", start, "SNG (*.sng);;All (*.*)");
+    QString fn = QFileDialog::getOpenFileName(this, "Open Song", start,
+        "GoatTracker / SID (*.sng *.sid);;SNG (*.sng);;SID (*.sid);;All (*.*)");
     if (fn.isEmpty()) return;
+    if (fn.endsWith(".sid", Qt::CaseInsensitive)) {
+        loadSidFile(fn);
+        return;
+    }
     loadSongFile(fn);
+}
+
+void MainWindow::showAbout() {
+    QMessageBox box(this);
+    box.setWindowTitle("About GoatTracker Qt");
+    box.setTextFormat(Qt::RichText);
+    box.setIconPixmap(QPixmap());
+    box.setText(
+        "<h2>GoatTracker 2 — Qt edition</h2>"
+        "<p>Native Qt6 frontend for the Commodore 64 SID chip tracker.</p>");
+    box.setInformativeText(
+        "<p><b>Original GoatTracker authors</b></p>"
+        "<ul>"
+        "<li>Lasse Öörni — original editor + playroutine "
+        "(<a href='http://covertbitops.c64.org'>covertbitops.c64.org</a>)</li>"
+        "<li>Táli Sándor — HardSID 4U support</li>"
+        "<li>Antonio Vera — GoatTracker icon</li>"
+        "<li>Simon Bennett — command quick reference</li>"
+        "<li>Patches by Stefan A. Haubenthal, Valerio Cannone, "
+        "Raine M. Ekman, Groepaz, drfiemost, Tero Lindeman, "
+        "Henrik Paulini</li>"
+        "<li>Microtonal support by Birgit Jauernig</li>"
+        "</ul>"
+
+        "<p><b>SID emulation</b></p>"
+        "<ul>"
+        "<li>Dag Lem — original reSID engine</li>"
+        "<li>Antti Lankila — reSID-fp nonlinear filter</li>"
+        "<li>Leandro Nini et al. — libresidfp (vendored under src/residfp/)</li>"
+        "</ul>"
+
+        "<p><b>Tools</b></p>"
+        "<ul>"
+        "<li>Magnus Lind — 6510 crossassembler from Exomizer 2</li>"
+        "<li>sasq64 — sid2sng (vendored under ext/sid2sng/), used to "
+        "load GoatTracker-generated .sid files back into the editor "
+        "(<a href='https://github.com/sasq64/sid2sng'>github.com/sasq64/sid2sng</a>)</li>"
+        "</ul>"
+
+        "<p><b>Audio / GUI stack</b></p>"
+        "<ul>"
+        "<li>PortAudio — cross-platform low-latency audio</li>"
+        "<li>Qt 6 — GUI toolkit</li>"
+        "<li>SDL 1.2 — kept for the BME helpers used by the engine</li>"
+        "</ul>"
+
+        "<p><b>Qt frontend + integrations</b></p>"
+        "<ul>"
+        "<li><b>Paul Honig</b> — original idea for the Qt frontend, "
+        "ongoing maintenance, design direction, and prompting.</li>"
+        "<li>Qt6 port, libresidfp adaptation, dual-SID runtime toggle, "
+        "microtonal backport, Janko / DMC / Protracker keypreset, JSON-RPC, "
+        "instrument-colour palette, ADSR drag handles, pointer preview, "
+        "sid2sng integration, status-strip widgets, Order map dock — by "
+        "Claude (Anthropic) Opus 4.7 in collaboration with Paul.</li>"
+        "</ul>"
+
+        "<p><b>License</b> — GNU General Public License v2 or later. "
+        "See <code>COPYING</code>.</p>"
+        "<p>Covert BitOps homepage: "
+        "<a href='http://covertbitops.c64.org'>covertbitops.c64.org</a></p>");
+    box.setStandardButtons(QMessageBox::Ok);
+    box.exec();
+}
+
+// SID files generated by GoatTracker can be converted back to .sng using
+// the bundled sid2sng tool. Runs it as a subprocess, points at a temp
+// file, then funnels through loadSongFile so the rest of the load path
+// (AudioFence, cursor reset, undoStack clear, refreshAll) is untouched.
+// On failure shows a dialog with the tool's stderr + a small retry UI
+// for the well-known option flags (-fixedparams, -nopulse, -nofilter,
+// -noinstrvib, -nowavedelay) that the sid2sng README documents.
+void MainWindow::loadSidFile(const QString &path, const QStringList &extraOpts) {
+    QStringList candidates = {
+        QCoreApplication::applicationDirPath() + "/sid2sng",
+        QCoreApplication::applicationDirPath() + "/qt/sid2sng",
+        QCoreApplication::applicationDirPath() + "/../qt/sid2sng",
+        "sid2sng"
+    };
+    QString tool;
+    for (const QString &c : candidates)
+        if (QFile::exists(c)) { tool = c; break; }
+    if (tool.isEmpty()) {
+        QMessageBox::warning(this, "Cannot open .sid",
+            "sid2sng binary not found. Tried:\n  " + candidates.join("\n  "));
+        return;
+    }
+
+    QString tmp = QDir::tempPath() + "/" +
+        QFileInfo(path).completeBaseName() + ".sng";
+
+    // Build the list of flag combinations to try, ordered by popcount so
+    // the cheapest fix lands first. The user may have passed a specific
+    // combination via extraOpts — try that first.
+    const QStringList knownFlags = {"-fixedparams", "-nopulse", "-nofilter",
+                                    "-noinstrvib", "-nowavedelay"};
+    QVector<QStringList> combos;
+    if (!extraOpts.isEmpty()) combos.append(extraOpts);
+    // Always try plain first.
+    if (!combos.contains(QStringList{})) combos.prepend(QStringList{});
+
+    auto popcount = [&](unsigned m) {
+        unsigned c = 0; while (m) { c += m & 1; m >>= 1; } return c;
+    };
+    // Enumerate every subset of knownFlags ordered by popcount asc.
+    QVector<QStringList> allSubsets;
+    for (unsigned mask = 0; mask < (1u << knownFlags.size()); mask++) {
+        QStringList combo;
+        for (int i = 0; i < knownFlags.size(); i++)
+            if (mask & (1u << i)) combo << knownFlags[i];
+        allSubsets.append(combo);
+    }
+    std::sort(allSubsets.begin(), allSubsets.end(),
+              [&](const QStringList &a, const QStringList &b) {
+                  if (a.size() != b.size()) return a.size() < b.size();
+                  return a.join(' ') < b.join(' ');
+              });
+    for (const QStringList &c : allSubsets)
+        if (!combos.contains(c)) combos.append(c);
+
+    statusStrip_->showMessage(
+        QString("Converting %1 — trying sid2sng option combinations…")
+            .arg(QFileInfo(path).fileName()), 0);
+    QApplication::processEvents();
+
+    QString lastOut;
+    int     lastExit = 0;
+    QStringList lastArgs;
+    for (const QStringList &flags : combos) {
+        // Each retry should overwrite the tmp file; remove anything left
+        // by a previous half-baked attempt so the post-run existence
+        // check actually means 'this run succeeded'.
+        QFile::remove(tmp);
+
+        QStringList args = flags;
+        args << QFileInfo(path).absoluteFilePath() << tmp;
+        QProcess proc;
+        proc.setProcessChannelMode(QProcess::MergedChannels);
+        proc.start(tool, args);
+        if (!proc.waitForFinished(5000)) {
+            proc.kill();
+            lastOut  = "(timed out)";
+            lastExit = -1;
+            lastArgs = args;
+            continue;
+        }
+        lastOut  = QString::fromLocal8Bit(proc.readAll());
+        lastExit = proc.exitCode();
+        lastArgs = args;
+        if (lastExit == 0 && QFile::exists(tmp)) {
+            loadSongFile(tmp);
+            statusStrip_->showMessage(
+                QString("Loaded from .sid (sid2sng%1): %2")
+                    .arg(flags.isEmpty() ? "" : " " + flags.join(" "))
+                    .arg(QFileInfo(path).fileName()));
+            return;
+        }
+    }
+
+    // Every combination failed — show the dialog with the last attempt's
+    // output. The retry buttons are still here for the case the user
+    // wants to force a specific flag set anyway (e.g. for a known-good
+    // chain they've used before).
+    QMessageBox box(this);
+    box.setIcon(QMessageBox::Warning);
+    box.setWindowTitle("sid2sng conversion failed");
+    box.setText(QString("sid2sng could not parse %1 — every option "
+                        "combination was tried.")
+                .arg(QFileInfo(path).fileName()));
+    QString tail = lastOut;
+    if (tail.size() > 600) tail = tail.right(600);
+    box.setDetailedText(QString("Last exit: %1\nLast args: %2\n\n--- output ---\n%3")
+                        .arg(lastExit).arg(lastArgs.join(" ")).arg(tail));
+    box.setStandardButtons(QMessageBox::Ok);
+    box.exec();
+    statusStrip_->showMessage("SID load failed.");
 }
 
 // Append a second song's patterns / orderlists / instruments / tables onto
@@ -960,8 +1186,23 @@ void MainWindow::muteCurrentChannel() {
     mutechannel(epchn);
 }
 
-void MainWindow::prevMultiplierSlot() { prevmultiplier(); refreshAll(); }
-void MainWindow::nextMultiplierSlot() { nextmultiplier(); refreshAll(); }
+// Adjust the speed multiplier with sid_init (fenced), like cycleMultiplier —
+// NOT via qt_stubs' prevmultiplier/nextmultiplier, which call the full
+// sound_init() and would spawn the second (SDL) audio backend + corrupt the
+// heap. sid_init re-inits the SID for the new rate without touching the
+// audio device.
+void MainWindow::prevMultiplierSlot() {
+    AudioFence fence;
+    if (multiplier > 0) multiplier--;
+    sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
+    refreshAll();
+}
+void MainWindow::nextMultiplierSlot() {
+    AudioFence fence;
+    if (multiplier < 16) multiplier++;
+    sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
+    refreshAll();
+}
 void MainWindow::toggleStereoMode(bool on) {
     AudioFence fence;
     stereo_mode = on ? 1 : 0;
@@ -988,11 +1229,16 @@ void MainWindow::toggleStereoMode(bool on) {
 }
 
 void MainWindow::toggleSid2Model() {
+    // Rebuild ONLY the SID (sid_init), fenced, exactly like toggleSidModel /
+    // toggleStereoMode. The previous sound_init() ran the full BME snd_init —
+    // which opens a SECOND audio backend (the SDL mixer thread, SDLAudioP1)
+    // and reallocs channel/mixer buffers — racing PaAudio and corrupting the
+    // heap ("malloc(): corrupted top size") / crashing in the SID. sid_init
+    // already applies sid2model to SID2, so the full re-init was never needed.
+    AudioFence fence;
     sid2model ^= 1;
-    if (stereo_mode) {
-        sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
-                   catweasel, interpolate, customclockrate);
-    }
+    if (stereo_mode)
+        sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
     statusStrip_->showMessage(sid2model ? "SID2 → 8580" : "SID2 → 6581");
     refreshAll();
 }
@@ -1059,24 +1305,34 @@ QWidget *MainWindow::activeEditorWidget() const {
 }
 
 void MainWindow::tick() {
-    // Audio wins: when playback is running, drop the heaviest UI work
-    // (pattern repaint + order map repaint) to every other tick. The scope
-    // strip still pushes per tick so the meter stays smooth, but the
-    // pattern grid + order map repaint at ~12 Hz instead of 25 Hz when
-    // notes are flying — keeps the audio thread out of contention.
+    // Turn any playback-state edges the audio thread recorded into Qt signals,
+    // emitted here on the GUI thread (the audio thread only bumps lock-free
+    // counters — it never emits, to stay realtime-safe). Cheap: 3 atomic loads.
+    if (coreEvents_) coreEvents_->deliver();
+
+    // VU / scope meter is a continuous signal — keep sampling it on the timer.
+    // tickScope() short-circuits when the level hasn't changed, so an idle SID
+    // costs nothing. (Must keep running even when stopped so jam / test notes
+    // still show on the meter.)
     pattern_->tickScope();
-    const bool playing = isplaying();
-    static int playSkip = 0;
-    bool heavy = !playing || ((++playSkip & 1) == 0);
-    if (heavy) {
-        if (stack_->currentIndex() == EDIT_PATTERN) pattern_->refresh();
-        if (playing) orderMap_->refresh();
-    }
+
+    // Playback-driven repaints — follow-play cursor, order map, the Pos/Pause
+    // label — are now event-driven via CoreEvents (onPlayRowChanged /
+    // onOrderPosChanged / onTransportChanged). The timer only repaints the
+    // pattern grid while STOPPED, so editor edits + cursor moves stay
+    // responsive without a playback in progress.
+    if (!isplaying() && stack_->currentIndex() == EDIT_PATTERN)
+        pattern_->refresh();
+
     statusStrip_->refresh();
-    // Re-label the Pos toolbar button between ▶ Pos and ⏸ Pause as transport
-    // state changes, so the button always shows the action it will perform.
+}
+
+// --- CoreEvents notification handlers (GUI thread, queued from audio) -------
+
+void MainWindow::onTransportChanged(bool playing) {
+    // Relabel the Pos toolbar button so it always shows the action it performs.
     if (playPosAction_) {
-        const QString desired = isplaying() ? "⏸ Pause" : "▶ Pos";
+        const QString desired = playing ? "⏸ Pause" : "▶ Pos";
         const QList<QObject*> objs = playPosAction_->associatedObjects();
         for (QObject *o : objs) {
             if (auto *btn = qobject_cast<QToolButton*>(o)) {
@@ -1084,6 +1340,18 @@ void MainWindow::tick() {
             }
         }
     }
+    // Repaint once on the edge so the starting / final position and the
+    // play-row highlight (or its clearing on stop) show immediately.
+    if (stack_->currentIndex() == EDIT_PATTERN) pattern_->refresh();
+    if (orderMap_) orderMap_->refresh();
+}
+
+void MainWindow::onPlayRowChanged() {
+    if (stack_->currentIndex() == EDIT_PATTERN) pattern_->refresh();
+}
+
+void MainWindow::onOrderPosChanged() {
+    if (orderMap_) orderMap_->refresh();
 }
 
 QByteArray MainWindow::beginEdit() {

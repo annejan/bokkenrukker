@@ -94,6 +94,7 @@ set(QT_SRC
     UndoStack.cpp
     RpcServer.cpp
     PaAudio.cpp
+    CoreEvents.cpp
     InstrColors.cpp
     Log.cpp
     qt_globals.c
@@ -219,3 +220,18 @@ target_link_libraries(gt2reloc PRIVATE
     ${JACK_LIBRARIES}
     m pthread
 )
+
+# ---------------------------------------------------------------------------
+# sid2sng — convert GoatTracker-generated .sid files back to .sng so the
+# Qt frontend can open them. Vendored copy of github.com/sasq64/sid2sng
+# under ext/sid2sng/. Standalone CLI; MainWindow runs it via QProcess
+# when the user picks a .sid in the Open Song dialog.
+# ---------------------------------------------------------------------------
+set(SID2SNG_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../ext/sid2sng)
+add_executable(sid2sng
+    ${SID2SNG_DIR}/main.cpp
+    ${SID2SNG_DIR}/gsong.cpp
+)
+target_include_directories(sid2sng PRIVATE ${SID2SNG_DIR})
+target_compile_features(sid2sng PRIVATE cxx_std_17)
+target_link_libraries(sid2sng PRIVATE stdc++fs)

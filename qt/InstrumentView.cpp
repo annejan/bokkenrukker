@@ -38,6 +38,10 @@ extern unsigned char ltable[MAX_TABLES][MAX_TABLELEN];
 extern unsigned char rtable[MAX_TABLES][MAX_TABLELEN];
 }
 
+// Defined further down beside markDirty; forward-declared so refresh()
+// (above markDirty in this TU) can call it on the not-dirty path.
+static void clearDirtyChrome(class QPushButton *b);
+
 // ---------------------------------------------------------------------------
 // ADSR envelope preview widget
 // ---------------------------------------------------------------------------

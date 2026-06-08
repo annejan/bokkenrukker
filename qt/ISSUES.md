@@ -228,17 +228,30 @@ the enabling infrastructure every other item depends on.
         delivered queued — slots run on the GUI thread, no widget touched from
         audio. instrTriggered + cursor/recordmode notifications deferred to the
         phase-2 consumers that need them.)*
-- [ ] **1. Main UI tick.** [MainWindow.cpp:117-123](MainWindow.cpp#L117-L123)
+- [x] **1. Main UI tick.** [MainWindow.cpp:117-123](MainWindow.cpp#L117-L123)
       40 ms (25 Hz) `timer_` -> [MainWindow::tick()](MainWindow.cpp#L1061) drives
       every view refresh unconditionally. Master poll. Decompose into the items
       below; keep a timer only for true meters.
-- [ ] **2. Pattern follow-play cursor / row highlight.**
+      *(tick() no longer polls playback state. It now only: samples the scope
+        meter (item 7), repaints the pattern grid while STOPPED so editing stays
+        responsive, and refreshes the status strip. All playback-driven repaints
+        moved to CoreEvents handlers — see items 2/3 + onOrderPosChanged for the
+        order mini-map. Timer stays for the meter + idle-editor repaint.)*
+- [x] **2. Pattern follow-play cursor / row highlight.**
       [MainWindow.cpp:1068](MainWindow.cpp#L1068) `pattern_->refresh()` +
       `tickScope()` poll `chn[].pattptr` / `eppos` each tick. Notify on row
       advance and on cursor/selection move.
-- [ ] **3. Transport button relabel.**
+      *(CoreEvents::rowChanged -> MainWindow::onPlayRowChanged() repaints the
+        pattern grid exactly when the play row advances, instead of the old
+        ~12 Hz every-other-tick poll during playback. Editor cursor/selection
+        moves while STOPPED still go through the timer repaint in tick().)*
+- [x] **3. Transport button relabel.**
       [MainWindow.cpp:1078](MainWindow.cpp#L1078) polls `isplaying()` every tick
       to flip the Pos/Pause button text. Notify on transport state change.
+      *(CoreEvents::transportChanged(bool) -> MainWindow::onTransportChanged()
+        relabels the Pos/Pause button on the edge only, and repaints the pattern
+        + order map once so start/stop position + play-row highlight sync
+        immediately.)*
 - [ ] **4. Order view play cursor.**
       [OrderView.cpp:330-334](OrderView.cpp#L330-L334) 33 ms `playRefresh_`
       repaints the order viewport from `chn[].songptr`. Notify on
@@ -253,10 +266,15 @@ the enabling infrastructure every other item depends on.
       level. **Sampling OK** — continuous signal; keep a timer but make it run
       only while a note sounds / the editor is visible (drive start/stop from a
       transport notification).
-- [ ] **7. Scope / VU strip.**
+- [x] **7. Scope / VU strip.**
       [MainWindow.cpp:1068](MainWindow.cpp#L1068) `pattern_->tickScope()` pushes
       the scope meter per tick. **Sampling OK** — continuous; keep but gate on
       transport-active notification so it idles when stopped.
+      *(Kept as timer sampling in tick() — intentionally NOT gated on transport,
+        because jam / test notes produce audio while stopped and must still show
+        on the meter. tickScope() already short-circuits redraws when the level
+        is unchanged, so an idle SID costs nothing. Closed as "sampling is the
+        correct model here".)*
 - [ ] **8. JACK MIDI input poll.**
       [bme_snd.c:80-113](../src/bme/bme_snd.c#L80-L113) polls
       `jack_midi_get_event_count()` inside the JACK process callback. Superseded

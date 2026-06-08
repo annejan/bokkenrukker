@@ -8,6 +8,7 @@
 #include "InstrumentQuickList.h"
 #include "StatusStrip.h"
 #include "UndoStack.h"
+#include "CoreEvents.h"
 #include <QUndoStack>
 
 #include <QDockWidget>
@@ -114,6 +115,17 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     QByteArray ip = s.value("instrpath").toString().toLocal8Bit();
     if (!sp.isEmpty()) std::strncpy(songpath, sp.constData(), MAX_PATHNAME - 1);
     if (!ip.isEmpty()) std::strncpy(instrpath, ip.constData(), MAX_PATHNAME - 1);
+    // Notification bridge: the audio thread emits transport / row / order-pos
+    // edges; these queued connections deliver them on the GUI thread, so the
+    // tick below no longer has to poll chn[]/isplaying() every frame.
+    coreEvents_ = new CoreEvents(this);
+    connect(coreEvents_, &CoreEvents::transportChanged,
+            this, &MainWindow::onTransportChanged);
+    connect(coreEvents_, &CoreEvents::rowChanged,
+            this, &MainWindow::onPlayRowChanged);
+    connect(coreEvents_, &CoreEvents::orderPosChanged,
+            this, &MainWindow::onOrderPosChanged);
+
     timer_ = new QTimer(this);
     connect(timer_, &QTimer::timeout, this, &MainWindow::tick);
     // 25 Hz UI tick (40 ms). Halved from the previous 50 Hz to leave more
@@ -1059,24 +1071,29 @@ QWidget *MainWindow::activeEditorWidget() const {
 }
 
 void MainWindow::tick() {
-    // Audio wins: when playback is running, drop the heaviest UI work
-    // (pattern repaint + order map repaint) to every other tick. The scope
-    // strip still pushes per tick so the meter stays smooth, but the
-    // pattern grid + order map repaint at ~12 Hz instead of 25 Hz when
-    // notes are flying — keeps the audio thread out of contention.
+    // VU / scope meter is a continuous signal — keep sampling it on the timer.
+    // tickScope() short-circuits when the level hasn't changed, so an idle SID
+    // costs nothing. (Must keep running even when stopped so jam / test notes
+    // still show on the meter.)
     pattern_->tickScope();
-    const bool playing = isplaying();
-    static int playSkip = 0;
-    bool heavy = !playing || ((++playSkip & 1) == 0);
-    if (heavy) {
-        if (stack_->currentIndex() == EDIT_PATTERN) pattern_->refresh();
-        if (playing) orderMap_->refresh();
-    }
+
+    // Playback-driven repaints — follow-play cursor, order map, the Pos/Pause
+    // label — are now event-driven via CoreEvents (onPlayRowChanged /
+    // onOrderPosChanged / onTransportChanged). The timer only repaints the
+    // pattern grid while STOPPED, so editor edits + cursor moves stay
+    // responsive without a playback in progress.
+    if (!isplaying() && stack_->currentIndex() == EDIT_PATTERN)
+        pattern_->refresh();
+
     statusStrip_->refresh();
-    // Re-label the Pos toolbar button between ▶ Pos and ⏸ Pause as transport
-    // state changes, so the button always shows the action it will perform.
+}
+
+// --- CoreEvents notification handlers (GUI thread, queued from audio) -------
+
+void MainWindow::onTransportChanged(bool playing) {
+    // Relabel the Pos toolbar button so it always shows the action it performs.
     if (playPosAction_) {
-        const QString desired = isplaying() ? "⏸ Pause" : "▶ Pos";
+        const QString desired = playing ? "⏸ Pause" : "▶ Pos";
         const QList<QObject*> objs = playPosAction_->associatedObjects();
         for (QObject *o : objs) {
             if (auto *btn = qobject_cast<QToolButton*>(o)) {
@@ -1084,6 +1101,18 @@ void MainWindow::tick() {
             }
         }
     }
+    // Repaint once on the edge so the starting / final position and the
+    // play-row highlight (or its clearing on stop) show immediately.
+    if (stack_->currentIndex() == EDIT_PATTERN) pattern_->refresh();
+    if (orderMap_) orderMap_->refresh();
+}
+
+void MainWindow::onPlayRowChanged() {
+    if (stack_->currentIndex() == EDIT_PATTERN) pattern_->refresh();
+}
+
+void MainWindow::onOrderPosChanged() {
+    if (orderMap_) orderMap_->refresh();
 }
 
 QByteArray MainWindow::beginEdit() {

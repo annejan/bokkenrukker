@@ -16,6 +16,7 @@ class QLabel;
 class QTimer;
 class QDockWidget;
 class QUndoStack;
+class CoreEvents;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -57,6 +58,12 @@ private slots:
     void cycleEditMode(bool backwards = false);
     void tick();
 
+    // CoreEvents (audio-thread) notification handlers — replace per-frame
+    // polling. Run on the GUI thread via queued connections.
+    void onTransportChanged(bool playing); // relabel Pos/Pause + sync views
+    void onPlayRowChanged();               // follow-play cursor / row highlight
+    void onOrderPosChanged();              // order map follows the song pointer
+
 private slots:
     void undo();
     void redo();
@@ -97,6 +104,7 @@ private:
     QLabel      *patternBarOct_ = nullptr;    // only visible on Pattern
     QLabel      *patternBarLen_ = nullptr;    // editor.
     QTimer *timer_ = nullptr;
+    CoreEvents *coreEvents_ = nullptr;
 
     void buildUi();
     void refreshAll();

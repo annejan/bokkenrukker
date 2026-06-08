@@ -551,7 +551,12 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     applyBtn_ = new QPushButton("Apply", this);
     applyBtn_->setToolTip("Commit the current edits as the new revert baseline. "
                           "After Apply, the Reset button will roll back to "
-                          "THIS state.");
+                          "THIS state. The button highlights amber whenever "
+                          "the instrument has unsaved changes.");
+    // Default ('clean') stylesheet — Qt's normal button look. Toggled to a
+    // bright amber pill by markDirty() / cleared on Apply / Reset / slot
+    // switch so the user can see at a glance whether the edits are live.
+    applyBtn_->setStyleSheet("");
     resetBtn_ = new QPushButton("Reset", this);
     resetBtn_->setToolTip("Roll the instrument back to the state at the last "
                           "Apply (or to the state it was in when this slot was "
@@ -834,6 +839,7 @@ void InstrumentView::refresh() {
         dirty_ = false;
         if (applyBtn_) applyBtn_->setEnabled(false);
         if (resetBtn_) resetBtn_->setEnabled(false);
+        clearDirtyChrome(applyBtn_);
     }
     readFromGlobals();
     updating_ = false;
@@ -848,8 +854,21 @@ void InstrumentView::markDirty() {
         savedSlot_ = einum;
     }
     dirty_ = true;
-    if (applyBtn_) applyBtn_->setEnabled(true);
+    if (applyBtn_) {
+        applyBtn_->setEnabled(true);
+        applyBtn_->setText("Apply *");
+        applyBtn_->setStyleSheet(
+            "QPushButton { background:#E89B3C; color:#1A1A1A; "
+            "border:1px solid #FFD93D; font-weight:bold; padding:4px 12px; }"
+            "QPushButton:hover { background:#FFD93D; }");
+    }
     if (resetBtn_) resetBtn_->setEnabled(true);
+}
+
+static void clearDirtyChrome(QPushButton *b) {
+    if (!b) return;
+    b->setText("Apply");
+    b->setStyleSheet("");
 }
 
 void InstrumentView::onApplyEdits() {
@@ -859,6 +878,7 @@ void InstrumentView::onApplyEdits() {
     dirty_ = false;
     if (applyBtn_) applyBtn_->setEnabled(false);
     if (resetBtn_) resetBtn_->setEnabled(false);
+    clearDirtyChrome(applyBtn_);
     if (summary_) summary_->setText(QString("<i style='color:#A1C181'>"
                                             "Applied — current state is the "
                                             "new revert baseline.</i>"));
@@ -871,6 +891,7 @@ void InstrumentView::onResetEdits() {
     dirty_ = false;
     if (applyBtn_) applyBtn_->setEnabled(false);
     if (resetBtn_) resetBtn_->setEnabled(false);
+    clearDirtyChrome(applyBtn_);
     readFromGlobals();
     if (summary_) summary_->setText(QString("<i style='color:#FFD93D'>"
                                             "Reset — rolled back to the last "

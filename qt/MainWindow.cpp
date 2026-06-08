@@ -824,62 +824,91 @@ void MainWindow::loadSidFile(const QString &path, const QStringList &extraOpts) 
     QString tmp = QDir::tempPath() + "/" +
         QFileInfo(path).completeBaseName() + ".sng";
 
-    QStringList args = extraOpts;
-    args << QFileInfo(path).absoluteFilePath() << tmp;
+    // Build the list of flag combinations to try, ordered by popcount so
+    // the cheapest fix lands first. The user may have passed a specific
+    // combination via extraOpts — try that first.
+    const QStringList knownFlags = {"-fixedparams", "-nopulse", "-nofilter",
+                                    "-noinstrvib", "-nowavedelay"};
+    QVector<QStringList> combos;
+    if (!extraOpts.isEmpty()) combos.append(extraOpts);
+    // Always try plain first.
+    if (!combos.contains(QStringList{})) combos.prepend(QStringList{});
 
-    QProcess proc;
-    proc.setProcessChannelMode(QProcess::MergedChannels);
-    proc.start(tool, args);
-    if (!proc.waitForFinished(15000)) {
-        QMessageBox::warning(this, "sid2sng timed out",
-            QString("sid2sng did not finish within 15 s.\nargs: %1")
-                .arg(args.join(" ")));
-        proc.kill();
-        return;
+    auto popcount = [&](unsigned m) {
+        unsigned c = 0; while (m) { c += m & 1; m >>= 1; } return c;
+    };
+    // Enumerate every subset of knownFlags ordered by popcount asc.
+    QVector<QStringList> allSubsets;
+    for (unsigned mask = 0; mask < (1u << knownFlags.size()); mask++) {
+        QStringList combo;
+        for (int i = 0; i < knownFlags.size(); i++)
+            if (mask & (1u << i)) combo << knownFlags[i];
+        allSubsets.append(combo);
     }
-    QString out = QString::fromLocal8Bit(proc.readAll());
-    if (proc.exitCode() != 0 || !QFile::exists(tmp)) {
-        // Retry dialog with the option toggles the README documents.
-        QMessageBox box(this);
-        box.setIcon(QMessageBox::Warning);
-        box.setWindowTitle("sid2sng conversion failed");
-        box.setText(QString("sid2sng could not parse %1.")
-                    .arg(QFileInfo(path).fileName()));
-        QString tail = out;
-        if (tail.size() > 600) tail = tail.right(600);
-        box.setDetailedText(QString("exit %1\nargs: %2\n\n--- tool output ---\n%3")
-                            .arg(proc.exitCode()).arg(args.join(" ")).arg(tail));
-        const QStringList flags = {"-fixedparams", "-nopulse", "-nofilter",
-                                   "-noinstrvib", "-nowavedelay"};
-        QString info = "Try a retry with one of the option flags the SID was "
-                       "probably generated with:";
-        box.setInformativeText(info);
-        QHash<void*, QString> map;
-        for (const QString &f : flags) {
-            QPushButton *b = box.addButton("Retry " + f, QMessageBox::ActionRole);
-            map.insert(static_cast<void*>(b), f);
-        }
-        box.addButton(QMessageBox::Cancel);
-        box.exec();
-        void *clicked = static_cast<void*>(box.clickedButton());
-        if (clicked && map.contains(clicked)) {
-            QStringList nextOpts = extraOpts;
-            QString chosen = map.value(clicked);
-            if (!nextOpts.contains(chosen)) nextOpts << chosen;
-            loadSidFile(path, nextOpts);
-        }
-        return;
-    }
+    std::sort(allSubsets.begin(), allSubsets.end(),
+              [&](const QStringList &a, const QStringList &b) {
+                  if (a.size() != b.size()) return a.size() < b.size();
+                  return a.join(' ') < b.join(' ');
+              });
+    for (const QStringList &c : allSubsets)
+        if (!combos.contains(c)) combos.append(c);
 
-    // Conversion succeeded — load the intermediate .sng normally and let
-    // loadSongFile rename + remember it in songfilename. We deliberately
-    // leave the .sid path alone; the user can Save As later if they want
-    // a .sng on disk.
-    loadSongFile(tmp);
     statusStrip_->showMessage(
-        QString("Loaded from .sid (sid2sng%1): %2")
-            .arg(extraOpts.isEmpty() ? "" : " " + extraOpts.join(" "))
-            .arg(QFileInfo(path).fileName()));
+        QString("Converting %1 — trying sid2sng option combinations…")
+            .arg(QFileInfo(path).fileName()), 0);
+    QApplication::processEvents();
+
+    QString lastOut;
+    int     lastExit = 0;
+    QStringList lastArgs;
+    for (const QStringList &flags : combos) {
+        // Each retry should overwrite the tmp file; remove anything left
+        // by a previous half-baked attempt so the post-run existence
+        // check actually means 'this run succeeded'.
+        QFile::remove(tmp);
+
+        QStringList args = flags;
+        args << QFileInfo(path).absoluteFilePath() << tmp;
+        QProcess proc;
+        proc.setProcessChannelMode(QProcess::MergedChannels);
+        proc.start(tool, args);
+        if (!proc.waitForFinished(5000)) {
+            proc.kill();
+            lastOut  = "(timed out)";
+            lastExit = -1;
+            lastArgs = args;
+            continue;
+        }
+        lastOut  = QString::fromLocal8Bit(proc.readAll());
+        lastExit = proc.exitCode();
+        lastArgs = args;
+        if (lastExit == 0 && QFile::exists(tmp)) {
+            loadSongFile(tmp);
+            statusStrip_->showMessage(
+                QString("Loaded from .sid (sid2sng%1): %2")
+                    .arg(flags.isEmpty() ? "" : " " + flags.join(" "))
+                    .arg(QFileInfo(path).fileName()));
+            return;
+        }
+    }
+
+    // Every combination failed — show the dialog with the last attempt's
+    // output. The retry buttons are still here for the case the user
+    // wants to force a specific flag set anyway (e.g. for a known-good
+    // chain they've used before).
+    QMessageBox box(this);
+    box.setIcon(QMessageBox::Warning);
+    box.setWindowTitle("sid2sng conversion failed");
+    box.setText(QString("sid2sng could not parse %1 — every option "
+                        "combination was tried.")
+                .arg(QFileInfo(path).fileName()));
+    QString tail = lastOut;
+    if (tail.size() > 600) tail = tail.right(600);
+    box.setDetailedText(QString("Last exit: %1\nLast args: %2\n\n--- output ---\n%3")
+                        .arg(lastExit).arg(lastArgs.join(" ")).arg(tail));
+    box.setStandardButtons(QMessageBox::Ok);
+    box.exec();
+    statusStrip_->showMessage("SID load failed.");
 }
 
 // Append a second song's patterns / orderlists / instruments / tables onto

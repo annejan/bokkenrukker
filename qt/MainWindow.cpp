@@ -145,6 +145,9 @@ MainWindow::~MainWindow() {
     s.setValue("instrpath", QString::fromLocal8Bit(instrpath));
 }
 
+void MainWindow::pauseTimer()  { if (timer_) timer_->stop(); }
+void MainWindow::resumeTimer() { if (timer_) timer_->start(40); }
+
 void MainWindow::buildUi() {
     setWindowTitle("GoatTracker Qt");
     resize(1280, 800);

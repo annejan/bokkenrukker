@@ -304,8 +304,13 @@ the enabling infrastructure every other item depends on.
       thread. The RtMidi replacement must hop to the GUI thread the same way
       CoreEvents does (see [[audio-thread-no-qt]]). Delete this block when RtMidi
       lands.
-- [ ] **9. RPC timer control (low priority).**
+- [x] **9. RPC timer control (low priority).**
       [Rpc.cpp:492-498](Rpc.cpp#L492-L498) test harness starts/stops the main
       `QTimer` by `findChild<QTimer*>()`. Revisit once item 1 changes the tick's
       role; may need a stable handle instead of child lookup.
+      *(MainWindow now exposes pauseTimer() / resumeTimer() that act on timer_
+        directly; Rpc::cmdPauseTimer/cmdResumeTimer call those instead of
+        findChild<QTimer*>(), which was ambiguous now that child views own their
+        own QTimers. Resume restarts at the real 40 ms UI rate (was a magic
+        20 ms).)*
 - [ ] 

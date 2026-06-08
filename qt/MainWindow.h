@@ -34,6 +34,11 @@ public:
     // Exposed to the RPC layer so a test harness can drive time forward
     // deterministically instead of waiting on the 50 Hz QTimer.
     void tickOnce() { tick(); }
+    // Stop / restart the UI tick explicitly. The RPC harness uses these to
+    // freeze auto-ticking for deterministic stepping; addressing timer_
+    // directly avoids findChild<QTimer*>() picking up a child view's timer.
+    void pauseTimer();
+    void resumeTimer();
     QWidget *activeEditorWidget() const;
 
 private slots:

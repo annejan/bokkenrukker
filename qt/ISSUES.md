@@ -105,6 +105,7 @@
         view labels, status strip secondary text, placeholder /
         disabled palette) in one shot to match the legend brightness
         from commit 70ca50b.)*
+- [ ] When the program is idle it still uses 40% of a CPU core, something is polling, or some other bug is consuming excessive CPU cycles.
 
 ## Features
 
@@ -200,6 +201,13 @@
         submenu: device list (auto-open first / saved by name) + note
         mode. Retire JACK MIDI poll in bme_snd.c. Blocked on the
         polling->notification refactor below for the capture hook.)*
+- [x] Changing the second SID model (6581 <-> 8580) during playback crashed
+      ("pure virtual method called" / segfault) after a few toggles.
+      *(toggleSid2Model() rebuilt the libresidfp SID via sound_init() with NO
+        AudioFence, unlike every other re-init path — the PaAudio callback raced
+        the half-rebuilt SID2 object. Added AudioFence. Also fenced
+        prevMultiplierSlot/nextMultiplierSlot, which call sound_init() the same
+        unfenced way. Unrelated to the gsound.c #10 change.)*
 
 ## Polling -> Qt notification refactor
 

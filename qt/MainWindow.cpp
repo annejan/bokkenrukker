@@ -979,8 +979,10 @@ void MainWindow::muteCurrentChannel() {
     mutechannel(epchn);
 }
 
-void MainWindow::prevMultiplierSlot() { prevmultiplier(); refreshAll(); }
-void MainWindow::nextMultiplierSlot() { nextmultiplier(); refreshAll(); }
+// prevmultiplier/nextmultiplier (qt_stubs.c) call sound_init(), which rebuilds
+// the SID — fence it against the audio thread, same as every other re-init.
+void MainWindow::prevMultiplierSlot() { AudioFence fence; prevmultiplier(); refreshAll(); }
+void MainWindow::nextMultiplierSlot() { AudioFence fence; nextmultiplier(); refreshAll(); }
 void MainWindow::toggleStereoMode(bool on) {
     AudioFence fence;
     stereo_mode = on ? 1 : 0;
@@ -1007,6 +1009,11 @@ void MainWindow::toggleStereoMode(bool on) {
 }
 
 void MainWindow::toggleSid2Model() {
+    // Re-initialising rebuilds the libresidfp SID the audio thread is mid-clock
+    // on — must fence it like toggleSidModel/toggleStereoMode do, otherwise the
+    // PaAudio callback hits a half-rebuilt SID2 -> "pure virtual method called"
+    // / segfault. (This path was unfenced; that was the crash.)
+    AudioFence fence;
     sid2model ^= 1;
     if (stereo_mode) {
         sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,

@@ -521,6 +521,7 @@ void MainWindow::buildUi() {
     settingsMenu->addSeparator();
     auto *audioMenu = settingsMenu->addMenu("&Audio engine");
     auto *stereoA = audioMenu->addAction("Dual-SID / 6-channel mode");
+    stereoAction_ = stereoA;
     stereoA->setCheckable(true);
     stereoA->setChecked(stereo_mode != 0);
     stereoA->setToolTip("UNCHECKED = single SID, 3 channels (default mono).\n"
@@ -688,8 +689,21 @@ void MainWindow::loadSongFile(const QString &path) {
     eschn = 0;
     for (int c = 0; c < MAX_CHN; c++) espos[c] = 0;
     loadsong();
-    qInfo("load: done patterns=%d instr=%d song_channels=%d",
-          highestusedpattern, highestusedinstr, song_channels);
+    // loadsong() set song_channels from the file (3 = mono, 6 = stereo/dual
+    // SID). Mirror that into the runtime stereo state and (re)build SID2 to
+    // match — still inside the AudioFence above, so the audio thread can't be
+    // mid-render while sid_init tears the SID down + rebuilds.
+    stereo_mode = (song_channels >= MAX_CHN) ? 1 : 0;
+    sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
+    // Keep the Settings ▸ Audio ▸ Dual-SID checkbox in sync with the loaded
+    // song. Block its signal so this doesn't re-enter toggleStereoMode (which
+    // would reseed channels + re-init the SID we just set up).
+    if (stereoAction_) {
+        QSignalBlocker block(stereoAction_);
+        stereoAction_->setChecked(stereo_mode != 0);
+    }
+    qInfo("load: done patterns=%d instr=%d song_channels=%d stereo=%d",
+          highestusedpattern, highestusedinstr, song_channels, stereo_mode);
     countpatternlengths();
     undoStack_->clear();   // loaded state starts a fresh history
     refreshAll();

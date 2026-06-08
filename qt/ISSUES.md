@@ -115,6 +115,8 @@
         then it stops. Resumes instantly on the first gated note / play.
         Measured idle: 40% -> ~14% steady-state headless, and the residual is
         mostly PortAudio device servicing.)*
+- [ ]   Filter settings lost when player pauzed and continued, when the cursor is not moved during pauze and continue, the filters should stay applied.
+- [ ]   
 
 ## Features
 
@@ -133,6 +135,15 @@
       *(PatternView::event handles QEvent::ToolTip on the row-number column:
         shows row hex/decimal, beat / downbeat / step tag, pattern# + length.)*
 - [ ] Second SID not implemented, because audio mixing resulted in unacceptable audio quality, found out how to implement this correctly.
+      *(LOAD now works: ported gt2stereo's determinechannels() into loadsong —
+        detects mono (3ch) vs stereo/dual-SID (6ch) GTS5 by trial-reading all 6
+        orderlists and checking each ends with a valid 0xff endmark; mono files
+        fail on the 4th channel and fall back to 3. loadSongFile then sets
+        stereo_mode + re-inits SID2 (fenced) and syncs the Dual-SID menu check.
+        Verified: sleepwalk.sng -> 6ch/stereo, mono examples unchanged,
+        stereo<->mono reload clean. STILL TODO: the audio OUTPUT itself — true
+        stereo + per-SID pan + mono option (design agreed, not yet built); the
+        current path still mono-sums SID1+SID2 in sid_fillbuffer.)*
 - [ ] Add option to select mono or stereo mode for dual sid, keeping things simple for the user.
 - [ ] Add support for external keyboards or samplers via USB, to enable record mode via these devices? (Popular options you can suggest?)
 - [x] Clear way to set / read the octave in the UI for record mode in the pattern editor

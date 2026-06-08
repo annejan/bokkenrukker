@@ -94,6 +94,7 @@ private slots:
 private:
     QUndoStack *undoStack_ = nullptr;
     QAction *playPosAction_ = nullptr;
+    QAction *stereoAction_ = nullptr;   // Settings ▸ Audio ▸ Dual-SID toggle
     PatternView *pattern_ = nullptr;
     OrderView *order_ = nullptr;
     InstrumentView *instrument_ = nullptr;

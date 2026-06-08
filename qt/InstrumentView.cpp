@@ -14,6 +14,7 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QGroupBox>
+#include <QMessageBox>
 #include <QPainter>
 #include <QPaintEvent>
 #include <QMouseEvent>
@@ -778,15 +779,56 @@ void InstrumentView::updatePointerPreview(int t, int startRow) {
 void InstrumentView::refresh() {
     updating_ = true;
     if (einum < 1) einum = 1;
-    // Only re-snapshot the baseline when the user actually switched
-    // instrument slot. Every edit fires emit edited() -> MainWindow::
-    // refreshAll() -> this refresh(), so unconditionally clearing dirty_
-    // here was wiping the flag the moment a slot was set, leaving Apply /
-    // Reset perpetually disabled. Past edits to the slot we just left
-    // become its new baseline implicitly — that's the documented
-    // 'auto-apply on switch' behaviour.
     bool slotChanged = (einum != savedSlot_);
-    if (slotChanged) {
+
+    // Slot change while the previous slot has pending edits -> ask the
+    // user. Apply commits the in-progress edits as the new baseline for
+    // the slot they're leaving; Reset rolls instr[savedSlot_] back to the
+    // baseline before continuing; Cancel snaps einum back to the old
+    // slot so the switch never happens.
+    if (slotChanged && dirty_ && savedSlot_ > 0 && savedSlot_ < MAX_INSTR) {
+        updating_ = false;
+        int leaving = savedSlot_;
+        int target  = einum;
+        QMessageBox box(this);
+        box.setWindowTitle("Instrument has pending edits");
+        box.setText(QString("Instrument $%1 has unsaved changes.")
+                    .arg(leaving, 2, 16, QLatin1Char('0')).toUpper());
+        box.setInformativeText("Apply commits them as the new baseline.\n"
+                               "Reset rolls instrument back to its previous "
+                               "state.\nCancel stays on the current slot.");
+        auto *applyB  = box.addButton("Apply",  QMessageBox::AcceptRole);
+        auto *resetB  = box.addButton("Reset",  QMessageBox::DestructiveRole);
+        auto *cancelB = box.addButton("Cancel", QMessageBox::RejectRole);
+        box.exec();
+        QAbstractButton *clicked = box.clickedButton();
+        if (clicked == cancelB) {
+            // Snap back to the slot we were on. No need to touch saved_
+            // or dirty_ — the user is still editing the same slot.
+            einum = leaving;
+            updating_ = true;
+            readFromGlobals();
+            updating_ = false;
+            return;
+        }
+        if (clicked == resetB) {
+            instr[leaving] = saved_;
+        }
+        // For Apply: current instr[leaving] is the new baseline, nothing
+        // more to do — the next branch re-snapshots for the new slot.
+        (void)applyB; (void)resetB;
+        // Continue with the slot switch.
+        einum = target;
+        slotChanged = true;
+        updating_ = true;
+    }
+
+    // Re-snapshot the baseline when we land on a different slot OR when
+    // we're not in the middle of an edit. The second clause covers song
+    // load — instr[einum] just got rewritten with fresh data and we want
+    // Reset to roll back to THAT, not to the pre-load state we captured
+    // before the song was opened.
+    if (slotChanged || !dirty_) {
         saved_ = instr[einum];
         savedSlot_ = einum;
         dirty_ = false;

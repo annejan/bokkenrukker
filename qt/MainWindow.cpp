@@ -40,6 +40,7 @@
 #include <QWidget>
 #include <QVBoxLayout>
 #include <QToolButton>
+#include <QFontMetrics>
 #include <QFrame>
 #include <QMouseEvent>
 #include <QLabel>
@@ -615,6 +616,13 @@ void MainWindow::buildUi() {
         "QToolButton#playPatt:hover   { background:#B58E38; }"
         "QToolButton#stopBtn    { background:#8C2F2F; color:#FFFFFF; border-color:#E5484D; font-weight:bold; }"
         "QToolButton#stopBtn:hover    { background:#E5484D; }"
+        // Active-state glow. Driven by the dynamic 'active' property set
+        // in tick() once per UI refresh. Bright saturated fill + a thick
+        // bright border so the running transport stands out at a glance.
+        "QToolButton#playBegin[active=\"true\"] { background:#3FB950; color:#FFFFFF; border:2px solid #9CFFB7; }"
+        "QToolButton#playPos[active=\"true\"]   { background:#3892B5; color:#FFFFFF; border:2px solid #9CDDF5; }"
+        "QToolButton#playPatt[active=\"true\"]  { background:#D9A441; color:#1A1A1A; border:2px solid #FFE5A1; }"
+        "QToolButton#stopBtn[active=\"true\"]   { background:#E5484D; color:#FFFFFF; border:2px solid #FFB3B5; }"
     )
         .arg(Theme::C::bgAlt.name())
         .arg(Theme::C::text.name())
@@ -622,20 +630,32 @@ void MainWindow::buildUi() {
         .arg(Theme::C::sep.name())
         .arg(Theme::C::editRow.name()));
 
-    // Transport group: distinct color per play variant + red stop
+    // Transport group: three buttons — Begin, Pos (which doubles as
+    // Pause while playing), Patt. Stop dropped from the toolbar because
+    // it's a functional duplicate of Pos-toggle-while-playing: both call
+    // stopsong(), and the next Pos always restarts from the current
+    // cursor anyway. Stop still lives on F4 + the Play menu for users
+    // who want the explicit keyboard shortcut.
     tb->addAction(playA);
     tb->addAction(playPosA);
     tb->addAction(playPatA);
-    tb->addAction(stopA);
     if (auto *btn = qobject_cast<QToolButton*>(tb->widgetForAction(playA)))
-        { btn->setObjectName("playBegin"); btn->setText("⏮ Begin"); }
-    if (auto *btn = qobject_cast<QToolButton*>(tb->widgetForAction(playPosA)))
-        { btn->setObjectName("playPos");   btn->setText("▶ Pos"); }
-    // We re-label the toolbar button between ▶ Pos and ⏸ Pause in tick().
+        { btn->setObjectName("playBegin"); btn->setText("⏮ Begin"); playBeginBtn_ = btn; }
+    if (auto *btn = qobject_cast<QToolButton*>(tb->widgetForAction(playPosA))) {
+        btn->setObjectName("playPos");
+        btn->setText("▶ Pos");
+        playPosBtn_ = btn;
+        // Lock width to the wider of '▶ Pos' / '⏸ Pause' so the rest of
+        // the toolbar doesn't shift left/right every time the label
+        // flips on play / pause.
+        QFontMetrics fm(btn->font());
+        int wPos   = fm.horizontalAdvance("▶ Pos");
+        int wPause = fm.horizontalAdvance("⏸ Pause");
+        btn->setMinimumWidth(qMax(wPos, wPause) + 28); // +padding
+    }
+    // onTransportChanged re-labels playPos between ▶ Pos / ⏸ Pause.
     if (auto *btn = qobject_cast<QToolButton*>(tb->widgetForAction(playPatA)))
-        { btn->setObjectName("playPatt");  btn->setText("⧈ Patt"); }
-    if (auto *btn = qobject_cast<QToolButton*>(tb->widgetForAction(stopA)))
-        { btn->setObjectName("stopBtn");   btn->setText("⏹ Stop"); }
+        { btn->setObjectName("playPatt");  btn->setText("⟳ Patt"); playPattBtn_ = btn; }
 
     auto addSpacer = [&](int w = 28) {
         auto *spacer = new QWidget(tb);
@@ -1122,6 +1142,33 @@ void MainWindow::refreshAll() {
         patternBarLen_->setText(QString("$%1")
             .arg(pattlen[p], 2, 16, QLatin1Char('0')).toUpper());
     }
+
+    // Transport glow — light up whichever Play / Stop button reflects the
+    // engine's current state. lastsonginit holds the most recent mode the
+    // playroutine was started in (PLAY_BEGINNING / PLAY_POS / PLAY_PATTERN);
+    // isplaying() flips between running and stopped. We set a dynamic
+    // 'active' property + repolish the style so the per-id selectors in
+    // the toolbar stylesheet kick in.
+    auto setActive = [](QWidget *w, bool on) {
+        if (!w) return;
+        if (w->property("active").toBool() == on) return;
+        w->setProperty("active", on);
+        w->style()->unpolish(w);
+        w->style()->polish(w);
+    };
+    bool playing = isplaying() != 0;
+    // Glow rule (option B from the user):
+    //   Begin    pure trigger — never holds an active state. Click =
+    //            'start over from the top'.
+    //   Pos      owns 'is playing'. Glows whenever the engine is
+    //            running OR while paused (label flips between
+    //            ⏸ Pause / ▶ Pos via onTransportChanged).
+    //   Patt     glows on PLAY_PATTERN alongside Pos (pattern is
+    //            looping = is playing, just constrained).
+    bool playPatt = playing && lastsonginit == PLAY_PATTERN;
+    setActive(playBeginBtn_, false);
+    setActive(playPosBtn_,   playing || pausedAtPos_);
+    setActive(playPattBtn_,  playPatt);
 }
 
 // Toolbar shrink/grow operate on the channel the cursor is on. Same byte-
@@ -1172,23 +1219,44 @@ bool MainWindow::eventFilter(QObject *o, QEvent *e) {
     return QMainWindow::eventFilter(o, e);
 }
 
-void MainWindow::playFromBeginning() { followplay = 1; initsong(esnum, PLAY_BEGINNING); }
+void MainWindow::playFromBeginning() {
+    followplay = 1;
+    pausedAtPos_ = false;
+    initsong(esnum, PLAY_BEGINNING);
+    refreshAll();
+}
 void MainWindow::playFromPos() {
     if (isplaying()) {
+        // Snapshot the engine's per-channel order position + the active
+        // channel's in-pattern row so the next Pos toggle actually
+        // RESUMES from here instead of jumping to song start. Previously
+        // we always re-seeded chn[c].songptr = espos[c] (the editor's
+        // order-cursor, which the user typically left at 0), so pausing
+        // mid-song followed by resume snapped back to order 0.
+        for (int c = 0; c < MAX_CHN; c++) pausedSongptr_[c] = chn[c].songptr;
+        pausedPattRow_ = chn[epchn].pattptr / 4;
         stopsong();
+        pausedAtPos_ = true;
         statusStrip_->showMessage("Paused");
     } else {
         followplay = 1;
-        // initsongpos() consumes startpattpos in playroutine — that's the
-        // path that actually survives, because initsong() (no -pos) sets
-        // startpattpos=0 and the playroutine then overwrites every chn[c]
-        // .pattptr with 0. Seeding chn[c].pattptr ourselves before calling
-        // initsong was getting trampled inside playroutine.
-        for (int c = 0; c < MAX_CHN; c++) chn[c].songptr = espos[c];
-        int start = eppos;
-        if (start < 0) start = 0;
-        initsongpos(esnum, PLAY_POS, start);
+        if (pausedAtPos_) {
+            // Resume from the snapshot we took on pause.
+            for (int c = 0; c < MAX_CHN; c++)
+                chn[c].songptr = pausedSongptr_[c];
+            int start = pausedPattRow_;
+            if (start < 0) start = 0;
+            initsongpos(esnum, PLAY_POS, start);
+        } else {
+            // Fresh Pos start from the editor cursor.
+            for (int c = 0; c < MAX_CHN; c++) chn[c].songptr = espos[c];
+            int start = eppos;
+            if (start < 0) start = 0;
+            initsongpos(esnum, PLAY_POS, start);
+        }
+        pausedAtPos_ = false;
     }
+    refreshAll();
 }
 void MainWindow::playPattern() {
     followplay = 1;
@@ -1198,9 +1266,15 @@ void MainWindow::playPattern() {
     }
     int start = eppos;
     if (start < 0) start = 0;
+    pausedAtPos_ = false;
     initsongpos(esnum, PLAY_PATTERN, start);
+    refreshAll();
 }
-void MainWindow::stopSong()          { stopsong(); }
+void MainWindow::stopSong() {
+    stopsong();
+    pausedAtPos_ = false;
+    refreshAll();
+}
 
 void MainWindow::muteCurrentChannel() {
     mutechannel(epchn);

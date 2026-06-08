@@ -1075,6 +1075,11 @@ QWidget *MainWindow::activeEditorWidget() const {
 }
 
 void MainWindow::tick() {
+    // Turn any playback-state edges the audio thread recorded into Qt signals,
+    // emitted here on the GUI thread (the audio thread only bumps lock-free
+    // counters — it never emits, to stay realtime-safe). Cheap: 3 atomic loads.
+    if (coreEvents_) coreEvents_->deliver();
+
     // VU / scope meter is a continuous signal — keep sampling it on the timer.
     // tickScope() short-circuits when the level hasn't changed, so an idle SID
     // costs nothing. (Must keep running even when stopped so jam / test notes

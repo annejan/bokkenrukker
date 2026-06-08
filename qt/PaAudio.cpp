@@ -48,9 +48,10 @@ int PaAudio::paCallback(const void * /*in*/, void *out, unsigned long frames,
     while (produced < frames) {
         if (self->sampleAccumF_ <= 0.0) {
             playroutine();
-            // Detect playback-state edges and notify the GUI thread (queued).
-            // Replaces the old per-frame polling of chn[]/isplaying() in the
-            // UI tick — views now wake only when something actually changed.
+            // Record playback-state edges into lock-free atomic counters. This
+            // does NO Qt work / alloc / locking — it must stay realtime-safe so
+            // the audio callback never stalls. The GUI thread turns these into
+            // signals in CoreEvents::deliver() (called from MainWindow's tick).
             if (auto *ev = CoreEvents::instance()) ev->pump();
             self->sampleAccumF_ += samplesPerTickF;
         }

@@ -35,16 +35,41 @@ void CoreEvents::pump() {
         return;
     }
 
+    // On an edge, bump the matching atomic generation counter. NO Qt, no
+    // alloc, no lock — this runs on the realtime audio thread. The GUI thread
+    // turns these into signals in deliver().
     if (playing != lastPlaying_) {
         lastPlaying_ = playing;
-        emit transportChanged(playing);
+        playing_.store(playing, std::memory_order_relaxed);
+        transportGen_.fetch_add(1, std::memory_order_release);
     }
     if (rowSig != lastRowSig_) {
         lastRowSig_ = rowSig;
-        emit rowChanged();
+        rowGen_.fetch_add(1, std::memory_order_release);
     }
     if (orderSig != lastOrderSig_) {
         lastOrderSig_ = orderSig;
+        orderGen_.fetch_add(1, std::memory_order_release);
+    }
+}
+
+void CoreEvents::deliver() {
+    // GUI thread: read the audio thread's edge counters and emit the signals
+    // here, where CoreEvents lives, so each emit is an ordinary same-thread
+    // call. Cheap: 3 atomic loads, and the body only runs on an actual change.
+    const unsigned t = transportGen_.load(std::memory_order_acquire);
+    if (t != seenTransport_) {
+        seenTransport_ = t;
+        emit transportChanged(playing_.load(std::memory_order_relaxed));
+    }
+    const unsigned r = rowGen_.load(std::memory_order_acquire);
+    if (r != seenRow_) {
+        seenRow_ = r;
+        emit rowChanged();
+    }
+    const unsigned o = orderGen_.load(std::memory_order_acquire);
+    if (o != seenOrder_) {
+        seenOrder_ = o;
         emit orderPosChanged();
     }
 }

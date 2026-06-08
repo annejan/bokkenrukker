@@ -6,6 +6,8 @@
 #include <QDebug>
 #include <cstring>
 
+#include "CoreEvents.h"
+
 extern "C" {
 #include "gcommon.h"
 #include "gplay.h"
@@ -14,6 +16,8 @@ int  sid_fillbuffer(short *ptr, int samples);
 extern unsigned multiplier;
 extern unsigned ntsc;
 void stopsong(void);
+void snd_lock(void);
+void snd_unlock(void);
 extern int songinit;
 extern unsigned char sidreg[];
 extern unsigned char sidreg2[];
@@ -46,6 +50,11 @@ int PaAudio::paCallback(const void * /*in*/, void *out, unsigned long frames,
     while (produced < frames) {
         if (self->sampleAccumF_ <= 0.0) {
             playroutine();
+            // Record playback-state edges into lock-free atomic counters. This
+            // does NO Qt work / alloc / locking — it must stay realtime-safe so
+            // the audio callback never stalls. The GUI thread turns these into
+            // signals in CoreEvents::deliver() (called from MainWindow's tick).
+            if (auto *ev = CoreEvents::instance()) ev->pump();
             self->sampleAccumF_ += samplesPerTickF;
         }
         long chunk = (long)self->sampleAccumF_;
@@ -134,6 +143,10 @@ AudioFence::AudioFence() {
         // already past the callback boundary.
         QThread::msleep(5);
     }
+    // The BME/SDL audio backend ALSO clocks libresidfp on its own callback
+    // thread (SDLAudioP1). Lock it too — fencing only PaAudio left the SDL
+    // mixer racing the SID rebuild, crashing in reSIDfp::Filter::clock.
+    snd_lock();
     stopsong();
     songinit = PLAY_STOPPED;
 
@@ -165,6 +178,7 @@ AudioFence::AudioFence() {
     for (int c = 0; c < MAX_CHN; c++) chn[c].gate = 0xfe;
 }
 AudioFence::~AudioFence() {
+    snd_unlock();
     auto *a = PaAudio::instance();
     if (a) a->fenced.store(false, std::memory_order_release);
 }

@@ -317,6 +317,22 @@ void snd_uninit(void)
     snd_uninitmixer();
 }
 
+// Block / unblock the SDL audio callback thread (the BME mixer) around a SID
+// rebuild. SDL_LockAudio waits until any in-flight callback returns and holds
+// off new ones until snd_unlock(). Pairs with PaAudio's fence so BOTH audio
+// backends are quiesced while libresidfp is torn down + rebuilt — otherwise
+// the SDL mixer thread races the rebuild and crashes in reSIDfp::Filter::clock.
+void snd_lock(void)
+{
+    if (!use_jack_audio && snd_sndinitted)
+        SDL_LockAudio();
+}
+void snd_unlock(void)
+{
+    if (!use_jack_audio && snd_sndinitted)
+        SDL_UnlockAudio();
+}
+
 void snd_setcustommixer(void (*custommixer)(Sint32 *dest, unsigned samples))
 {
     snd_custommixer = custommixer;

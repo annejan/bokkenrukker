@@ -75,6 +75,12 @@ private:
 
 protected:
     bool eventFilter(QObject *o, QEvent *e) override;
+    // Only sample the live envelope / wavetable previews while this editor is
+    // the visible page — no point polling sid_getlevels when the user is in
+    // the pattern editor. (Stays running while visible so test notes / jam
+    // still animate even when the song is stopped.)
+    void showEvent(QShowEvent *) override;
+    void hideEvent(QHideEvent *) override;
 private:
     void writeAd();
     void writeSr();

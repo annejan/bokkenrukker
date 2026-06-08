@@ -178,12 +178,54 @@ int saveinstrument(void)
   return 0;
 }
 
+// Detect whether a GTS3/4/5 song on disk is mono (3 channels) or stereo /
+// dual-SID (MAX_CHN). The .sng ident is identical for both, so trial-read all
+// MAX_CHN orderlists from the current position and check each ends with a valid
+// endmark (0xff loop marker + an in-range loop-position byte). A mono file only
+// has 3 valid orderlists; the 4th read lands on instrument data and fails the
+// check. Seeks back so the caller reads for real. Ported from gt2stereo.
+static int determinechannels(FILE *handle)
+{
+  long returnpos = ftell(handle);
+  int c, d;
+  int songs = fread8(handle);
+  unsigned char songbuffer[257];
+
+  for (d = 0; d < songs; d++)
+  {
+    for (c = 0; c < MAX_CHN; c++)
+    {
+      int loadsize = fread8(handle);
+      loadsize++;
+      memset(songbuffer, 0, sizeof songbuffer);
+      if (fread(songbuffer, loadsize, 1, handle) != 1)
+      {
+        fseek(handle, returnpos, SEEK_SET);
+        return 3;
+      }
+      if ((songbuffer[loadsize - 2] != LOOPSONG) ||
+          (songbuffer[loadsize - 1] >= loadsize))
+      {
+        fseek(handle, returnpos, SEEK_SET);
+        return 3;
+      }
+    }
+  }
+
+  fseek(handle, returnpos, SEEK_SET);
+  return MAX_CHN;
+}
+
 void loadsong(void)
 {
   int c;
   int ok = 0;
   char ident[4];
   FILE *handle;
+
+  // Mono unless a GTS3/4/5 song proves otherwise (set by determinechannels
+  // below). Older GTS2 / GTS! formats are always 3-channel.
+  song_channels = 3;
 
   handle = fopen(songfilename, "rb");
 
@@ -203,6 +245,11 @@ void loadsong(void)
       fread(songname, sizeof songname, 1, handle);
       fread(authorname, sizeof authorname, 1, handle);
       fread(copyrightname, sizeof copyrightname, 1, handle);
+
+      // Detect mono (3) vs stereo / dual-SID (MAX_CHN) and read that many
+      // orderlists per subtune. clearsong() above already seeded valid empty
+      // orderlists for the unused channels of a mono song.
+      song_channels = determinechannels(handle);
 
       // Read songorderlists
       amount = fread8(handle);

@@ -2958,6 +2958,8 @@ qt/CMakeFiles/gt2reloc.dir/__/src/gsid.cpp.o: /home/paul/work/c64/goattracker2/s
   /usr/include/stdc-predef.h \
   /usr/include/stdio.h \
   /usr/include/stdlib.h \
+  /usr/include/string.h \
+  /usr/include/strings.h \
   /usr/include/x86_64-linux-gnu/bits/atomic_wide_counter.h \
   /usr/include/x86_64-linux-gnu/bits/byteswap.h \
   /usr/include/x86_64-linux-gnu/bits/endian.h \

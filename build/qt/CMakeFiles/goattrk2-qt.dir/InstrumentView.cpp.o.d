@@ -411,6 +411,9 @@ qt/CMakeFiles/goattrk2-qt.dir/InstrumentView.cpp.o: \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/qiodevice.h \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/QGroupBox \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qgroupbox.h \
+ /usr/include/x86_64-linux-gnu/qt6/QtWidgets/QMessageBox \
+ /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qmessagebox.h \
+ /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qdialog.h \
  /usr/include/x86_64-linux-gnu/qt6/QtGui/QPainter \
  /usr/include/x86_64-linux-gnu/qt6/QtGui/qpainter.h \
  /usr/include/x86_64-linux-gnu/qt6/QtGui/QPaintEvent \
@@ -435,5 +438,8 @@ qt/CMakeFiles/goattrk2-qt.dir/InstrumentView.cpp.o: \
  /usr/include/x86_64-linux-gnu/qt6/QtGui/QTransform \
  /usr/include/x86_64-linux-gnu/qt6/QtGui/qtransform.h \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/qnativeinterface.h \
+ /usr/include/x86_64-linux-gnu/qt6/QtGui/QMouseEvent \
  /usr/include/x86_64-linux-gnu/qt6/QtGui/QFontMetrics \
- /usr/include/x86_64-linux-gnu/qt6/QtGui/qfontmetrics.h
+ /usr/include/x86_64-linux-gnu/qt6/QtGui/qfontmetrics.h \
+ /home/paul/work/c64/goattracker2/qt/../src/gplay.h \
+ /home/paul/work/c64/goattracker2/build/qt/goattrk2-qt_autogen/include/InstrumentView.moc

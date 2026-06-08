@@ -105,6 +105,18 @@
         view labels, status strip secondary text, placeholder /
         disabled palette) in one shot to match the legend brightness
         from commit 70ca50b.)*
+- [x] When the program is idle it still uses 40% of a CPU core, something is polling, or some other bug is consuming excessive CPU cycles.
+      *(Not polling — the PaAudio callback clocked libresidfp cycle-exact at
+        ~1 MHz CONTINUOUSLY, playing or not (perf: ~77% in
+        reSIDfp::Filter::clock / getNormalizedVoice). sid_fillbuffer() now
+        short-circuits to silence when nothing is sounding — sid_active()
+        checks isplaying() + voice gate bits + envelopeLevel(); a ~250 ms tail
+        keeps clocking after the last sound so release + filter ring-out finish,
+        then it stops. Resumes instantly on the first gated note / play.
+        Measured idle: 40% -> ~14% steady-state headless, and the residual is
+        mostly PortAudio device servicing.)*
+- [ ]   Filter settings lost when player pauzed and continued, when the cursor is not moved during pauze and continue, the filters should stay applied.
+- [ ]   
 
 ## Features
 
@@ -123,6 +135,15 @@
       *(PatternView::event handles QEvent::ToolTip on the row-number column:
         shows row hex/decimal, beat / downbeat / step tag, pattern# + length.)*
 - [ ] Second SID not implemented, because audio mixing resulted in unacceptable audio quality, found out how to implement this correctly.
+      *(LOAD now works: ported gt2stereo's determinechannels() into loadsong —
+        detects mono (3ch) vs stereo/dual-SID (6ch) GTS5 by trial-reading all 6
+        orderlists and checking each ends with a valid 0xff endmark; mono files
+        fail on the 4th channel and fall back to 3. loadSongFile then sets
+        stereo_mode + re-inits SID2 (fenced) and syncs the Dual-SID menu check.
+        Verified: sleepwalk.sng -> 6ch/stereo, mono examples unchanged,
+        stereo<->mono reload clean. STILL TODO: the audio OUTPUT itself — true
+        stereo + per-SID pan + mono option (design agreed, not yet built); the
+        current path still mono-sums SID1+SID2 in sid_fillbuffer.)*
 - [ ] Add option to select mono or stereo mode for dual sid, keeping things simple for the user.
 - [ ] Add support for external keyboards or samplers via USB, to enable record mode via these devices? (Popular options you can suggest?)
 - [x] Clear way to set / read the octave in the UI for record mode in the pattern editor
@@ -191,4 +212,176 @@
         wave / pulse / filter knob change is audible within the next
         second. Toggling off stops the timer + silences.)*
 - [ ] Add midi protocol support, so a midi keyboard can be used to record notes in the pattern channel selected. (Over USB or what ever just make sure it's Windows and Linux and OSX compatible)
+      *(Design: RtMidi, event/callback (no polling), vendored single
+        RtMidi.h/.cpp. RtMidi callback thread -> Qt queued signal
+        noteEvent(midiNote,on) -> main-thread slot -> existing
+        insertnote() (recordmode) / playtestnote() (jam). Note mapping
+        config-toggle: Absolute (piano pitch) vs Relative (epoctave),
+        QSettings midi/noteMode + midi/octaveOffset. Settings > MIDI
+        submenu: device list (auto-open first / saved by name) + note
+        mode. Retire JACK MIDI poll in bme_snd.c. Blocked on the
+        polling->notification refactor below for the capture hook.)*
+- [x] Changing the second SID model (6581 <-> 8580) during playback crashed —
+      first "pure virtual method called" / segfault, then "malloc(): corrupted
+      top size" — after a few toggles. Filters also intermittently stopped
+      applying after a chip switch.
+      *(Root cause: toggleSid2Model() (and the prev/next multiplier slots via
+        qt_stubs) called sound_init(), which runs the FULL BME snd_init —
+        opening a SECOND audio backend (the SDL mixer thread SDLAudioP1) that
+        clocks libresidfp alongside PaAudio, and reallocating channel/mixer
+        buffers. That second backend raced PaAudio + the SID rebuild: vtable
+        crash, heap corruption, and half-reset filter state. main.cpp never
+        calls sound_init, so this was the only thing ever spawning the SDL
+        backend. Fix: these paths now call sid_init() (fenced) like
+        toggleSidModel — rebuild just the SID, never the audio device. sid_init
+        already applies sid2model. The SDL backend now never starts; the JACK
+        MIDI "failed to create jack client" noise is gone too (it only ran
+        inside snd_init). AudioFence also gained snd_lock()/snd_unlock()
+        (SDL_LockAudio) as belt-and-braces. Verified: 8 rapid SID2 toggles,
+        no crash / no SDLAudio thread / no jack message.)*
+
+## Polling -> Qt notification refactor
+
+Goal: the Qt frontend currently drives almost all UI updates from periodic
+QTimers that re-read C-core globals every frame ("polling"). Replace with an
+event/notification pattern: the C core (and audio/playroutine thread) publishes
+state-change notifications that a thin Qt bridge converts to **queued signals**
+(thread-safe, land on the GUI thread), so views update on change instead of on a
+clock. Continuous analog-style meters (VU / SID envelope) are inherently sampled
+and may keep a timer — flagged below as "sampling OK". Solve top-down: item 0 is
+the enabling infrastructure every other item depends on.
+
+- [x] **0. Notification bridge (infrastructure, do first).** Add a C-callable
+      notifier the playroutine / editor core can call on state change (transport
+      start/stop, row advance, order-position change, instrument trigger,
+      selection/cursor move, recordmode toggle). A Qt singleton (e.g.
+      `CoreEvents : QObject`) re-emits each as a `Qt::QueuedConnection` signal so
+      audio-thread origins are marshalled safely to the GUI thread. All items
+      below consume this. *(Same thread-hop pattern as the MIDI design.)*
+      *(qt/CoreEvents.h/.cpp: `CoreEvents : QObject` singleton with signals
+        transportChanged(bool) / rowChanged() / orderPosChanged(). pump() is
+        called from the PortAudio callback (qt/PaAudio.cpp, right after
+        playroutine()) on the audio thread; it diffs isplaying() + cheap
+        signatures over chn[].pattptr / chn[].songptr and emits only on an
+        edge. CoreEvents lives on the GUI thread so the default connection is
+        delivered queued — slots run on the GUI thread, no widget touched from
+        audio. instrTriggered + cursor/recordmode notifications deferred to the
+        phase-2 consumers that need them.)*
+- [x] **1. Main UI tick.** [MainWindow.cpp:117-123](MainWindow.cpp#L117-L123)
+      40 ms (25 Hz) `timer_` -> [MainWindow::tick()](MainWindow.cpp#L1061) drives
+      every view refresh unconditionally. Master poll. Decompose into the items
+      below; keep a timer only for true meters.
+      *(tick() no longer polls playback state. It now only: samples the scope
+        meter (item 7), repaints the pattern grid while STOPPED so editing stays
+        responsive, and refreshes the status strip. All playback-driven repaints
+        moved to CoreEvents handlers — see items 2/3 + onOrderPosChanged for the
+        order mini-map. Timer stays for the meter + idle-editor repaint.)*
+- [x] **2. Pattern follow-play cursor / row highlight.**
+      [MainWindow.cpp:1068](MainWindow.cpp#L1068) `pattern_->refresh()` +
+      `tickScope()` poll `chn[].pattptr` / `eppos` each tick. Notify on row
+      advance and on cursor/selection move.
+      *(CoreEvents::rowChanged -> MainWindow::onPlayRowChanged() repaints the
+        pattern grid exactly when the play row advances, instead of the old
+        ~12 Hz every-other-tick poll during playback. Editor cursor/selection
+        moves while STOPPED still go through the timer repaint in tick().)*
+- [x] **3. Transport button relabel.**
+      [MainWindow.cpp:1078](MainWindow.cpp#L1078) polls `isplaying()` every tick
+      to flip the Pos/Pause button text. Notify on transport state change.
+      *(CoreEvents::transportChanged(bool) -> MainWindow::onTransportChanged()
+        relabels the Pos/Pause button on the edge only, and repaints the pattern
+        + order map once so start/stop position + play-row highlight sync
+        immediately.)*
+- [x] **4. Order view play cursor.**
+      [OrderView.cpp:330-334](OrderView.cpp#L330-L334) 33 ms `playRefresh_`
+      repaints the order viewport from `chn[].songptr`. Notify on
+      order-position change.
+      *(playRefresh_ timer removed. OrderView now connects to
+        CoreEvents::orderPosChanged (viewport repaint when the song pointer
+        advances) + transportChanged (clear the tint on play/stop). Required
+        moving coreEvents_ creation before buildUi() in MainWindow so child
+        views can connect from their constructors.)*
+- [x] **5. Instrument quick-list flash.**
+      [InstrumentQuickList.cpp:35](InstrumentQuickList.cpp#L35) /
+      [tickFlash()](InstrumentQuickList.cpp#L90) polls `chn[].instr` to flash
+      sounding instruments. Notify on instrument-trigger (note-on) event.
+      *(The fade is a continuous animation, so sampling chn[].instr stays — but
+        the timer no longer free-runs. It's gated on CoreEvents::transportChanged
+        (start on play when blink enabled) and self-stops in tickFlash() once the
+        song is stopped and the last flash has decayed. setBlinkEnabled only
+        starts it while already playing. Behaviour while playing is unchanged;
+        it just stops burning 33 Hz when idle.)*
+- [x] **6. Instrument editor live ADSR meter.**
+      [InstrumentView.cpp:700-704](InstrumentView.cpp#L700-L704) 30 ms
+      `playbackTimer_` -> `tickPlayback()` polls `sid_getlevels()` envelope
+      level. **Sampling OK** — continuous signal; keep a timer but make it run
+      only while a note sounds / the editor is visible (drive start/stop from a
+      transport notification).
+      *(Gated on VISIBILITY rather than transport: started in showEvent /
+        stopped in hideEvent, so the envelope is only sampled while the
+        instrument editor is the active stack page. Visibility (not transport)
+        is the right gate here because the editor must keep animating during
+        test-note / auto-test auditioning while the song is stopped — same
+        reason item 7 stays sampling.)*
+- [x] **7. Scope / VU strip.**
+      [MainWindow.cpp:1068](MainWindow.cpp#L1068) `pattern_->tickScope()` pushes
+      the scope meter per tick. **Sampling OK** — continuous; keep but gate on
+      transport-active notification so it idles when stopped.
+      *(Kept as timer sampling in tick() — intentionally NOT gated on transport,
+        because jam / test notes produce audio while stopped and must still show
+        on the meter. tickScope() already short-circuits redraws when the level
+        is unchanged, so an idle SID costs nothing. Closed as "sampling is the
+        correct model here".)*
+- [ ] **8. JACK MIDI input poll.** *(FOLDED INTO the MIDI feature — not a
+      standalone job.)*
+      [bme_snd.c:80-113](../src/bme/bme_snd.c#L80-L113) polls
+      `jack_midi_get_event_count()` inside the JACK process callback. Two
+      reasons it ships with the MIDI feature, not before: (a) JACK doesn't push
+      — draining in the process callback is the JACK idiom, so the only way to
+      remove the poll is to replace JACK MIDI with RtMidi (the MIDI item above);
+      (b) it has the same RT-thread bug as the no-sound regression — it calls
+      `insertnote()` + writes `eppos`/`epview` straight from the JACK process
+      thread. The RtMidi replacement must hop to the GUI thread the same way
+      CoreEvents does (see [[audio-thread-no-qt]]). Delete this block when RtMidi
+      lands.
+- [x] **9. RPC timer control (low priority).**
+      [Rpc.cpp:492-498](Rpc.cpp#L492-L498) test harness starts/stops the main
+      `QTimer` by `findChild<QTimer*>()`. Revisit once item 1 changes the tick's
+      role; may need a stable handle instead of child lookup.
+      *(MainWindow now exposes pauseTimer() / resumeTimer() that act on timer_
+        directly; Rpc::cmdPauseTimer/cmdResumeTimer call those instead of
+        findChild<QTimer*>(), which was ambiguous now that child views own their
+        own QTimers. Resume restarts at the real 40 ms UI rate (was a magic
+        20 ms).)*
+
+### Engine (src/) audit
+
+The pure tracker core (gplay.c / gsong.c / gtable.c / ginstr.c) is
+callback-driven and has no polling — the audio callback is its clock by design.
+Beyond the JACK MIDI drain (item 8), two engine-side polls are real. The rest of
+the `while(!flag)` / `SDL_Delay` hits live in non-Qt code (goattrk2.c main loop,
+greloc.c relocator, bme_kbd.c / bme_win.c — the standalone SDL app + gt2reloc
+tool, replaced by Qt + qt_stubs.c) and are out of scope.
+
+- [x] **10. Fixed-delay mixer-stop wait.**
+      [gsound.c:233-235](../src/gsound.c#L233-L235) `sound_uninit()` did
+      `SDL_Delay(50)` to "make sure the sound timer thread is not mixing anymore"
+      before freeing buffers. A guess-delay, not a real handshake. Runs on every
+      audio re-init (SID-model / multiplier change).
+      *(Replaced with a real handshake: for normal SDL audio it now holds
+        SDL_LockAudio() across the teardown (detach mixer/player + free buffer)
+        and SDL_UnlockAudio() at the end — SDL_LockAudio blocks until any
+        in-flight callback returns and blocks new ones, so no race and no magic
+        sleep. HardSID / Catweasel have no audio-callback lock (they drive from
+        an SDL timer / Win32 thread) so they keep the short settle delay. Gated
+        on `snd_sndinitted` so it's a no-op when SDL audio never opened.)*
+- [ ] **11. Win32 HardSID player-thread busy-loop (conditional).**
+      [gsound.c:359](../src/gsound.c#L359) `while (runplayerthread) { … }` with
+      the `suspendplayroutine` / `flushplayerthread` volatile flags
+      ([gsound.c:54-56](../src/gsound.c#L54-L56)). All `#ifdef __WIN32__` +
+      HardSID, so NOT compiled in the current Linux build — but it WILL compile
+      once the cross-platform MIDI feature (item 193) brings up a Windows build.
+      Same RT-thread hazard as the no-sound fix: it calls `playroutine()` and
+      reads editor state from a raw thread spinning on volatile flags. Revisit
+      together with the Windows MIDI port; route any UI-affecting state through
+      the GUI-thread hop (see [[audio-thread-no-qt]]).
 - [ ] 

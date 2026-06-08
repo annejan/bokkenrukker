@@ -701,9 +701,21 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     playbackTimer_->setInterval(30); // ~33 Hz
     connect(playbackTimer_, &QTimer::timeout, this,
             &InstrumentView::tickPlayback);
-    playbackTimer_->start();
+    // Started/stopped by showEvent/hideEvent — only runs while this editor is
+    // the visible page (see header). Not started here: the view is hidden
+    // behind the pattern editor at startup.
 
     refresh();
+}
+
+void InstrumentView::showEvent(QShowEvent *e) {
+    QWidget::showEvent(e);
+    if (playbackTimer_) playbackTimer_->start();
+}
+
+void InstrumentView::hideEvent(QHideEvent *e) {
+    QWidget::hideEvent(e);
+    if (playbackTimer_) playbackTimer_->stop();
 }
 
 void InstrumentView::tickPlayback() {

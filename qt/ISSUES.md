@@ -271,12 +271,18 @@ the enabling infrastructure every other item depends on.
         song is stopped and the last flash has decayed. setBlinkEnabled only
         starts it while already playing. Behaviour while playing is unchanged;
         it just stops burning 33 Hz when idle.)*
-- [ ] **6. Instrument editor live ADSR meter.**
+- [x] **6. Instrument editor live ADSR meter.**
       [InstrumentView.cpp:700-704](InstrumentView.cpp#L700-L704) 30 ms
       `playbackTimer_` -> `tickPlayback()` polls `sid_getlevels()` envelope
       level. **Sampling OK** — continuous signal; keep a timer but make it run
       only while a note sounds / the editor is visible (drive start/stop from a
       transport notification).
+      *(Gated on VISIBILITY rather than transport: started in showEvent /
+        stopped in hideEvent, so the envelope is only sampled while the
+        instrument editor is the active stack page. Visibility (not transport)
+        is the right gate here because the editor must keep animating during
+        test-note / auto-test auditioning while the song is stopped — same
+        reason item 7 stays sampling.)*
 - [x] **7. Scope / VU strip.**
       [MainWindow.cpp:1068](MainWindow.cpp#L1068) `pattern_->tickScope()` pushes
       the scope meter per tick. **Sampling OK** — continuous; keep but gate on

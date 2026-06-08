@@ -12,6 +12,7 @@
 #include <QUndoStack>
 
 #include <QDockWidget>
+#include <QApplication>
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QHash>

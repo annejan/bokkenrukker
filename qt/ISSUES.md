@@ -252,10 +252,15 @@ the enabling infrastructure every other item depends on.
         relabels the Pos/Pause button on the edge only, and repaints the pattern
         + order map once so start/stop position + play-row highlight sync
         immediately.)*
-- [ ] **4. Order view play cursor.**
+- [x] **4. Order view play cursor.**
       [OrderView.cpp:330-334](OrderView.cpp#L330-L334) 33 ms `playRefresh_`
       repaints the order viewport from `chn[].songptr`. Notify on
       order-position change.
+      *(playRefresh_ timer removed. OrderView now connects to
+        CoreEvents::orderPosChanged (viewport repaint when the song pointer
+        advances) + transportChanged (clear the tint on play/stop). Required
+        moving coreEvents_ creation before buildUi() in MainWindow so child
+        views can connect from their constructors.)*
 - [ ] **5. Instrument quick-list flash.**
       [InstrumentQuickList.cpp:35](InstrumentQuickList.cpp#L35) /
       [tickFlash()](InstrumentQuickList.cpp#L90) polls `chn[].instr` to flash

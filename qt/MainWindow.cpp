@@ -109,16 +109,20 @@ void resetnotenames(void);
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     undoStack_ = new QUndoStack(this);
     undoStack_->setUndoLimit(64);
+
+    // Notification bridge: the audio thread emits transport / row / order-pos
+    // edges; queued connections deliver them on the GUI thread, so the views
+    // no longer poll chn[]/isplaying() every frame. Created BEFORE buildUi() so
+    // child views (OrderView, InstrumentQuickList, …) can connect to
+    // CoreEvents::instance() from their own constructors.
+    coreEvents_ = new CoreEvents(this);
+
     buildUi();
     QSettings s("goattracker2-qt", "goattracker2-qt");
     QByteArray sp = s.value("songpath").toString().toLocal8Bit();
     QByteArray ip = s.value("instrpath").toString().toLocal8Bit();
     if (!sp.isEmpty()) std::strncpy(songpath, sp.constData(), MAX_PATHNAME - 1);
     if (!ip.isEmpty()) std::strncpy(instrpath, ip.constData(), MAX_PATHNAME - 1);
-    // Notification bridge: the audio thread emits transport / row / order-pos
-    // edges; these queued connections deliver them on the GUI thread, so the
-    // tick below no longer has to poll chn[]/isplaying() every frame.
-    coreEvents_ = new CoreEvents(this);
     connect(coreEvents_, &CoreEvents::transportChanged,
             this, &MainWindow::onTransportChanged);
     connect(coreEvents_, &CoreEvents::rowChanged,

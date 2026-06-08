@@ -1,7 +1,6 @@
 #pragma once
 #include <QWidget>
 #include <QAbstractTableModel>
-#include <QTimer>
 
 class QTableView;
 class QSpinBox;
@@ -51,7 +50,6 @@ private:
     QSpinBox *subtuneSpin_ = nullptr;
     QLabel *patternPreview_ = nullptr;
     bool updating_ = false;
-    QTimer playRefresh_;
 
     void writeAtCursor(unsigned char v);
     void syncCursorFromGlobal();

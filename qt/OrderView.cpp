@@ -2,6 +2,7 @@
 #include "Theme.h"
 #include "SdlKeyMap.h"
 #include "UndoStack.h"
+#include "CoreEvents.h"
 
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -324,14 +325,18 @@ OrderView::OrderView(QWidget *parent) : QWidget(parent) {
     tip->setStyleSheet(QString("color:%1").arg(Theme::C::textDim.name()));
     root->addWidget(tip);
 
-    // Repaint the table viewport at ~30 Hz so the play-row tint follows
-    // chn[c].songptr advances. Cheap — only the visible viewport is dirtied,
-    // and the delegate is the only thing that consults playback state.
-    playRefresh_.setInterval(33);
-    connect(&playRefresh_, &QTimer::timeout, this, [this]{
-        if (table_) table_->viewport()->update();
-    });
-    playRefresh_.start();
+    // Repaint the table viewport so the play-row tint follows chn[c].songptr.
+    // Event-driven via CoreEvents: orderPosChanged fires when the song order
+    // pointer advances, transportChanged on play/stop so the tint clears.
+    // Replaces the old ~30 Hz polling timer.
+    if (auto *ev = CoreEvents::instance()) {
+        connect(ev, &CoreEvents::orderPosChanged, this, [this]{
+            if (table_) table_->viewport()->update();
+        });
+        connect(ev, &CoreEvents::transportChanged, this, [this](bool){
+            if (table_) table_->viewport()->update();
+        });
+    }
 
     refresh();
 }

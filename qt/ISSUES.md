@@ -105,7 +105,16 @@
         view labels, status strip secondary text, placeholder /
         disabled palette) in one shot to match the legend brightness
         from commit 70ca50b.)*
-- [ ] When the program is idle it still uses 40% of a CPU core, something is polling, or some other bug is consuming excessive CPU cycles.
+- [x] When the program is idle it still uses 40% of a CPU core, something is polling, or some other bug is consuming excessive CPU cycles.
+      *(Not polling — the PaAudio callback clocked libresidfp cycle-exact at
+        ~1 MHz CONTINUOUSLY, playing or not (perf: ~77% in
+        reSIDfp::Filter::clock / getNormalizedVoice). sid_fillbuffer() now
+        short-circuits to silence when nothing is sounding — sid_active()
+        checks isplaying() + voice gate bits + envelopeLevel(); a ~250 ms tail
+        keeps clocking after the last sound so release + filter ring-out finish,
+        then it stops. Resumes instantly on the first gated note / play.
+        Measured idle: 40% -> ~14% steady-state headless, and the residual is
+        mostly PortAudio device servicing.)*
 
 ## Features
 

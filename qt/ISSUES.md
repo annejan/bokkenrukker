@@ -201,13 +201,24 @@
         submenu: device list (auto-open first / saved by name) + note
         mode. Retire JACK MIDI poll in bme_snd.c. Blocked on the
         polling->notification refactor below for the capture hook.)*
-- [x] Changing the second SID model (6581 <-> 8580) during playback crashed
-      ("pure virtual method called" / segfault) after a few toggles.
-      *(toggleSid2Model() rebuilt the libresidfp SID via sound_init() with NO
-        AudioFence, unlike every other re-init path — the PaAudio callback raced
-        the half-rebuilt SID2 object. Added AudioFence. Also fenced
-        prevMultiplierSlot/nextMultiplierSlot, which call sound_init() the same
-        unfenced way. Unrelated to the gsound.c #10 change.)*
+- [x] Changing the second SID model (6581 <-> 8580) during playback crashed —
+      first "pure virtual method called" / segfault, then "malloc(): corrupted
+      top size" — after a few toggles. Filters also intermittently stopped
+      applying after a chip switch.
+      *(Root cause: toggleSid2Model() (and the prev/next multiplier slots via
+        qt_stubs) called sound_init(), which runs the FULL BME snd_init —
+        opening a SECOND audio backend (the SDL mixer thread SDLAudioP1) that
+        clocks libresidfp alongside PaAudio, and reallocating channel/mixer
+        buffers. That second backend raced PaAudio + the SID rebuild: vtable
+        crash, heap corruption, and half-reset filter state. main.cpp never
+        calls sound_init, so this was the only thing ever spawning the SDL
+        backend. Fix: these paths now call sid_init() (fenced) like
+        toggleSidModel — rebuild just the SID, never the audio device. sid_init
+        already applies sid2model. The SDL backend now never starts; the JACK
+        MIDI "failed to create jack client" noise is gone too (it only ran
+        inside snd_init). AudioFence also gained snd_lock()/snd_unlock()
+        (SDL_LockAudio) as belt-and-braces. Verified: 8 rapid SID2 toggles,
+        no crash / no SDLAudio thread / no jack message.)*
 
 ## Polling -> Qt notification refactor
 

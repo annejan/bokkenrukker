@@ -979,10 +979,23 @@ void MainWindow::muteCurrentChannel() {
     mutechannel(epchn);
 }
 
-// prevmultiplier/nextmultiplier (qt_stubs.c) call sound_init(), which rebuilds
-// the SID — fence it against the audio thread, same as every other re-init.
-void MainWindow::prevMultiplierSlot() { AudioFence fence; prevmultiplier(); refreshAll(); }
-void MainWindow::nextMultiplierSlot() { AudioFence fence; nextmultiplier(); refreshAll(); }
+// Adjust the speed multiplier with sid_init (fenced), like cycleMultiplier —
+// NOT via qt_stubs' prevmultiplier/nextmultiplier, which call the full
+// sound_init() and would spawn the second (SDL) audio backend + corrupt the
+// heap. sid_init re-inits the SID for the new rate without touching the
+// audio device.
+void MainWindow::prevMultiplierSlot() {
+    AudioFence fence;
+    if (multiplier > 0) multiplier--;
+    sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
+    refreshAll();
+}
+void MainWindow::nextMultiplierSlot() {
+    AudioFence fence;
+    if (multiplier < 16) multiplier++;
+    sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
+    refreshAll();
+}
 void MainWindow::toggleStereoMode(bool on) {
     AudioFence fence;
     stereo_mode = on ? 1 : 0;
@@ -1009,16 +1022,16 @@ void MainWindow::toggleStereoMode(bool on) {
 }
 
 void MainWindow::toggleSid2Model() {
-    // Re-initialising rebuilds the libresidfp SID the audio thread is mid-clock
-    // on — must fence it like toggleSidModel/toggleStereoMode do, otherwise the
-    // PaAudio callback hits a half-rebuilt SID2 -> "pure virtual method called"
-    // / segfault. (This path was unfenced; that was the crash.)
+    // Rebuild ONLY the SID (sid_init), fenced, exactly like toggleSidModel /
+    // toggleStereoMode. The previous sound_init() ran the full BME snd_init —
+    // which opens a SECOND audio backend (the SDL mixer thread, SDLAudioP1)
+    // and reallocs channel/mixer buffers — racing PaAudio and corrupting the
+    // heap ("malloc(): corrupted top size") / crashing in the SID. sid_init
+    // already applies sid2model to SID2, so the full re-init was never needed.
     AudioFence fence;
     sid2model ^= 1;
-    if (stereo_mode) {
-        sound_init(b, mr, writer, hardsid, sidmodel, ntsc, multiplier,
-                   catweasel, interpolate, customclockrate);
-    }
+    if (stereo_mode)
+        sid_init((int)mr, sidmodel, ntsc, /*interpolate=*/0, customclockrate, 1);
     statusStrip_->showMessage(sid2model ? "SID2 → 8580" : "SID2 → 6581");
     refreshAll();
 }

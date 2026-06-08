@@ -292,10 +292,18 @@ the enabling infrastructure every other item depends on.
         on the meter. tickScope() already short-circuits redraws when the level
         is unchanged, so an idle SID costs nothing. Closed as "sampling is the
         correct model here".)*
-- [ ] **8. JACK MIDI input poll.**
+- [ ] **8. JACK MIDI input poll.** *(FOLDED INTO the MIDI feature — not a
+      standalone job.)*
       [bme_snd.c:80-113](../src/bme/bme_snd.c#L80-L113) polls
-      `jack_midi_get_event_count()` inside the JACK process callback. Superseded
-      by the RtMidi callback in the MIDI item above — remove when MIDI lands.
+      `jack_midi_get_event_count()` inside the JACK process callback. Two
+      reasons it ships with the MIDI feature, not before: (a) JACK doesn't push
+      — draining in the process callback is the JACK idiom, so the only way to
+      remove the poll is to replace JACK MIDI with RtMidi (the MIDI item above);
+      (b) it has the same RT-thread bug as the no-sound regression — it calls
+      `insertnote()` + writes `eppos`/`epview` straight from the JACK process
+      thread. The RtMidi replacement must hop to the GUI thread the same way
+      CoreEvents does (see [[audio-thread-no-qt]]). Delete this block when RtMidi
+      lands.
 - [ ] **9. RPC timer control (low priority).**
       [Rpc.cpp:492-498](Rpc.cpp#L492-L498) test harness starts/stops the main
       `QTimer` by `findChild<QTimer*>()`. Revisit once item 1 changes the tick's

@@ -781,12 +781,13 @@ void MainWindow::showAbout() {
 
         "<p><b>Qt frontend + integrations</b></p>"
         "<ul>"
+        "<li><b>Paul Honig</b> — original idea for the Qt frontend, "
+        "ongoing maintenance, design direction, and prompting.</li>"
         "<li>Qt6 port, libresidfp adaptation, dual-SID runtime toggle, "
         "microtonal backport, Janko / DMC / Protracker keypreset, JSON-RPC, "
         "instrument-colour palette, ADSR drag handles, pointer preview, "
         "sid2sng integration, status-strip widgets, Order map dock — by "
-        "Claude (Anthropic) Opus 4.7 in collaboration with the maintainer "
-        "of this fork.</li>"
+        "Claude (Anthropic) Opus 4.7 in collaboration with Paul.</li>"
         "</ul>"
 
         "<p><b>License</b> — GNU General Public License v2 or later. "

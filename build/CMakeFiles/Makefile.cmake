@@ -154,6 +154,7 @@ set(CMAKE_MAKEFILE_PRODUCTS
   "CMakeFiles/CMakeDirectoryInformation.cmake"
   "qt/CMakeFiles/goattrk2-qt_autogen.dir/AutogenInfo.json"
   "qt/CMakeFiles/gt2reloc_autogen.dir/AutogenInfo.json"
+  "qt/CMakeFiles/sid2sng_autogen.dir/AutogenInfo.json"
   ".qt/QtDeploySupport.cmake"
   "qt/CMakeFiles/CMakeDirectoryInformation.cmake"
   )
@@ -162,8 +163,11 @@ set(CMAKE_MAKEFILE_PRODUCTS
 set(CMAKE_DEPEND_INFO_FILES
   "qt/CMakeFiles/goattrk2-qt.dir/DependInfo.cmake"
   "qt/CMakeFiles/gt2reloc.dir/DependInfo.cmake"
+  "qt/CMakeFiles/sid2sng.dir/DependInfo.cmake"
   "qt/CMakeFiles/goattrk2-qt_autogen_timestamp_deps.dir/DependInfo.cmake"
   "qt/CMakeFiles/goattrk2-qt_autogen.dir/DependInfo.cmake"
   "qt/CMakeFiles/gt2reloc_autogen_timestamp_deps.dir/DependInfo.cmake"
   "qt/CMakeFiles/gt2reloc_autogen.dir/DependInfo.cmake"
+  "qt/CMakeFiles/sid2sng_autogen_timestamp_deps.dir/DependInfo.cmake"
+  "qt/CMakeFiles/sid2sng_autogen.dir/DependInfo.cmake"
   )

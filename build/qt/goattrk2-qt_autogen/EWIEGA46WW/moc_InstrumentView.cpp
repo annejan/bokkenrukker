@@ -26,7 +26,7 @@ QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
 namespace {
 struct qt_meta_stringdata_InstrumentView_t {
-    uint offsetsAndSizes[44];
+    uint offsetsAndSizes[46];
     char stringdata0[15];
     char stringdata1[7];
     char stringdata2[1];
@@ -49,6 +49,7 @@ struct qt_meta_stringdata_InstrumentView_t {
     char stringdata19[6];
     char stringdata20[13];
     char stringdata21[13];
+    char stringdata22[13];
 };
 #define QT_MOC_LITERAL(ofs, len) \
     uint(sizeof(qt_meta_stringdata_InstrumentView_t::offsetsAndSizes) + ofs), len 
@@ -75,7 +76,8 @@ Q_CONSTINIT static const qt_meta_stringdata_InstrumentView_t qt_meta_stringdata_
         QT_MOC_LITERAL(246, 11),  // "applyPreset"
         QT_MOC_LITERAL(258, 5),  // "index"
         QT_MOC_LITERAL(264, 12),  // "onApplyEdits"
-        QT_MOC_LITERAL(277, 12)   // "onResetEdits"
+        QT_MOC_LITERAL(277, 12),  // "onResetEdits"
+        QT_MOC_LITERAL(290, 12)   // "tickPlayback"
     },
     "InstrumentView",
     "edited",
@@ -98,7 +100,8 @@ Q_CONSTINIT static const qt_meta_stringdata_InstrumentView_t qt_meta_stringdata_
     "applyPreset",
     "index",
     "onApplyEdits",
-    "onResetEdits"
+    "onResetEdits",
+    "tickPlayback"
 };
 #undef QT_MOC_LITERAL
 } // unnamed namespace
@@ -109,7 +112,7 @@ Q_CONSTINIT static const uint qt_meta_data_InstrumentView[] = {
       10,       // revision
        0,       // classname
        0,    0, // classinfo
-      19,   14, // methods
+      20,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
@@ -117,27 +120,28 @@ Q_CONSTINIT static const uint qt_meta_data_InstrumentView[] = {
        1,       // signalCount
 
  // signals: name, argc, parameters, tag, flags, initial metatype offsets
-       1,    0,  128,    2, 0x06,    1 /* Public */,
+       1,    0,  134,    2, 0x06,    1 /* Public */,
 
  // slots: name, argc, parameters, tag, flags, initial metatype offsets
-       3,    1,  129,    2, 0x08,    2 /* Private */,
-       4,    1,  132,    2, 0x08,    4 /* Private */,
-       5,    1,  135,    2, 0x08,    6 /* Private */,
-       6,    1,  138,    2, 0x08,    8 /* Private */,
-       7,    1,  141,    2, 0x08,   10 /* Private */,
-       8,    1,  144,    2, 0x08,   12 /* Private */,
-       9,    1,  147,    2, 0x08,   14 /* Private */,
-      10,    1,  150,    2, 0x08,   16 /* Private */,
-      11,    1,  153,    2, 0x08,   18 /* Private */,
-      12,    1,  156,    2, 0x08,   20 /* Private */,
-      13,    0,  159,    2, 0x08,   22 /* Private */,
-      14,    0,  160,    2, 0x08,   23 /* Private */,
-      15,    0,  161,    2, 0x08,   24 /* Private */,
-      16,    0,  162,    2, 0x08,   25 /* Private */,
-      17,    0,  163,    2, 0x08,   26 /* Private */,
-      18,    1,  164,    2, 0x08,   27 /* Private */,
-      20,    0,  167,    2, 0x08,   29 /* Private */,
-      21,    0,  168,    2, 0x08,   30 /* Private */,
+       3,    1,  135,    2, 0x08,    2 /* Private */,
+       4,    1,  138,    2, 0x08,    4 /* Private */,
+       5,    1,  141,    2, 0x08,    6 /* Private */,
+       6,    1,  144,    2, 0x08,    8 /* Private */,
+       7,    1,  147,    2, 0x08,   10 /* Private */,
+       8,    1,  150,    2, 0x08,   12 /* Private */,
+       9,    1,  153,    2, 0x08,   14 /* Private */,
+      10,    1,  156,    2, 0x08,   16 /* Private */,
+      11,    1,  159,    2, 0x08,   18 /* Private */,
+      12,    1,  162,    2, 0x08,   20 /* Private */,
+      13,    0,  165,    2, 0x08,   22 /* Private */,
+      14,    0,  166,    2, 0x08,   23 /* Private */,
+      15,    0,  167,    2, 0x08,   24 /* Private */,
+      16,    0,  168,    2, 0x08,   25 /* Private */,
+      17,    0,  169,    2, 0x08,   26 /* Private */,
+      18,    1,  170,    2, 0x08,   27 /* Private */,
+      20,    0,  173,    2, 0x08,   29 /* Private */,
+      21,    0,  174,    2, 0x08,   30 /* Private */,
+      22,    0,  175,    2, 0x08,   31 /* Private */,
 
  // signals: parameters
     QMetaType::Void,
@@ -159,6 +163,7 @@ Q_CONSTINIT static const uint qt_meta_data_InstrumentView[] = {
     QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void, QMetaType::Int,   19,
+    QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void,
 
@@ -222,6 +227,8 @@ Q_CONSTINIT const QMetaObject InstrumentView::staticMetaObject = { {
         // method 'onApplyEdits'
         QtPrivate::TypeAndForceComplete<void, std::false_type>,
         // method 'onResetEdits'
+        QtPrivate::TypeAndForceComplete<void, std::false_type>,
+        // method 'tickPlayback'
         QtPrivate::TypeAndForceComplete<void, std::false_type>
     >,
     nullptr
@@ -252,6 +259,7 @@ void InstrumentView::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _
         case 16: _t->applyPreset((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
         case 17: _t->onApplyEdits(); break;
         case 18: _t->onResetEdits(); break;
+        case 19: _t->tickPlayback(); break;
         default: ;
         }
     } else if (_c == QMetaObject::IndexOfMethod) {
@@ -285,13 +293,13 @@ int InstrumentView::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 19)
+        if (_id < 20)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 19;
+        _id -= 20;
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 19)
+        if (_id < 20)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 19;
+        _id -= 20;
     }
     return _id;
 }

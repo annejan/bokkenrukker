@@ -143,6 +143,19 @@ gt2reloc/fast:
 .PHONY : gt2reloc/fast
 
 #=============================================================================
+# Target rules for targets named sid2sng
+
+# Build rule for target.
+sid2sng: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 sid2sng
+.PHONY : sid2sng
+
+# fast build rule for target.
+sid2sng/fast:
+	$(MAKE) $(MAKESILENT) -f qt/CMakeFiles/sid2sng.dir/build.make qt/CMakeFiles/sid2sng.dir/build
+.PHONY : sid2sng/fast
+
+#=============================================================================
 # Target rules for targets named goattrk2-qt_autogen_timestamp_deps
 
 # Build rule for target.
@@ -194,6 +207,32 @@ gt2reloc_autogen/fast:
 	$(MAKE) $(MAKESILENT) -f qt/CMakeFiles/gt2reloc_autogen.dir/build.make qt/CMakeFiles/gt2reloc_autogen.dir/build
 .PHONY : gt2reloc_autogen/fast
 
+#=============================================================================
+# Target rules for targets named sid2sng_autogen_timestamp_deps
+
+# Build rule for target.
+sid2sng_autogen_timestamp_deps: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 sid2sng_autogen_timestamp_deps
+.PHONY : sid2sng_autogen_timestamp_deps
+
+# fast build rule for target.
+sid2sng_autogen_timestamp_deps/fast:
+	$(MAKE) $(MAKESILENT) -f qt/CMakeFiles/sid2sng_autogen_timestamp_deps.dir/build.make qt/CMakeFiles/sid2sng_autogen_timestamp_deps.dir/build
+.PHONY : sid2sng_autogen_timestamp_deps/fast
+
+#=============================================================================
+# Target rules for targets named sid2sng_autogen
+
+# Build rule for target.
+sid2sng_autogen: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 sid2sng_autogen
+.PHONY : sid2sng_autogen
+
+# fast build rule for target.
+sid2sng_autogen/fast:
+	$(MAKE) $(MAKESILENT) -f qt/CMakeFiles/sid2sng_autogen.dir/build.make qt/CMakeFiles/sid2sng_autogen.dir/build
+.PHONY : sid2sng_autogen/fast
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -206,8 +245,11 @@ help:
 	@echo "... goattrk2-qt_autogen_timestamp_deps"
 	@echo "... gt2reloc_autogen"
 	@echo "... gt2reloc_autogen_timestamp_deps"
+	@echo "... sid2sng_autogen"
+	@echo "... sid2sng_autogen_timestamp_deps"
 	@echo "... goattrk2-qt"
 	@echo "... gt2reloc"
+	@echo "... sid2sng"
 .PHONY : help
 
 

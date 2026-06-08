@@ -2,6 +2,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/goattrk2-qt_autogen.dir/AutogenUsed.txt"
   "CMakeFiles/goattrk2-qt_autogen.dir/ParseCache.txt"
   "goattrk2-qt_autogen"
+  "CMakeFiles/goattrk2-qt.dir/CoreEvents.cpp.o"
+  "CMakeFiles/goattrk2-qt.dir/CoreEvents.cpp.o.d"
   "CMakeFiles/goattrk2-qt.dir/InstrColors.cpp.o"
   "CMakeFiles/goattrk2-qt.dir/InstrColors.cpp.o.d"
   "CMakeFiles/goattrk2-qt.dir/InstrumentQuickList.cpp.o"

@@ -25,6 +25,7 @@ public:
     ~MainWindow() override;
 
     void loadSongFile(const QString &path);
+    void loadSidFile(const QString &path, const QStringList &extraOpts = {});
 
     // Editors call beginEdit() before mutating the song, then endEdit(label)
     // to push the resulting state onto the undo stack with the given label.

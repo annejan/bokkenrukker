@@ -351,9 +351,6 @@ qt/CMakeFiles/goattrk2-qt.dir/MainWindow.cpp.o: \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qwidget.h \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/QAbstractTableModel \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/qabstractitemmodel.h \
- /usr/include/x86_64-linux-gnu/qt6/QtCore/QTimer \
- /usr/include/x86_64-linux-gnu/qt6/QtCore/qtimer.h \
- /usr/include/x86_64-linux-gnu/qt6/QtCore/qbasictimer.h \
  /home/paul/work/c64/goattracker2/qt/InstrumentView.h \
  /home/paul/work/c64/goattracker2/qt/TablesView.h \
  /home/paul/work/c64/goattracker2/qt/SongNameView.h \
@@ -377,6 +374,9 @@ qt/CMakeFiles/goattrk2-qt.dir/MainWindow.cpp.o: \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qstyle.h \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qtabbar.h \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qrubberband.h \
+ /usr/include/x86_64-linux-gnu/qt6/QtCore/QTimer \
+ /usr/include/x86_64-linux-gnu/qt6/QtCore/qtimer.h \
+ /usr/include/x86_64-linux-gnu/qt6/QtCore/qbasictimer.h \
  /home/paul/work/c64/goattracker2/qt/StatusStrip.h \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/QFrame \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qframe.h \
@@ -386,6 +386,9 @@ qt/CMakeFiles/goattrk2-qt.dir/MainWindow.cpp.o: \
  /usr/include/x86_64-linux-gnu/qt6/QtGui/QUndoCommand \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/QString \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/qstring.h \
+ /home/paul/work/c64/goattracker2/qt/CoreEvents.h \
+ /usr/include/x86_64-linux-gnu/qt6/QtCore/QObject \
+ /usr/include/x86_64-linux-gnu/qt6/QtCore/qobject.h \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/QDockWidget \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qdockwidget.h \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/QFileDialog \
@@ -420,6 +423,16 @@ qt/CMakeFiles/goattrk2-qt.dir/MainWindow.cpp.o: \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/qcalendar.h \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/qurl.h \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qdialog.h \
+ /usr/include/x86_64-linux-gnu/qt6/QtWidgets/QMessageBox \
+ /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qmessagebox.h \
+ /usr/include/x86_64-linux-gnu/qt6/QtCore/QHash \
+ /usr/include/x86_64-linux-gnu/qt6/QtCore/qhash.h \
+ /usr/include/x86_64-linux-gnu/qt6/QtWidgets/QAbstractButton \
+ /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qabstractbutton.h \
+ /usr/include/x86_64-linux-gnu/qt6/QtCore/QProcess \
+ /usr/include/x86_64-linux-gnu/qt6/QtCore/qprocess.h \
+ /usr/include/x86_64-linux-gnu/qt6/QtCore/QDir \
+ /usr/include/x86_64-linux-gnu/qt6/QtCore/qdir.h \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/QMenuBar \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qmenubar.h \
  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qmenu.h \
@@ -441,8 +454,6 @@ qt/CMakeFiles/goattrk2-qt.dir/MainWindow.cpp.o: \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/qstandardpaths.h \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/QFileInfo \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/qfileinfo.h \
- /usr/include/x86_64-linux-gnu/qt6/QtCore/QDir \
- /usr/include/x86_64-linux-gnu/qt6/QtCore/qdir.h \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/QSettings \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/qsettings.h \
  /usr/include/x86_64-linux-gnu/qt6/QtGui/QCloseEvent \
@@ -458,7 +469,6 @@ qt/CMakeFiles/goattrk2-qt.dir/MainWindow.cpp.o: \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/QList \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/qlist.h \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/QObject \
- /usr/include/x86_64-linux-gnu/qt6/QtCore/qobject.h \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/QRect \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/qrect.h \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/QSize \
@@ -467,10 +477,6 @@ qt/CMakeFiles/goattrk2-qt.dir/MainWindow.cpp.o: \
  /usr/include/x86_64-linux-gnu/qt6/QtGui/QTransform \
  /usr/include/x86_64-linux-gnu/qt6/QtGui/qtransform.h \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/qnativeinterface.h \
- /usr/include/x86_64-linux-gnu/qt6/QtCore/QProcess \
- /usr/include/x86_64-linux-gnu/qt6/QtCore/qprocess.h \
- /usr/include/x86_64-linux-gnu/qt6/QtWidgets/QMessageBox \
- /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qmessagebox.h \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/QCoreApplication \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/qcoreapplication.h \
  /usr/include/x86_64-linux-gnu/qt6/QtCore/qeventloop.h \

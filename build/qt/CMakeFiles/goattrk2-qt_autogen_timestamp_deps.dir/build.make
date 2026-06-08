@@ -66,10 +66,10 @@ include qt/CMakeFiles/goattrk2-qt_autogen_timestamp_deps.dir/compiler_depend.mak
 # Include the progress variables for this target.
 include qt/CMakeFiles/goattrk2-qt_autogen_timestamp_deps.dir/progress.make
 
-qt/CMakeFiles/goattrk2-qt_autogen_timestamp_deps: /usr/lib/x86_64-linux-gnu/libQt6Core.so.6.4.2
 qt/CMakeFiles/goattrk2-qt_autogen_timestamp_deps: /usr/lib/x86_64-linux-gnu/libQt6Gui.so.6.4.2
-qt/CMakeFiles/goattrk2-qt_autogen_timestamp_deps: /usr/lib/x86_64-linux-gnu/libQt6Widgets.so.6.4.2
 qt/CMakeFiles/goattrk2-qt_autogen_timestamp_deps: /usr/lib/qt6/libexec/moc
+qt/CMakeFiles/goattrk2-qt_autogen_timestamp_deps: /usr/lib/x86_64-linux-gnu/libQt6Core.so.6.4.2
+qt/CMakeFiles/goattrk2-qt_autogen_timestamp_deps: /usr/lib/x86_64-linux-gnu/libQt6Widgets.so.6.4.2
 
 goattrk2-qt_autogen_timestamp_deps: qt/CMakeFiles/goattrk2-qt_autogen_timestamp_deps
 goattrk2-qt_autogen_timestamp_deps: qt/CMakeFiles/goattrk2-qt_autogen_timestamp_deps.dir/build.make

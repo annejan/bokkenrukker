@@ -188,6 +188,7 @@ void MainWindow::buildUi() {
 
     pbLay->addWidget(new QLabel("Octave", patternBar_));
     auto *octDown = makeStep("−", "Lower recording octave by 1 (key: /)");
+    octDown->setAccessibleName("Lower octave");
     auto *octShow = new QLabel("0", patternBar_);
     octShow->setMinimumWidth(22);
     octShow->setAlignment(Qt::AlignCenter);
@@ -195,6 +196,7 @@ void MainWindow::buildUi() {
     octShow->setFont(obf);
     auto *octUp   = makeStep("+", "Raise recording octave by 1 (key: *). "
                                   "Right-click = lower by 1.");
+    octUp->setAccessibleName("Raise octave");
     octUp->setContextMenuPolicy(Qt::PreventContextMenu);
     pbLay->addWidget(octDown);
     pbLay->addWidget(octShow);
@@ -221,6 +223,7 @@ void MainWindow::buildUi() {
     pbLay->addWidget(new QLabel("Pattern length", patternBar_));
     auto *lenDown = makeStep("−", "Shrink active pattern by 1 row "
                                   "(pulls ENDPATT back one row).");
+    lenDown->setAccessibleName("Shrink pattern");
     auto *lenShow = new QLabel("00", patternBar_);
     lenShow->setMinimumWidth(28);
     lenShow->setAlignment(Qt::AlignCenter);
@@ -228,6 +231,7 @@ void MainWindow::buildUi() {
     lenShow->setFont(lbf);
     auto *lenUp   = makeStep("+", "Grow active pattern by 1 row "
                                   "(REST + ENDPATT).");
+    lenUp->setAccessibleName("Grow pattern");
     pbLay->addWidget(lenDown);
     pbLay->addWidget(lenShow);
     pbLay->addWidget(lenUp);
@@ -311,8 +315,14 @@ void MainWindow::buildUi() {
                          "and 'move only the clicked channel'. Ctrl-click on a "
                          "row inverts the mode for that one click.");
     omToggle->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    omToggle->setAccessibleDescription(
+        "Order map navigation mode: move all channels together, or only the clicked channel.");
     omLay->addWidget(omToggle);
     orderMap_ = new OrderMiniMap(omWrap);
+    orderMap_->setAccessibleName("Order map");
+    orderMap_->setAccessibleDescription(
+        "Vertical overview of all orderlist entries with the playback marker. "
+        "Click to move the cursor; Ctrl+click moves only the clicked channel.");
     omLay->addWidget(orderMap_, 1);
     orderMapDock_->setWidget(omWrap);
     // No DockWidgetFloatable: the float / detach button in the dock title
@@ -347,6 +357,8 @@ void MainWindow::buildUi() {
             "Toggle the colour bit on every instrument. Double-click a "
             "single row in the list below to flip just that one.");
         colAllBtn->setToolButtonStyle(Qt::ToolButtonTextOnly);
+        colAllBtn->setAccessibleDescription(
+            "Toggle the colour bit on every instrument. Double-click a row below to flip just one.");
         iqLay->addWidget(colAllBtn);
         insQuick_ = new InstrumentQuickList(iqWrap);
         iqLay->addWidget(insQuick_, 1);
@@ -726,10 +738,15 @@ void MainWindow::buildUi() {
     tb->addAction(playPosA);
     tb->addAction(playPatA);
     if (auto *btn = qobject_cast<QToolButton*>(tb->widgetForAction(playA)))
-        { btn->setObjectName("playBegin"); btn->setText("⏮ Begin"); playBeginBtn_ = btn; }
+        { btn->setObjectName("playBegin"); btn->setText("⏮ Begin");
+          btn->setAccessibleName("Play from beginning");
+          btn->setAccessibleDescription("Start playback from the first pattern of the song.");
+          playBeginBtn_ = btn; }
     if (auto *btn = qobject_cast<QToolButton*>(tb->widgetForAction(playPosA))) {
         btn->setObjectName("playPos");
         btn->setText("▶ Pos");
+        btn->setAccessibleName("Play or pause from position");
+        btn->setAccessibleDescription("Toggle playback from the current order position.");
         playPosBtn_ = btn;
         // Lock width to the wider of '▶ Pos' / '⏸ Pause' so the rest of
         // the toolbar doesn't shift left/right every time the label
@@ -741,7 +758,10 @@ void MainWindow::buildUi() {
     }
     // onTransportChanged re-labels playPos between ▶ Pos / ⏸ Pause.
     if (auto *btn = qobject_cast<QToolButton*>(tb->widgetForAction(playPatA)))
-        { btn->setObjectName("playPatt");  btn->setText("⟳ Patt"); playPattBtn_ = btn; }
+        { btn->setObjectName("playPatt");  btn->setText("⟳ Patt");
+          btn->setAccessibleName("Play pattern");
+          btn->setAccessibleDescription("Loop the current pattern continuously.");
+          playPattBtn_ = btn; }
 
     auto addSpacer = [&](int w = 28) {
         auto *spacer = new QWidget(tb);

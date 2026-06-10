@@ -211,6 +211,7 @@ public:
 // ---------------------------------------------------------------------------
 
 OrderView::OrderView(QWidget *parent) : QWidget(parent) {
+    setAccessibleName("Order and song editor");
     Theme::applyDarkPalette(this);
 
     auto *root = new QVBoxLayout(this);
@@ -221,6 +222,7 @@ OrderView::OrderView(QWidget *parent) : QWidget(parent) {
     auto *topBar = new QHBoxLayout();
     auto *subLbl = new QLabel("Subtune", this);
     subtuneSpin_ = new QSpinBox(this);
+    subLbl->setBuddy(subtuneSpin_);  // names the spin box for screen readers
     subtuneSpin_->setRange(1, MAX_SONGS);
     subtuneSpin_->setMinimumWidth(60);
     subtuneSpin_->setToolTip("Current subtune (1..32). Each subtune has its own "
@@ -234,6 +236,9 @@ OrderView::OrderView(QWidget *parent) : QWidget(parent) {
     auto addBtn = [&](const QString &label, const char *tip, void (OrderView::*slot)()) {
         auto *b = new QPushButton(label, this);
         b->setToolTip(tip);
+        // Several labels are cryptic glyphs (+1, -1, R, RST, Go, Swap 1↔2); the
+        // tip is a full description, so reuse it as the accessible name.
+        b->setAccessibleName(QString::fromLatin1(tip));
         b->setMinimumWidth(60);
         connect(b, &QPushButton::clicked, this, slot);
         topBar->addWidget(b);
@@ -256,6 +261,7 @@ OrderView::OrderView(QWidget *parent) : QWidget(parent) {
     // --- Main: table + pattern preview side by side ---
     auto *mid = new QHBoxLayout();
     table_ = new QTableView(this);
+    table_->setAccessibleName("Order list");
     model_ = new OrderListModel(this);
     table_->setModel(model_);
     table_->setItemDelegate(new OrderDelegate(table_));

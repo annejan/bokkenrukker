@@ -270,6 +270,7 @@ private:
 // View
 // ---------------------------------------------------------------------------
 TablesView::TablesView(QWidget *parent) : QWidget(parent) {
+    setAccessibleName("Tables editor");
     Theme::applyDarkPalette(this);
 
     auto *root = new QHBoxLayout(this);
@@ -282,6 +283,7 @@ TablesView::TablesView(QWidget *parent) : QWidget(parent) {
     tabs_->setDocumentMode(true);
     for (int t = 0; t < MAX_TABLES; t++) {
         views_[t]  = new QTableView(this);
+        views_[t]->setAccessibleName(QString("%1 table").arg(tableName[t]));
         models_[t] = new SidTableModel(t, this);
         views_[t]->setModel(models_[t]);
         views_[t]->setItemDelegate(new TableCellDelegate(t, views_[t]));

@@ -79,6 +79,7 @@ static BoomColor boomwhackerColor(int semitone) {
 }
 
 PatternView::PatternView(QWidget *parent) : QAbstractScrollArea(parent) {
+    setAccessibleName("Pattern editor");
     QFont mono = Theme::monoFont(11);
     setFont(mono);
     QFontMetrics fm(mono);

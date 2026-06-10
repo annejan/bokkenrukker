@@ -21,6 +21,20 @@ public slots:
     bool instrColorsEnabled() const     { return instrColorsOn_; }
     void setNoteColorsEnabled(bool on)  { noteColorsOn_ = on; viewport()->update(); }
     bool noteColorsEnabled() const      { return noteColorsOn_; }
+    // Per-voice SID waveform / flag indicator block in the vu+scope strip.
+    void setSidIndicatorsEnabled(bool on) { sidIndOn_ = on; viewport()->update(); }
+    bool sidIndicatorsEnabled() const     { return sidIndOn_; }
+    // Beat tinting: rowsPerBeat lights the lighter "beat" band every N
+    // rows, and rowsPerBeat * beatsPerBar lights the darker "downbeat"
+    // band every M rows. Default 4 / 4 -> beat every 4 rows, downbeat
+    // every 16 rows (4/4 in 16-th-note tracker grid).
+    void setBeatGrid(int rowsPerBeat, int beatsPerBar) {
+        beatRows_ = qMax(1, rowsPerBeat);
+        barBeats_ = qMax(1, beatsPerBar);
+        viewport()->update();
+    }
+    int rowsPerBeat() const { return beatRows_; }
+    int beatsPerBar() const { return barBeats_; }
 
 signals:
     void patternEdited();
@@ -43,6 +57,10 @@ private:
     // C side via gcommon.h — 3 for mono, 6 for the stereo build.
     static constexpr int kScopeLen = 64;
     std::array<std::array<unsigned char, kScopeLen>, MAX_CHN> scope_{};
+    // Filter cutoff history per voice. Mirrors scope_ ring buffer; only
+    // captures when the $17 filter-route bit for the voice is set,
+    // otherwise stores 0 so the trace flattens (and we paint nothing).
+    std::array<std::array<unsigned char, kScopeLen>, MAX_CHN> filtScope_{};
     int scopeHead_ = 0;
 
     // Layout constants computed at construction
@@ -55,6 +73,9 @@ private:
     int channelAtX(int x) const;
     bool instrColorsOn_ = false;
     bool noteColorsOn_ = false;
+    bool sidIndOn_ = true;
+    int  beatRows_ = 4;
+    int  barBeats_ = 4;
     int lastEppos_ = -1;
     int lastEpchn_ = -1;
     // chn[c].pattptr snapshot taken at the start of refresh() and reused

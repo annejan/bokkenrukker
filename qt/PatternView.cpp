@@ -42,6 +42,8 @@ extern int eschn;
 extern int esnum;
 extern int songlen[MAX_SONGS][MAX_CHN];
 extern CHN chn[MAX_CHN];
+extern unsigned char sidreg[];
+extern unsigned char sidreg2[];
 extern int stereo_mode;
 extern int hexnybble;
 extern int autoadvance;
@@ -84,7 +86,10 @@ PatternView::PatternView(QWidget *parent) : QAbstractScrollArea(parent) {
     colWidth = fm.horizontalAdvance('0');
     rowNumW_ = 6 * colWidth;
     chnW_ = 16 * colWidth;   // widened so header (Ch P L M) fits without overlap
-    vuStripH_ = 14;
+    // 22 px so the SID waveform indicator glyphs (T S P N y r F) painted
+    // at the right edge of the strip have enough vertical room — at the
+    // old 14 px the text was getting clipped by the toolbar above.
+    vuStripH_ = 22;
     scopeStripH_ = 32;
     headerStripH_ = rowHeight + 4;
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -165,6 +170,26 @@ void PatternView::tickScope() {
     unsigned char levels[MAX_CHN] = {0};
     sid_getlevels(levels);
     for (int c = 0; c < MAX_CHN; c++) scope_[c][scopeHead_] = levels[c];
+    // Capture filter cutoff alongside the envelope so paintEvent can
+    // draw a second yellow trace on top of the scope curve when the
+    // voice is routed through the filter. Cutoff is the 11-bit value
+    // formed from sidreg[$15] low 3 bits + sidreg[$16] << 3; we scale
+    // it into the same 0..255 range the envelope uses. Voices 0..2 read
+    // sidreg, 3..5 read sidreg2. Filter is per-SID (not per-voice), so
+    // the cutoff value is the same across all routed voices of one chip;
+    // the per-channel store lets us key paint on $17 voice-route bits.
+    auto cap = [&](const unsigned char *regs, int c) {
+        int v = c % 3;
+        unsigned char filt = regs[0x17];
+        if ((filt >> v) & 1) {
+            unsigned cutoff = ((unsigned)regs[0x16] << 3) | (regs[0x15] & 7);
+            filtScope_[c][scopeHead_] = (unsigned char)(cutoff >> 3); // 0..255
+        } else {
+            filtScope_[c][scopeHead_] = 0;
+        }
+    };
+    for (int c = 0; c < 3; c++) cap(sidreg, c);
+    for (int c = 3; c < MAX_CHN; c++) cap(sidreg2, c);
     scopeHead_ = (scopeHead_ + 1) % kScopeLen;
     viewport()->update();
 }
@@ -409,10 +434,19 @@ void PatternView::paintEvent(QPaintEvent *) {
             p.setFont(font());
             continue;
         }
-        int filled = (int)((double)levels[c] / 255.0 * (w - 2));
+        // Waveform / flag indicators sit in a fixed-width block at the
+        // right edge, spanning the FULL height of vu strip + scope strip
+        // (rendered after both loops below). VU bar shrinks by indW so
+        // the meter fill never paints over the indicator block. When
+        // the View ▸ SID indicators toggle is off, indW=0 and the
+        // meter reclaims the full cell width.
+        const int indColW = 16;
+        const int indW = sidIndOn_ ? indColW * 2 : 0;
+        const int meterW = qMax(8, w - indW - 4);
+        int filled = (int)((double)levels[c] / 255.0 * (meterW - 2));
         if (filled > 0) {
-            int seg1 = (int)((w - 2) * 0.6);
-            int seg2 = (int)((w - 2) * 0.9);
+            int seg1 = (int)((meterW - 2) * 0.6);
+            int seg2 = (int)((meterW - 2) * 0.9);
             int rem = filled;
             int xx = x + 1;
             int g = qMin(rem, seg1);
@@ -423,11 +457,89 @@ void PatternView::paintEvent(QPaintEvent *) {
         }
     }
 
+    // ---- SID waveform / flag indicator block ----------------------------
+    // Skipped when the user toggles them off via View ▸ SID indicators.
+    if (sidIndOn_)
+    // Two columns of lit boxes, one block per channel, spanning the full
+    // height of (vu strip + scope strip):
+    //   Col 1 (3 cells, top->bot): T  triangle
+    //                              S  sawtooth
+    //                              P  pulse
+    //   Col 2 (4 cells, top->bot): N  noise
+    //                              y  sync
+    //                              r  ring mod
+    //                              F  filter route
+    // Box LIGHTS UP (filled with the family colour, white glyph) when
+    // the bit is set in the live SID control register; off boxes paint a
+    // dim background + dim glyph. Reads sidreg for voices 0..2 and
+    // sidreg2 for voices 3..5 (stereo build).
+    {
+        const int indColW = 16;
+        const int indW = indColW * 2;
+        const int indH = vuStripH_ + scopeStripH_;
+        QFont gf = p.font();
+        gf.setBold(true);
+        p.setFont(gf);
+        for (int c = 0; c < shownChannels(); c++) {
+            int x = rowNumW_ + c * chnW_ + 2;
+            int w = chnW_ - 6;
+            int x0 = x + w - indW;
+
+            const unsigned char *regs = (c < 3) ? sidreg : sidreg2;
+            int v = c % 3;
+            unsigned char ctrl = regs[v * 7 + 4];
+            unsigned char filt = regs[0x17];
+            bool tri  = (ctrl >> 4) & 1;
+            bool saw  = (ctrl >> 5) & 1;
+            bool pul  = (ctrl >> 6) & 1;
+            bool noi  = (ctrl >> 7) & 1;
+            bool sync = (ctrl >> 1) & 1;
+            bool ring = (ctrl >> 2) & 1;
+            bool filtOn = (filt >> v) & 1;
+
+            struct Cell { const char *g; bool on; QColor lit; };
+            Cell col1[3] = {
+                { "T", tri, QColor(0x6E, 0xC8, 0xFF) },
+                { "S", saw, QColor(0xFF, 0xC4, 0x6E) },
+                { "P", pul, QColor(0x9C, 0xFF, 0x9C) },
+            };
+            Cell col2[4] = {
+                { "N", noi,    QColor(0xC9, 0xA0, 0xFF) },
+                { "y", sync,   QColor(0xFF, 0x9E, 0x9E) },
+                { "r", ring,   QColor(0xFF, 0x9E, 0x9E) },
+                { "F", filtOn, QColor(0xFF, 0xD4, 0x40) },
+            };
+            auto drawCol = [&](int colX, Cell *cells, int n) {
+                int cellH = indH / n;
+                for (int i = 0; i < n; i++) {
+                    QRect cell(colX + 1, i * cellH + 1, indColW - 2, cellH - 2);
+                    QColor bg = cells[i].on ? cells[i].lit : Theme::C::bgAlt;
+                    QColor border = cells[i].on ? cells[i].lit.darker(140)
+                                                : Theme::C::sep;
+                    QColor fg = cells[i].on ? QColor(0x10, 0x14, 0x1A)
+                                            : Theme::C::textDim;
+                    p.fillRect(cell, bg);
+                    p.setPen(border);
+                    p.drawRect(cell);
+                    p.setPen(fg);
+                    p.drawText(cell, Qt::AlignCenter, cells[i].g);
+                }
+            };
+            drawCol(x0,            col1, 3);
+            drawCol(x0 + indColW,  col2, 4);
+        }
+        p.setFont(font());
+    }
+
     // ---- Mini scope strip -----------------------------------------------
     int scopeY = vuStripH_;
     for (int c = 0; c < shownChannels(); c++) {
         int x = rowNumW_ + c * chnW_ + 2;
-        int w = chnW_ - 6;
+        // Reserve the right edge for the SID waveform indicator block
+        // (drawn above) so the scope curve doesn't stretch under it.
+        // When the user hides those indicators, the scope reclaims the
+        // full width.
+        int w = chnW_ - 6 - (sidIndOn_ ? (16 * 2) : 0);
         QRect frame(x, scopeY + 2, w, scopeStripH_ - 4);
         p.fillRect(frame, Theme::C::vuBg);
         p.setPen(Theme::C::sep);
@@ -447,6 +559,28 @@ void PatternView::paintEvent(QPaintEvent *) {
         p.setPen(QPen(stroke, 1.5));
         p.setRenderHint(QPainter::Antialiasing, true);
         p.drawPath(path);
+
+        // Filter cutoff trace — same yellow as the [F] indicator box, only
+        // painted across the window where the voice was actually routed
+        // through the filter ($17 voice bit set). Zero-valued samples
+        // (route off) split the trace so the line doesn't span the
+        // un-filtered gap.
+        QPainterPath fpath;
+        bool fopen = false;
+        for (int i = 0; i < n; i++) {
+            int idx = (scopeHead_ + i) % n;
+            unsigned char fv = filtScope_[c][idx];
+            if (fv == 0) { fopen = false; continue; }
+            float v = (float)fv / 255.0f;
+            float fx = frame.x() + 1 + (frame.width() - 2) * (float)i / (n - 1);
+            float fy = frame.bottom() - 1 - v * (frame.height() - 2);
+            if (!fopen) { fpath.moveTo(fx, fy); fopen = true; }
+            else         fpath.lineTo(fx, fy);
+        }
+        if (!fpath.isEmpty()) {
+            p.setPen(QPen(QColor(0xFF, 0xD4, 0x40), 1.5));
+            p.drawPath(fpath);
+        }
         p.setRenderHint(QPainter::Antialiasing, false);
     }
 
@@ -501,25 +635,51 @@ void PatternView::paintEvent(QPaintEvent *) {
     const int rows = (viewport()->height() - topOffset) / rowHeight;
     const bool playing = isplaying() != 0;
 
+    // Follow-play centre lock: when followplay && playing, the active
+    // channel's current row is pinned to the vertical centre of the
+    // viewport. EVERY channel's column scrolls independently so its own
+    // chn[c].pattptr/4 lands at that same centre line — channels with
+    // shorter patterns or independent loops still show their own playhead
+    // and the rows around it. Row numbers display the active channel's
+    // (wrapped) row.
+    const bool followCenter = followplay && playing;
+    const int  centerR = (rows > 0) ? rows / 2 : 0;
+    const int  refPlay = playRow_[epchn];
+
     for (int r = 0; r < rows; r++) {
-        int row = r + rowOffset;
+        int globalRow = r + rowOffset;
         QRect lineRect(0, topOffset + r * rowHeight, W, rowHeight);
 
-        if (row % 16 == 0)
+        // Reference row used for beat / downbeat tinting + row number text.
+        // Wraps inside the active channel's pattern length while
+        // follow-centred so the band patterns stay consistent across the
+        // viewport even when the song crosses a pattern boundary.
+        int refRow;
+        if (followCenter) {
+            int plen0 = pattlen[epnum[epchn]];
+            int vrow = refPlay + (r - centerR);
+            refRow = (plen0 > 0) ? (((vrow % plen0) + plen0) % plen0) : vrow;
+        } else {
+            refRow = globalRow;
+        }
+
+        const int barRows = beatRows_ * barBeats_;
+        if (refRow % barRows == 0)
             p.fillRect(QRect(0, lineRect.y(), rowNumW_ + chnW_ * MAX_CHN, rowHeight),
                        Theme::C::downbeat);
-        else if (row % 4 == 0)
+        else if (refRow % beatRows_ == 0)
             p.fillRect(QRect(0, lineRect.y(), rowNumW_ + chnW_ * MAX_CHN, rowHeight),
                        Theme::C::beat);
 
-        // Edit cursor row
-        if (row == eppos)
+        // Edit cursor row — centre line during follow-centre, eppos otherwise.
+        bool isEditRow = followCenter ? (r == centerR) : (globalRow == eppos);
+        if (isEditRow)
             p.fillRect(lineRect, Theme::C::editRow);
 
         p.setPen(Theme::C::textDim);
         p.drawText(QRect(0, lineRect.y(), rowNumW_, rowHeight),
                    Qt::AlignRight | Qt::AlignVCenter,
-                   QString("%1").arg(row, 3, 16, QLatin1Char('0')).toUpper());
+                   QString("%1").arg(refRow, 3, 16, QLatin1Char('0')).toUpper());
 
         for (int c = 0; c < shownChannels(); c++) {
             int patnum = epnum[c];
@@ -527,25 +687,46 @@ void PatternView::paintEvent(QPaintEvent *) {
             int x = rowNumW_ + c * chnW_;
             QRect cellRect(x, lineRect.y(), chnW_, rowHeight);
 
-            // Selection block overlay
-            if (epmarkchn == c) {
+            // Per-channel virtual row. Follow-centre offsets each channel
+            // by (its playRow - epchn's playRow) so the channel's own
+            // playhead lands at the viewport centre — independent of
+            // pattern lengths or loop alignment between channels.
+            //
+            // Rows OUTSIDE the channel's current pattern (vrow < 0 or
+            // vrow >= plen) render as empty space. The previous wrap
+            // showed the same pattern repeating above and below the
+            // playhead which made it look like the song was repeating
+            // forever — per the user feedback, when the playhead
+            // crosses a pattern boundary the new pattern's content
+            // should be the only thing rolling under the line, with
+            // blank space above it.
+            int crow = -1;          // -1 -> sentinel: nothing to paint
+            if (followCenter && plen > 0) {
+                int vrow = playRow_[c] + (r - centerR);
+                if (vrow >= 0 && vrow < plen) crow = vrow;
+            } else {
+                crow = globalRow;
+            }
+
+            // Selection block overlay (edit-mode only — selections don't
+            // make visual sense when each channel scrolls independently).
+            if (!followCenter && epmarkchn == c) {
                 int lo = qMin(epmarkstart, epmarkend);
                 int hi = qMax(epmarkstart, epmarkend);
-                if (row >= lo && row <= hi) {
+                if (globalRow >= lo && globalRow <= hi) {
                     QColor sel(Theme::C::highlight);
                     sel.setAlpha(40);
                     p.fillRect(cellRect, sel);
                 }
             }
 
-            // Playback row highlight per channel — reads playRow_[c] snap
-            // taken in refresh() so the red row matches the edit cursor
-            // row in follow-play (was off by one because the audio thread
-            // advanced chn[].pattptr between refresh and paint).
-            if (playing) {
-                int prow = playRow_[c];
-                if (prow == row) p.fillRect(cellRect, Theme::C::playRow);
-            }
+            // Playback row highlight per channel. Follow-centre puts every
+            // channel's playhead on the centre line; edit-mode paints per
+            // channel at the global row matching that channel's
+            // chn[c].pattptr / 4.
+            bool isPlayRow = playing && (followCenter ? (r == centerR)
+                                                      : (playRow_[c] == globalRow));
+            if (isPlayRow) p.fillRect(cellRect, Theme::C::playRow);
 
             // Edit-column tint on active channel/row. The white focus
             // border around the active nybble is drawn LATER, after the
@@ -554,7 +735,9 @@ void PatternView::paintEvent(QPaintEvent *) {
             // see which nybble has focus on a coloured cell.
             QRect focusRect;
             bool hasFocusRect = false;
-            if (c == epchn && row == eppos) {
+            bool cursorOnThisRow = followCenter ? (r == centerR)
+                                                 : (globalRow == eppos);
+            if (c == epchn && cursorOnThisRow) {
                 int tx = x + colWidth;
                 QRect colRect;
                 switch (epcolumn) {
@@ -575,12 +758,19 @@ void PatternView::paintEvent(QPaintEvent *) {
                 hasFocusRect = true;
             }
 
-            if (row >= plen) {
-                // The endmark row (row == plen) is the 0xFF ENDPATT byte
-                // in this pattern. Paint it as a bold red 'END  -PATTERN-'
-                // band so the user can spot where the pattern actually
-                // terminates instead of squinting at a sea of '---'.
-                if (row == plen) {
+            // Follow-centre 'out of pattern' — blank cell. Beat tint /
+            // play row / cursor underlay still showed up (those run off
+            // the viewport row r, not crow), but the pattern content
+            // text doesn't render here.
+            if (followCenter && crow < 0) {
+                continue;
+            }
+
+            // End-of-pattern band — only relevant when displaying the raw
+            // pattern (edit mode). Follow-centre clamps crow to inside
+            // [0, plen) above and bails before this branch.
+            if (!followCenter && crow >= plen) {
+                if (crow == plen) {
                     p.fillRect(cellRect, QColor(80, 25, 25));
                     p.setPen(QPen(QColor(255, 80, 80), 1));
                     p.drawLine(cellRect.left(),  cellRect.top(),
@@ -600,7 +790,7 @@ void PatternView::paintEvent(QPaintEvent *) {
                 continue;
             }
 
-            const unsigned char *cell = &pattern[patnum][row * 4];
+            const unsigned char *cell = &pattern[patnum][crow * 4];
             unsigned char note = cell[0];
             unsigned char ins = cell[1];
             unsigned char cmd = cell[2];

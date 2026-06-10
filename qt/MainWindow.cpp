@@ -18,6 +18,7 @@
 #include <QHash>
 #include <QAbstractButton>
 #include <QProcess>
+#include <QProcessEnvironment>
 #include <QDir>
 #include <QMenuBar>
 #include <QToolBar>
@@ -487,6 +488,66 @@ void MainWindow::buildUi() {
         QSettings s; s.setValue("editor/noteColors", on);
     });
 
+    auto *sidIndA = viewMenu->addAction("&SID waveform indicators");
+    sidIndA->setCheckable(true);
+    sidIndA->setToolTip(
+        "Show the per-voice lit-box block above each channel: T S P (triangle "
+        "/ sawtooth / pulse) in the first column, N y r F (noise / sync / ring "
+        "/ filter route) in the second. Boxes light up in real time from the "
+        "live SID control register. Off reclaims the space for the VU bar + "
+        "scope curve.");
+    {
+        QSettings s;
+        bool on = s.value("editor/sidIndicators", true).toBool();
+        sidIndA->setChecked(on);
+        pattern_->setSidIndicatorsEnabled(on);
+    }
+    connect(sidIndA, &QAction::toggled, this, [this](bool on) {
+        pattern_->setSidIndicatorsEnabled(on);
+        QSettings s; s.setValue("editor/sidIndicators", on);
+    });
+
+    // ---- Beat tinting submenu ------------------------------------------
+    // 'Every 4th row' beat band + 'every 16th row' downbeat band are nice
+    // for 4/4 in a 16-th-note grid, but punk-up a waltz (3/4) or a 6/8
+    // shuffle and the tint lands on the wrong row. Let the user pick the
+    // rows-per-beat + beats-per-bar combination from a single submenu.
+    auto *beatMenu = viewMenu->addMenu("&Beat tinting");
+    auto applyBeatGrid = [this](int rpb, int bpb) {
+        pattern_->setBeatGrid(rpb, bpb);
+        QSettings s;
+        s.setValue("editor/beatRows", rpb);
+        s.setValue("editor/barBeats", bpb);
+    };
+    {
+        QSettings s;
+        int rpb = s.value("editor/beatRows", 4).toInt();
+        int bpb = s.value("editor/barBeats", 4).toInt();
+        pattern_->setBeatGrid(rpb, bpb);
+    }
+    struct BeatPreset { const char *label; int rpb; int bpb; };
+    static const BeatPreset presets[] = {
+        { "4/4 — 4 rows / beat, 4 beats / bar (default)", 4, 4 },
+        { "4/4 — 8 rows / beat, 4 beats / bar (32-row bar)", 8, 4 },
+        { "3/4 — 4 rows / beat, 3 beats / bar (waltz)", 4, 3 },
+        { "6/8 — 3 rows / beat, 6 beats / bar (shuffle)", 3, 6 },
+        { "2/4 — 4 rows / beat, 2 beats / bar (polka)", 4, 2 },
+        { "5/4 — 4 rows / beat, 5 beats / bar", 4, 5 },
+        { "7/8 — 2 rows / beat, 7 beats / bar", 2, 7 },
+    };
+    auto *beatGroup = new QActionGroup(this);
+    for (const auto &p : presets) {
+        auto *a = beatMenu->addAction(p.label);
+        a->setCheckable(true);
+        a->setActionGroup(beatGroup);
+        int rpb = p.rpb, bpb = p.bpb;
+        if (rpb == pattern_->rowsPerBeat() && bpb == pattern_->beatsPerBar())
+            a->setChecked(true);
+        connect(a, &QAction::triggered, this, [applyBeatGrid, rpb, bpb]() {
+            applyBeatGrid(rpb, bpb);
+        });
+    }
+
     // ---- Settings menu (microtonal / tuning / keypreset) ---------------
     auto *settingsMenu = menuBar()->addMenu("&Settings");
 
@@ -735,11 +796,25 @@ void MainWindow::loadSongFile(const QString &path) {
     // Reset editor cursors so the views point at row 0 of pattern 0 — any
     // stale eppos from a previously edited song would land past the end of
     // the new song's patterns and the grid would look empty.
+    // clearsong() (called by loadsong) also zeroes eseditpos / esnum and
+    // sets einum=1, so the orderlist + instrument cursors snap to the
+    // start of the new song automatically.
     eppos = 0;
     epcolumn = 0;
     epchn = 0;
     eschn = 0;
     for (int c = 0; c < MAX_CHN; c++) espos[c] = 0;
+    epoctave = 4;          // default play octave — middle of the C64 range
+    // PatternView::refresh() will yank the vertical scrollbar back to 0
+    // on the next refreshAll() call because (eppos < rowOffset) → setValue(eppos).
+    // Wipe chn[] so stale pattptr / songptr / pattnum / gate / instr from
+    // the previous song don't bleed into the new one's first play. loadsong
+    // already calls clearsong() internally which resets songorder /
+    // pattern[] / instr[] / tables, but chn[] is playroutine state, not
+    // song state, so loadsong leaves it alone. Sequential imports of
+    // .sid / .mod (each tmp-staged through this path) showed odd
+    // first-play artifacts otherwise.
+    initchannels();
     loadsong();
     // loadsong() set song_channels from the file (3 = mono, 6 = stereo/dual
     // SID). Mirror that into the runtime stereo state and (re)build SID2 to
@@ -766,14 +841,101 @@ void MainWindow::loadSongFile(const QString &path) {
 void MainWindow::openSong() {
     QString start = songpath[0] ? QString::fromLocal8Bit(songpath)
                                 : QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
-    QString fn = QFileDialog::getOpenFileName(this, "Open Song", start,
-        "GoatTracker / SID (*.sng *.sid);;SNG (*.sng);;SID (*.sid);;All (*.*)");
+    QString filter;
+    if (chiptunesakAvailable()) {
+        filter = "GoatTracker / SID / MIDI / MOD (*.sng *.sid *.mid *.midi *.mod);;"
+                 "SNG (*.sng);;SID (*.sid);;MIDI (*.mid *.midi);;MOD (*.mod);;"
+                 "All (*.*)";
+    } else {
+        // ChiptuneSAK not on the host -> only the native .sng path is
+        // available. Mention how to enable the extras in the dialog
+        // title so the user knows it's optional, not broken.
+        filter = "SNG (*.sng);;All (*.*)";
+    }
+    QString fn = QFileDialog::getOpenFileName(this, "Open Song", start, filter);
     if (fn.isEmpty()) return;
     if (fn.endsWith(".sid", Qt::CaseInsensitive)) {
+        if (!chiptunesakAvailable()) {
+            QMessageBox::warning(this, "SID import requires ChiptuneSAK",
+                "Importing .sid files needs the ChiptuneSAK Python module.\n\n"
+                "Install with uv (recommended):\n"
+                "  uv venv ext/chiptunesak/venv\n"
+                "  uv pip install --python ext/chiptunesak/venv/bin/python \\\n"
+                "      mido matplotlib numpy more-itertools parameterized\n"
+                "  git clone https://github.com/c64cryptoboy/ChiptuneSAK\n"
+                "  export GT2_CHIPTUNESAK_PATH=/path/to/ChiptuneSAK\n\n"
+                "Or pip install chiptunesak into your system Python. "
+                "Restart the editor after installing — the SID / MIDI "
+                "filters will appear in the Open Song dialog. See the "
+                "README for full instructions.");
+            return;
+        }
         loadSidFile(fn);
         return;
     }
+    // .mid / .midi / .mod handled by loadSidFile too via the same
+    // wrapper — sid_to_sng.py dispatches by extension to the right
+    // importer (ChiptuneSAK MIDI for .mid, in-process ProTracker
+    // parser for .mod). Anything else funnels through loadSongFile.
+    if (fn.endsWith(".mid",  Qt::CaseInsensitive) ||
+        fn.endsWith(".midi", Qt::CaseInsensitive) ||
+        fn.endsWith(".mod",  Qt::CaseInsensitive)) {
+        if (!chiptunesakAvailable()) {
+            const QString kind = fn.endsWith(".mod", Qt::CaseInsensitive)
+                ? QStringLiteral("MOD") : QStringLiteral("MIDI");
+            QMessageBox::warning(this,
+                QString("%1 import requires ChiptuneSAK").arg(kind),
+                QString("Importing %1 files needs the ChiptuneSAK "
+                        "Python module. See Help > About for "
+                        "installation instructions.").arg(kind));
+            return;
+        }
+        loadSidFile(fn);  // wrapper dispatches by extension
+        return;
+    }
     loadSongFile(fn);
+}
+
+bool MainWindow::chiptunesakAvailable() {
+    if (chiptunesakCached_ >= 0) return chiptunesakCached_ != 0;
+
+    QString py = QStandardPaths::findExecutable("python3");
+    if (py.isEmpty()) py = QStandardPaths::findExecutable("python");
+    if (py.isEmpty()) {
+        qInfo("chiptunesak probe: no python3 / python on PATH");
+        chiptunesakCached_ = 0;
+        return false;
+    }
+
+    // Build PYTHONPATH the same way loadSidFile does so the probe
+    // matches what the importer will see. GT2_CHIPTUNESAK_PATH wins;
+    // otherwise we rely on whatever's on the system Python's
+    // site-packages (e.g. a pip install).
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    QString chipPath = qEnvironmentVariable("GT2_CHIPTUNESAK_PATH");
+    if (!chipPath.isEmpty()) {
+        QString existing = env.value("PYTHONPATH");
+        env.insert("PYTHONPATH",
+                   existing.isEmpty() ? chipPath
+                                      : chipPath + ":" + existing);
+    }
+
+    QProcess proc;
+    proc.setProcessEnvironment(env);
+    proc.start(py, QStringList{} << "-c"
+               << "import chiptunesak.sid;import chiptunesak.goat_tracker");
+    if (!proc.waitForFinished(3000)) {
+        proc.kill();
+        proc.waitForFinished(500);
+        qInfo("chiptunesak probe: python3 -c 'import chiptunesak' timed out");
+        chiptunesakCached_ = 0;
+        return false;
+    }
+    chiptunesakCached_ = (proc.exitCode() == 0) ? 1 : 0;
+    qInfo("chiptunesak probe: %s (exit=%d)",
+          chiptunesakCached_ ? "AVAILABLE" : "absent",
+          proc.exitCode());
+    return chiptunesakCached_ != 0;
 }
 
 void MainWindow::showAbout() {
@@ -808,9 +970,13 @@ void MainWindow::showAbout() {
         "<p><b>Tools</b></p>"
         "<ul>"
         "<li>Magnus Lind — 6510 crossassembler from Exomizer 2</li>"
-        "<li>sasq64 — sid2sng (vendored under ext/sid2sng/), used to "
-        "load GoatTracker-generated .sid files back into the editor "
-        "(<a href='https://github.com/sasq64/sid2sng'>github.com/sasq64/sid2sng</a>)</li>"
+        "<li>David Knapp &amp; David Youd — ChiptuneSAK, driven by "
+        "<code>ext/chiptunesak/sid_to_sng.py</code> to load arbitrary "
+        ".sid files back into the editor "
+        "(<a href='https://github.com/c64cryptoboy/ChiptuneSAK'>github.com/c64cryptoboy/ChiptuneSAK</a>)</li>"
+        "<li>sasq64 — sid2sng (still vendored under ext/sid2sng/ as a "
+        "fallback CLI for GoatTracker-generated .sids; no longer used "
+        "by the Qt loader)</li>"
         "</ul>"
 
         "<p><b>Audio / GUI stack</b></p>"
@@ -827,7 +993,7 @@ void MainWindow::showAbout() {
         "<li>Qt6 port, libresidfp adaptation, dual-SID runtime toggle, "
         "microtonal backport, Janko / DMC / Protracker keypreset, JSON-RPC, "
         "instrument-colour palette, ADSR drag handles, pointer preview, "
-        "sid2sng integration, status-strip widgets, Order map dock — by "
+        "ChiptuneSAK-based .sid loader, status-strip widgets, Order map dock — by "
         "Claude (Anthropic) Opus 4.7 in collaboration with Paul.</li>"
         "</ul>"
 
@@ -839,114 +1005,144 @@ void MainWindow::showAbout() {
     box.exec();
 }
 
-// SID files generated by GoatTracker can be converted back to .sng using
-// the bundled sid2sng tool. Runs it as a subprocess, points at a temp
-// file, then funnels through loadSongFile so the rest of the load path
-// (AudioFence, cursor reset, undoStack clear, refreshAll) is untouched.
-// On failure shows a dialog with the tool's stderr + a small retry UI
-// for the well-known option flags (-fixedparams, -nopulse, -nofilter,
-// -noinstrvib, -nowavedelay) that the sid2sng README documents.
+// Convert a .sid into a .sng via the ChiptuneSAK Python library and
+// hand the result off to loadSongFile so the rest of the load path
+// (AudioFence, cursor reset, undoStack clear, refreshAll) stays the
+// same.
+//
+// We drive ChiptuneSAK through ext/chiptunesak/sid_to_sng.py rather
+// than the old vendored sid2sng CLI: ChiptuneSAK runs an actual 6502
+// emulator over the SID's player code, so it imports PSID + many RSID
+// files (sid2sng only handled GoatTracker-generated .sids and even
+// then required hand-picked flag combinations).
+//
+// ChiptuneSAK is pure Python and must be importable. If it isn't on
+// the system Python's site-packages, point GT2_CHIPTUNESAK_PATH at a
+// source checkout (or set PYTHONPATH yourself before launching the
+// editor). See the README 'Importing .sid / MIDI' section for the
+// uv-based install recipe.
+// extraOpts is kept on the signature for ABI compatibility with the
+// previous loader but is no longer consulted.
 void MainWindow::loadSidFile(const QString &path, const QStringList &extraOpts) {
-    QStringList candidates = {
-        QCoreApplication::applicationDirPath() + "/sid2sng",
-        QCoreApplication::applicationDirPath() + "/qt/sid2sng",
-        QCoreApplication::applicationDirPath() + "/../qt/sid2sng",
-        "sid2sng"
+    Q_UNUSED(extraOpts);
+
+    // The wrapper script ships alongside the source tree, not the
+    // binary. Search common locations relative to the running exe so a
+    // single-tree dev build and an installed build both work.
+    const QString appDir = QCoreApplication::applicationDirPath();
+    QStringList scriptCandidates = {
+        appDir + "/ext/chiptunesak/sid_to_sng.py",
+        appDir + "/../ext/chiptunesak/sid_to_sng.py",
+        appDir + "/../../ext/chiptunesak/sid_to_sng.py",
+        // Worktree / out-of-source CMake build: src tree is at
+        // <repo>/qt while build is at <repo>/build/qt.
+        appDir + "/../../qt/../ext/chiptunesak/sid_to_sng.py",
     };
-    QString tool;
-    for (const QString &c : candidates)
-        if (QFile::exists(c)) { tool = c; break; }
-    if (tool.isEmpty()) {
+    QString script;
+    for (const QString &c : scriptCandidates) {
+        if (QFile::exists(c)) { script = QFileInfo(c).canonicalFilePath(); break; }
+    }
+    if (script.isEmpty()) {
         QMessageBox::warning(this, "Cannot open .sid",
-            "sid2sng binary not found. Tried:\n  " + candidates.join("\n  "));
+            "sid_to_sng.py not found. Tried:\n  " + scriptCandidates.join("\n  "));
         return;
     }
 
-    QString tmp = QDir::tempPath() + "/" +
+    const QString tmp = QDir::tempPath() + "/" +
         QFileInfo(path).completeBaseName() + ".sng";
+    QFile::remove(tmp);  // stale output from a previous failed attempt
 
-    // Build the list of flag combinations to try, ordered by popcount so
-    // the cheapest fix lands first. The user may have passed a specific
-    // combination via extraOpts — try that first.
-    const QStringList knownFlags = {"-fixedparams", "-nopulse", "-nofilter",
-                                    "-noinstrvib", "-nowavedelay"};
-    QVector<QStringList> combos;
-    if (!extraOpts.isEmpty()) combos.append(extraOpts);
-    // Always try plain first.
-    if (!combos.contains(QStringList{})) combos.prepend(QStringList{});
+    QStringList args;
+    args << script
+         << QFileInfo(path).absoluteFilePath()
+         << tmp;
 
-    auto popcount = [&](unsigned m) {
-        unsigned c = 0; while (m) { c += m & 1; m >>= 1; } return c;
-    };
-    // Enumerate every subset of knownFlags ordered by popcount asc.
-    QVector<QStringList> allSubsets;
-    for (unsigned mask = 0; mask < (1u << knownFlags.size()); mask++) {
-        QStringList combo;
-        for (int i = 0; i < knownFlags.size(); i++)
-            if (mask & (1u << i)) combo << knownFlags[i];
-        allSubsets.append(combo);
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    // Allow the user to point at a checkout of ChiptuneSAK without
+    // installing it. GT2_CHIPTUNESAK_PATH controls this; otherwise
+    // we rely on the system Python's site-packages (pip install).
+    QString chipPath = qEnvironmentVariable("GT2_CHIPTUNESAK_PATH");
+    if (!chipPath.isEmpty()) {
+        const QString existing = env.value("PYTHONPATH");
+        env.insert("PYTHONPATH",
+                   existing.isEmpty() ? chipPath
+                                      : chipPath + ":" + existing);
     }
-    std::sort(allSubsets.begin(), allSubsets.end(),
-              [&](const QStringList &a, const QStringList &b) {
-                  if (a.size() != b.size()) return a.size() < b.size();
-                  return a.join(' ') < b.join(' ');
-              });
-    for (const QStringList &c : allSubsets)
-        if (!combos.contains(c)) combos.append(c);
 
     statusStrip_->showMessage(
-        QString("Converting %1 — trying sid2sng option combinations…")
-            .arg(QFileInfo(path).fileName()), 0);
+        QString("Converting %1 via ChiptuneSAK…").arg(QFileInfo(path).fileName()),
+        0);
     QApplication::processEvents();
 
-    QString lastOut;
-    int     lastExit = 0;
-    QStringList lastArgs;
-    for (const QStringList &flags : combos) {
-        // Each retry should overwrite the tmp file; remove anything left
-        // by a previous half-baked attempt so the post-run existence
-        // check actually means 'this run succeeded'.
-        QFile::remove(tmp);
+    QProcess proc;
+    proc.setProcessEnvironment(env);
+    proc.setProcessChannelMode(QProcess::MergedChannels);
+    // python3 is the canonical Linux/macOS entry point; on Windows
+    // python.exe is what's on PATH. Prefer python3 if it resolves.
+    QString py = QStandardPaths::findExecutable("python3");
+    if (py.isEmpty()) py = QStandardPaths::findExecutable("python");
+    if (py.isEmpty()) py = "python3";
+    proc.start(py, args);
 
-        QStringList args = flags;
-        args << QFileInfo(path).absoluteFilePath() << tmp;
-        QProcess proc;
-        proc.setProcessChannelMode(QProcess::MergedChannels);
-        proc.start(tool, args);
-        if (!proc.waitForFinished(5000)) {
-            proc.kill();
-            lastOut  = "(timed out)";
-            lastExit = -1;
-            lastArgs = args;
-            continue;
-        }
-        lastOut  = QString::fromLocal8Bit(proc.readAll());
-        lastExit = proc.exitCode();
-        lastArgs = args;
-        if (lastExit == 0 && QFile::exists(tmp)) {
-            loadSongFile(tmp);
-            statusStrip_->showMessage(
-                QString("Loaded from .sid (sid2sng%1): %2")
-                    .arg(flags.isEmpty() ? "" : " " + flags.join(" "))
+    // 15s budget covers the 60s default capture for everything we've
+    // tried; ChiptuneSAK's emulator is roughly 5-10x faster than real
+    // time on a modern CPU.
+    if (!proc.waitForFinished(15000)) {
+        proc.kill();
+        proc.waitForFinished(1000);
+        QMessageBox box(this);
+        box.setIcon(QMessageBox::Warning);
+        box.setWindowTitle("ChiptuneSAK conversion timed out");
+        box.setText(QString("ChiptuneSAK did not finish converting %1 "
+                            "within 15 seconds.")
                     .arg(QFileInfo(path).fileName()));
-            return;
-        }
+        box.setStandardButtons(QMessageBox::Ok);
+        box.exec();
+        statusStrip_->showMessage("SID load timed out.");
+        return;
     }
 
-    // Every combination failed — show the dialog with the last attempt's
-    // output. The retry buttons are still here for the case the user
-    // wants to force a specific flag set anyway (e.g. for a known-good
-    // chain they've used before).
+    const int exitCode = proc.exitCode();
+    const QString out = QString::fromLocal8Bit(proc.readAll());
+
+    if (exitCode == 0 && QFile::exists(tmp) && QFileInfo(tmp).size() > 0) {
+        loadSongFile(tmp);
+        // loadSongFile stored 'path' as songfilename / songpath, which
+        // points at the /tmp staging file the wrapper wrote. Replace
+        // both with the ORIGINAL source path so the next Open Song
+        // dialog opens in the imported file's directory and Save acts
+        // like a fresh session ('Save As' the user picks the location
+        // — silently overwriting the tmp file would be surprising).
+        const QString absSrc = QFileInfo(path).absoluteFilePath();
+        std::strncpy(songfilename, absSrc.toLocal8Bit().constData(), MAX_FILENAME - 1);
+        songfilename[MAX_FILENAME - 1] = 0;
+        rememberDir(absSrc, songpath, MAX_PATHNAME);
+        setWindowTitle(titleForSong(absSrc + " (imported)"));
+        statusStrip_->showMessage(
+            QString("Loaded from .sid (ChiptuneSAK): %1")
+                .arg(QFileInfo(path).fileName()));
+        return;
+    }
+
     QMessageBox box(this);
     box.setIcon(QMessageBox::Warning);
-    box.setWindowTitle("sid2sng conversion failed");
-    box.setText(QString("sid2sng could not parse %1 — every option "
-                        "combination was tried.")
-                .arg(QFileInfo(path).fileName()));
-    QString tail = lastOut;
+    box.setWindowTitle("ChiptuneSAK conversion failed");
+    if (exitCode == 2) {
+        // Wrapper signals 'module missing' with exit code 2.
+        box.setText("ChiptuneSAK is not importable.\n\n"
+                    "Install it (e.g. `pip install --editable .` inside a "
+                    "venv on PATH) or set GT2_CHIPTUNESAK_PATH / PYTHONPATH "
+                    "to point at a ChiptuneSAK source checkout, then try "
+                    "opening the .sid again.");
+    } else {
+        box.setText(QString("ChiptuneSAK could not convert %1 (exit %2).")
+                    .arg(QFileInfo(path).fileName())
+                    .arg(exitCode));
+    }
+    QString tail = out;
     if (tail.size() > 600) tail = tail.right(600);
-    box.setDetailedText(QString("Last exit: %1\nLast args: %2\n\n--- output ---\n%3")
-                        .arg(lastExit).arg(lastArgs.join(" ")).arg(tail));
+    box.setDetailedText(QString("python: %1\nargs:   %2\nexit:   %3\n\n--- output ---\n%4")
+                        .arg(py).arg(args.join(" ")).arg(exitCode).arg(tail));
     box.setStandardButtons(QMessageBox::Ok);
     box.exec();
     statusStrip_->showMessage("SID load failed.");

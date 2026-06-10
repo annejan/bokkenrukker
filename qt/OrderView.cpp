@@ -3,6 +3,7 @@
 #include "SdlKeyMap.h"
 #include "UndoStack.h"
 #include "CoreEvents.h"
+#include "Speech.h"
 
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -390,13 +391,37 @@ void OrderView::onSubtuneChanged(int v) {
     if (updating_) return;
     esnum = v - 1;
     refresh();
+    Speech::instance().say(QString("Subtune %1").arg(v), Speech::Priority::Status);
     emit edited();
+}
+
+// Concise self-voicing of the order cell under the cursor: channel, row, and
+// either the pattern number or the special-command name. updatePreview() shows
+// the full visual preview; this is the short spoken form.
+void OrderView::announceCursor() {
+    if (!Speech::instance().enabled()) return;
+    auto idx = table_->currentIndex();
+    if (!idx.isValid()) return;
+    int c = idx.column(), r = idx.row();
+    unsigned char v = songorder[esnum][c][r];
+    QString s = QString("Channel %1, row %2, ").arg(c + 1).arg(r);
+    if (v >= REPEAT) {
+        if (v == LOOPSONG)       s += "RST endmark";
+        else if (v >= TRANSUP)   s += QString("transpose up %1").arg(v - TRANSUP);
+        else if (v >= TRANSDOWN) s += QString("transpose down %1").arg(v - TRANSDOWN);
+        else                     s += QString("repeat %1 times")
+                                          .arg(v - REPEAT == 0 ? 16 : v - REPEAT);
+    } else {
+        s += QString("pattern %1").arg(v, 2, 16, QLatin1Char('0')).toUpper();
+    }
+    Speech::instance().say(s, Speech::Priority::Cursor);
 }
 
 void OrderView::onSelectionChanged() {
     if (updating_) return;
     syncGlobalFromCursor();
     updatePreview();
+    announceCursor();
     emit edited();
 }
 

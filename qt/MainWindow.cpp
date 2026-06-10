@@ -85,6 +85,7 @@ extern int editmode;
 extern int followplay;
 extern int einum;
 extern int epchn;
+extern CHN chn[];
 extern int songinit;
 extern int epoctave;
 extern unsigned char pattern[MAX_PATT][MAX_PATTROWS*4+4];
@@ -888,7 +889,14 @@ void MainWindow::syncStack() {
     if (editmode < 0 || editmode > EDIT_NAMES) editmode = EDIT_PATTERN;
     stack_->setCurrentIndex(editmode);
     QWidget *w = stack_->currentWidget();
-    if (w) w->setFocus();
+    if (w) {
+        w->setFocus();
+        // Accessibility: announce the editor screen now active. This is the
+        // single funnel point for F5-F8, Tab/Shift-Tab and the Mode menu, so
+        // a blind user always knows which editor they landed on. Reuses the
+        // view's accessibleName ("Pattern editor", "Order and song editor", …).
+        Speech::instance().say(w->accessibleName(), Speech::Priority::Status);
+    }
 }
 
 void MainWindow::cycleEditMode(bool backwards) {
@@ -1676,6 +1684,9 @@ void MainWindow::stopSong() {
 
 void MainWindow::muteCurrentChannel() {
     mutechannel(epchn);
+    // Visible + spoken feedback (showMessage also self-voices).
+    statusStrip_->showMessage(QString("Channel %1 %2")
+        .arg(epchn + 1).arg(chn[epchn].mute ? "muted" : "unmuted"));
 }
 
 // Adjust the speed multiplier with sid_init (fenced), like cycleMultiplier —
@@ -1836,6 +1847,10 @@ void MainWindow::onTransportChanged(bool playing) {
     // play-row highlight (or its clearing on stop) show immediately.
     if (stack_->currentIndex() == EDIT_PATTERN) pattern_->refresh();
     if (orderMap_) orderMap_->refresh();
+    // Accessibility: announce playback start. The stop / pause side already
+    // goes through statusStrip_->showMessage() (which now also speaks), so we
+    // only voice the start here to avoid a double "Paused / Stopped".
+    if (playing) Speech::instance().say("Playing", Speech::Priority::Status);
 }
 
 void MainWindow::onPlayRowChanged() {

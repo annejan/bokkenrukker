@@ -1,5 +1,6 @@
 #include "StatusStrip.h"
 #include "Theme.h"
+#include "Speech.h"
 
 #include <QHBoxLayout>
 #include <QLabel>
@@ -284,6 +285,10 @@ void StatusStrip::refresh() {
 
 void StatusStrip::showMessage(const QString &t, int ms) {
     message_->setText(t);
+    // Accessibility: these are discrete, user-triggered status messages
+    // (loaded / saved / SID model / NTSC / follow / octave / errors …), so
+    // voice them too. No-op unless self-voicing is enabled.
+    Speech::instance().say(t, Speech::Priority::Status);
     if (ms > 0) {
         QTimer::singleShot(ms, message_, [this]{ message_->setText(""); });
     }

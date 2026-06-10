@@ -2,6 +2,7 @@
 #include "Theme.h"
 #include "SdlKeyMap.h"
 #include "UndoStack.h"
+#include "Speech.h"
 
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -502,6 +503,18 @@ void TablesView::onCellSelectionChanged() {
     updateDecoder();
     updateUsedBy();
     updateLegend();
+    // Self-voice the table step under the cursor, reusing the same decode the
+    // visual "what it does" panel shows.
+    if (Speech::instance().enabled()) {
+        unsigned char L = ltable[etnum][etpos], R = rtable[etnum][etpos];
+        QString d = decodeCell(etnum, L, R);
+        Speech::instance().say(
+            QString("%1 step %2. %3")
+                .arg(tableName[etnum])
+                .arg(etpos + 1, 2, 16, QLatin1Char('0')).toUpper()
+                .arg(d.isEmpty() ? QStringLiteral("empty") : d),
+            Speech::Priority::Cursor);
+    }
 }
 
 static QString tableLegendHtml(int t) {

@@ -9,6 +9,7 @@
 #include "StatusStrip.h"
 #include "UndoStack.h"
 #include "CoreEvents.h"
+#include "Speech.h"
 #include <QUndoStack>
 
 #include <QDockWidget>
@@ -455,6 +456,30 @@ void MainWindow::buildUi() {
     followA->setShortcut(Qt::CTRL | Qt::Key_F);
     followA->setCheckable(true);
     connect(followA, &QAction::triggered, this, &MainWindow::toggleFollowPlay);
+
+    // Accessibility: self-voicing of the pattern-editor cursor. Speaks the
+    // note / instrument / command under the cursor as you move and edit.
+    auto *speakA = viewMenu->addAction("&Speak cursor (accessibility)");
+    speakA->setCheckable(true);
+    speakA->setToolTip(
+        "Self-voicing: speak the note / instrument / command under the "
+        "pattern-editor cursor as you move and edit, via the system "
+        "text-to-speech engine.");
+    if (!Speech::instance().compiledIn()) {
+        speakA->setEnabled(false);
+        speakA->setToolTip(speakA->toolTip() +
+            "  (this build was compiled without the Qt TextToSpeech module)");
+    } else {
+        QSettings s;
+        bool on = s.value("editor/speakCursor", false).toBool();
+        speakA->setChecked(on);
+        Speech::instance().setEnabled(on);
+    }
+    connect(speakA, &QAction::toggled, this, [](bool on) {
+        Speech::instance().setEnabled(on);
+        QSettings s; s.setValue("editor/speakCursor", on);
+        if (on) Speech::instance().say("Speech enabled", Speech::Priority::Status);
+    });
 
     auto *blinkA = viewMenu->addAction("&Blink active instruments");
     blinkA->setCheckable(true);

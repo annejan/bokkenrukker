@@ -7,6 +7,7 @@
 #include <QVBoxLayout>
 #include <QTabWidget>
 #include <QTableView>
+#include <QScrollBar>
 #include <QHeaderView>
 #include <QPushButton>
 #include <QToolButton>
@@ -25,6 +26,7 @@ extern "C" {
 extern unsigned char ltable[MAX_TABLES][MAX_TABLELEN];
 extern unsigned char rtable[MAX_TABLES][MAX_TABLELEN];
 extern int etnum;
+extern int einum;
 extern int etpos;
 extern int etcolumn;
 extern int etview[MAX_TABLES];
@@ -287,12 +289,31 @@ TablesView::TablesView(QWidget *parent) : QWidget(parent) {
         models_[t] = new SidTableModel(t, this);
         views_[t]->setModel(models_[t]);
         views_[t]->setItemDelegate(new TableCellDelegate(t, views_[t]));
-        // No AnyKeyPressed: typing first hex digit used to commit the cell
-        // before the second nybble could be typed.
+        // AnyKeyPressed + SelectedClicked so the user can click a cell
+        // and start typing the hex value directly. The custom QLineEdit
+        // delegate above has max-length 2 so the original 'first digit
+        // commits' concern doesn't apply. Enter commits + Qt's default
+        // tab/enter behaviour advances the selection to the next row,
+        // so the workflow becomes: click row $00 -> type FA <Enter>
+        // -> type 09 <Enter> -> arrow-key navigate / type next.
         views_[t]->setEditTriggers(QAbstractItemView::DoubleClicked
-                                   | QAbstractItemView::EditKeyPressed);
+                                   | QAbstractItemView::EditKeyPressed
+                                   | QAbstractItemView::AnyKeyPressed
+                                   | QAbstractItemView::SelectedClicked);
+        // Enter commits the active cell and moves selection one row down
+        // (the default Qt behaviour) so streaming values into successive
+        // rows works without reaching for the arrow keys after every
+        // commit.
+        views_[t]->setTabKeyNavigation(true);
         views_[t]->setShowGrid(false);
         views_[t]->verticalHeader()->hide();
+        // Per-pixel wheel scroll feels right for the 255-row tables —
+        // the default per-item step lurched a single 22-px row at a
+        // time. The visible scroll bar stays in place; only the wheel
+        // increment / kinetic feel change.
+        views_[t]->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+        views_[t]->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
+        views_[t]->verticalScrollBar()->setSingleStep(22);
         auto *hh = views_[t]->horizontalHeader();
         hh->setSectionResizeMode(0, QHeaderView::ResizeToContents);
         hh->setSectionResizeMode(1, QHeaderView::ResizeToContents);
@@ -454,6 +475,18 @@ TablesView::TablesView(QWidget *parent) : QWidget(parent) {
 void TablesView::onTabChanged(int idx) {
     if (updating_ || idx < 0 || idx >= MAX_TABLES) return;
     etnum = idx;
+    // Auto-scroll the newly-shown table to the active instrument's
+    // pointer row so the user doesn't have to manually find row $XX
+    // every time they switch tabs. ins.ptr[t] is the start row of the
+    // current instrument's program in table t.
+    if (einum >= 1 && einum < MAX_INSTR) {
+        int row = instr[einum].ptr[idx];
+        if (row >= 0 && row < MAX_TABLELEN) {
+            QModelIndex target = models_[idx]->index(row, 0);
+            views_[idx]->scrollTo(target, QAbstractItemView::PositionAtCenter);
+            views_[idx]->setCurrentIndex(target);
+        }
+    }
     onCellSelectionChanged();
     emit edited();
 }

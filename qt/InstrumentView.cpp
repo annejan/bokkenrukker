@@ -448,9 +448,19 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     presetBox_->addItem("Drum kit: Open hat");
     auto *applyBtn = new QPushButton("Apply", this);
     applyBtn->setToolTip("Overwrite this instrument's envelope with the "
-                         "selected preset.");
+                         "selected preset. (Selecting from the dropdown "
+                         "applies immediately; this button re-applies the "
+                         "current selection.)");
     connect(applyBtn, &QPushButton::clicked, this,
             [this]{ applyPreset(presetBox_->currentIndex()); });
+    // Selecting from the dropdown applies the preset immediately — the
+    // separate Apply button is kept for users who want to re-apply after
+    // hand-editing the ADSR fields.
+    connect(presetBox_, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this](int idx) {
+                if (updating_) return;
+                applyPreset(idx);
+            });
     presetRow->addWidget(presetLbl);
     presetRow->addWidget(presetBox_, 1);
     presetRow->addWidget(applyBtn);
@@ -556,10 +566,17 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
                         "on the current channel.");
     auto *stopBtn = new QPushButton("Silence", this);
     stopBtn->setToolTip("Release the test note on the current channel.");
-    auto *autoBtn = new QPushButton("Auto-test", this);
-    autoBtn->setCheckable(true);
-    autoBtn->setToolTip("Retrigger the test note every second so any edit to "
+    autoBtn_ = new QPushButton("Auto-test", this);
+    autoBtn_->setCheckable(true);
+    autoBtn_->setToolTip("Retrigger the test note every second so any edit to "
                         "ADSR / wave / pulse / filter is audible instantly.");
+    // Lit-pill stylesheet when the toggle is on — same red-glow family
+    // the transport Stop button uses so 'this is actively making sound'
+    // reads at a glance. Auto-test stops on view-change (hideEvent).
+    autoBtn_->setStyleSheet(
+        "QPushButton:checked { background:#E5484D; color:#FFFFFF; "
+        "border:2px solid #FFB3B5; font-weight:bold; }"
+        "QPushButton:checked:hover { background:#FF6A6F; }");
     applyBtn_ = new QPushButton("Apply", this);
     applyBtn_->setToolTip("Commit the current edits as the new revert baseline. "
                           "After Apply, the Reset button will roll back to "
@@ -580,7 +597,7 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     autoTestTimer_ = new QTimer(this);
     autoTestTimer_->setInterval(1000);
     connect(autoTestTimer_, &QTimer::timeout, this, &InstrumentView::onTestNote);
-    connect(autoBtn, &QPushButton::toggled, this, [this](bool on) {
+    connect(autoBtn_, &QPushButton::toggled, this, [this](bool on) {
         if (on) {
             onTestNote();
             autoTestTimer_->start();
@@ -591,7 +608,7 @@ InstrumentView::InstrumentView(QWidget *parent) : QWidget(parent) {
     });
     btnRow->addWidget(testBtn);
     btnRow->addWidget(stopBtn);
-    btnRow->addWidget(autoBtn);
+    btnRow->addWidget(autoBtn_);
     btnRow->addSpacing(20);
     btnRow->addWidget(applyBtn_);
     btnRow->addWidget(resetBtn_);
@@ -727,6 +744,13 @@ void InstrumentView::showEvent(QShowEvent *e) {
 }
 
 void InstrumentView::hideEvent(QHideEvent *e) {
+    // Untoggle Auto-test when the view becomes hidden — the user
+    // switching to Tables / Order / Pattern editor expects the
+    // retriggered test note to stop. Firing the existing toggle
+    // slot stops the timer + releases the active note.
+    if (autoBtn_ && autoBtn_->isChecked()) {
+        autoBtn_->setChecked(false);
+    }
     QWidget::hideEvent(e);
     if (playbackTimer_) playbackTimer_->stop();
 }
@@ -882,6 +906,7 @@ void InstrumentView::markDirty() {
         saved_ = instr[einum];
         savedSlot_ = einum;
     }
+    if (dirty_) return;   // already amber-styled; no UI churn per keystroke
     dirty_ = true;
     if (applyBtn_) {
         applyBtn_->setEnabled(true);
@@ -934,7 +959,17 @@ void InstrumentView::readFromGlobals() {
     char buf[MAX_INSTRNAMELEN + 1];
     std::memcpy(buf, ins.name, MAX_INSTRNAMELEN);
     buf[MAX_INSTRNAMELEN] = 0;
-    name_->setText(QString::fromLocal8Bit(buf));
+    QString incoming = QString::fromLocal8Bit(buf);
+    // Don't yank focus / reset the caret on every refresh. The 50 Hz tick
+    // re-reads instr[].name via this function; setText() on a focused
+    // QLineEdit moves the caret to the end and made the user lose every
+    // character they typed mid-word. Skip the write while the user is
+    // actively editing (focus held), and otherwise only write when the
+    // content actually changed so other consumers (preset Apply, song
+    // load) still update the field.
+    if (!name_->hasFocus() && name_->text() != incoming) {
+        name_->setText(incoming);
+    }
     attack_->setValue((ins.ad >> 4) & 0xf);
     decay_->setValue(ins.ad & 0xf);
     sustain_->setValue((ins.sr >> 4) & 0xf);
@@ -1124,6 +1159,34 @@ void InstrumentView::applyPreset(int index) {
     ins.ad = p.ad;
     ins.sr = p.sr;
     ins.firstwave = p.firstwave;
+    ins.gatetimer = 0x02;    // default hard-restart timing
+    ins.vibdelay  = 0x00;
+    // Seed a minimal wavetable program so the preset actually makes
+    // sound when played. Each preset appends a 2-step program at the
+    // next free wavetable slot: 'hold firstwave' then 'jump-back to
+    // step 1' (the WTBL JUMP encoding). We claim slots even if the
+    // user later edits them; this gets a fresh-from-File-New user a
+    // patch that auditions cleanly out of the box.
+    // wavetable format: ltable[c]/rtable[c] columns indexed 1.. with
+    // ltable=0xff + rtable=jump_target_index terminating the program.
+    {
+        // Append a minimal 2-step wavetable program at the next free row.
+        // Step n: hold firstwave. Step n+1: JUMP (0xff) -> rtable = step n
+        // so the wave loops indefinitely after the first frame. ltable[c]
+        // is column 0 (left half), rtable[c] is column 1 (right half).
+        int wstart = 1;
+        while (wstart < MAX_TABLELEN - 2 && ltable[WTBL][wstart] != 0) wstart++;
+        if (wstart < MAX_TABLELEN - 2) {
+            ltable[WTBL][wstart    ] = p.firstwave;
+            rtable[WTBL][wstart    ] = 0x00;
+            ltable[WTBL][wstart + 1] = 0xff;            // JUMP marker
+            rtable[WTBL][wstart + 1] = (unsigned char)wstart;
+            ins.ptr[WTBL] = (unsigned char)wstart;
+            ins.ptr[PTBL] = 0;
+            ins.ptr[FTBL] = 0;
+            ins.ptr[STBL] = 0;
+        }
+    }
     // Only rename if the slot is empty or already a default placeholder.
     char nameBuf[MAX_INSTRNAMELEN + 1];
     std::memcpy(nameBuf, ins.name, MAX_INSTRNAMELEN);

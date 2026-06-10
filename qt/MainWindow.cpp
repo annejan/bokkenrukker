@@ -1,4 +1,9 @@
 #include "MainWindow.h"
+#include "CheatSheet.h"
+#include <QTextBrowser>
+#include <QDialog>
+#include <QPointer>
+#include <QPushButton>
 #include "PatternView.h"
 #include "OrderView.h"
 #include "InstrumentView.h"
@@ -64,6 +69,8 @@ extern "C" {
 
 extern char songfilename[];
 extern char songpath[];
+extern int recordmode;
+extern int autoadvance;
 extern char instrfilename[];
 extern char instrpath[];
 extern char songname[MAX_STR];
@@ -281,6 +288,21 @@ void MainWindow::buildUi() {
         statusStrip_->showMessage(QString("Octave %1").arg(epoctave));
         refreshAll();
     });
+    connect(statusStrip_, &StatusStrip::recordClicked, this, [this]() {
+        recordmode ^= 1;
+        statusStrip_->showMessage(recordmode
+                                  ? "Record mode ON"
+                                  : "Record mode OFF (audition)");
+        refreshAll();
+    });
+    connect(statusStrip_, &StatusStrip::skipClicked, this, [this]() {
+        autoadvance = (autoadvance + 1) % 3;
+        const char *m = (autoadvance == 0) ? "EDIT SKIP 0 (no advance)"
+                      : (autoadvance == 1) ? "EDIT SKIP 1 (advance after note)"
+                                           : "EDIT SKIP 2 (advance after every column)";
+        statusStrip_->showMessage(m);
+        refreshAll();
+    });
 
     setCentralWidget(centralWrap);
 
@@ -291,7 +313,16 @@ void MainWindow::buildUi() {
         // (EDIT_TABLES) and emit edited(); without syncStack the editmode
         // change never reaches the QStackedWidget and the user just sees
         // a refresh of the instrument editor.
-        syncStack();
+        //
+        // syncStack() force-focuses the stack page, which stole focus off
+        // the active instrument-name QLineEdit every keystroke (the
+        // QLineEdit was a descendant of the stack page, so the stack
+        // page's setFocus() bounced focus to the first focusable child
+        // — the Apply button). Skip the syncStack when the editmode
+        // didn't actually change.
+        if (stack_->currentIndex() != editmode) {
+            syncStack();
+        }
         refreshAll();
     });
     connect(tables_, &TablesView::edited, this, &MainWindow::refreshAll);
@@ -398,6 +429,11 @@ void MainWindow::buildUi() {
 
     // ---- Menus -----------------------------------------------------------
     auto *fileMenu = menuBar()->addMenu("&File");
+    auto *newA = fileMenu->addAction("&New");
+    newA->setShortcut(Qt::CTRL | Qt::Key_N);
+    newA->setToolTip("Discard the current song and start a fresh empty project "
+                     "(64-row patterns, REST endmarks, default tempo).");
+    connect(newA, &QAction::triggered, this, &MainWindow::newSong);
     auto *openA = fileMenu->addAction("&Open .sng…");
     openA->setShortcut(Qt::CTRL | Qt::Key_O);
     connect(openA, &QAction::triggered, this, &MainWindow::openSong);
@@ -544,6 +580,35 @@ void MainWindow::buildUi() {
         QSettings s; s.setValue("editor/sidIndicators", on);
     });
 
+    // ---- Insert row mode submenu --------------------------------------
+    // Pattern editor Insert / Ctrl+Backspace can either grow / shrink the
+    // pattern length by one, or push rows off / pull rows in while keeping
+    // pattlen fixed. The user picks which feels right from a radio group
+    // here; the choice persists via editor/insertGrows.
+    auto *insertMenu = viewMenu->addMenu("&Insert row mode");
+    auto *insertGroup = new QActionGroup(this);
+    auto *insGrow = insertMenu->addAction("Grow / shrink pattern length");
+    insGrow->setCheckable(true);
+    insGrow->setActionGroup(insertGroup);
+    auto *insPush = insertMenu->addAction("Push last row off / pull empty in (fixed length)");
+    insPush->setCheckable(true);
+    insPush->setActionGroup(insertGroup);
+    {
+        QSettings s;
+        bool grows = s.value("editor/insertGrows", false).toBool();
+        pattern_->setInsertGrowsPattern(grows);
+        if (grows) insGrow->setChecked(true);
+        else       insPush->setChecked(true);
+    }
+    connect(insGrow, &QAction::triggered, this, [this]() {
+        pattern_->setInsertGrowsPattern(true);
+        QSettings s; s.setValue("editor/insertGrows", true);
+    });
+    connect(insPush, &QAction::triggered, this, [this]() {
+        pattern_->setInsertGrowsPattern(false);
+        QSettings s; s.setValue("editor/insertGrows", false);
+    });
+
     // ---- Beat tinting submenu ------------------------------------------
     // 'Every 4th row' beat band + 'every 16th row' downbeat band are nice
     // for 4/4 in a 16-th-note grid, but punk-up a waltz (3/4) or a 6/8
@@ -644,6 +709,27 @@ void MainWindow::buildUi() {
     addKey("Janko / isomorphic",   &MainWindow::setKeyPresetJanko,   keypreset == KEY_JANKO);
 
     settingsMenu->addSeparator();
+    auto *physA = settingsMenu->addAction("Use &physical (scancode) note layout");
+    physA->setCheckable(true);
+    physA->setToolTip(
+        "Map the QWERTY note positions (bottom row Z..M + S D G H J sharps; "
+        "top row Q..U + 2 3 5 6 7 sharps) by physical scancode instead of "
+        "logical key. Lets users on Dvorak / AZERTY / Colemak play notes "
+        "from the same physical keys as a QWERTY user. Hex digits and "
+        "navigation keys still use the logical layout so typing hex stays "
+        "natural. Currently Linux-only.");
+    {
+        QSettings s;
+        bool on = s.value("editor/physicalKeyLayout", true).toBool();
+        physA->setChecked(on);
+        pattern_->setPhysicalKeyLayout(on);
+    }
+    connect(physA, &QAction::toggled, this, [this](bool on) {
+        pattern_->setPhysicalKeyLayout(on);
+        QSettings s; s.setValue("editor/physicalKeyLayout", on);
+    });
+
+    settingsMenu->addSeparator();
     auto *audioMenu = settingsMenu->addMenu("&Audio engine");
     auto *stereoA = audioMenu->addAction("Dual-SID / 6-channel mode");
     stereoAction_ = stereoA;
@@ -694,6 +780,13 @@ void MainWindow::buildUi() {
     connect(sidA, &QAction::triggered, this, &MainWindow::toggleSidModel);
 
     auto *helpMenu = menuBar()->addMenu("&Help");
+    auto *cheatA = helpMenu->addAction("&Command chart…");
+    cheatA->setShortcut(Qt::Key_F12);
+    cheatA->setToolTip("Reference card for track effects, wavetable / pulse / "
+                       "filter commands, chord spellings + the Qt frontend's "
+                       "keyboard shortcuts.");
+    connect(cheatA, &QAction::triggered, this, &MainWindow::showCheatSheet);
+    helpMenu->addSeparator();
     auto *aboutA = helpMenu->addAction("&About GoatTracker Qt…");
     connect(aboutA, &QAction::triggered, this, &MainWindow::showAbout);
     auto *aboutQtA = helpMenu->addAction("About &Qt…");
@@ -883,6 +976,42 @@ void MainWindow::loadSongFile(const QString &path) {
     statusStrip_->showMessage(QString("Loaded: %1").arg(path));
 }
 
+void MainWindow::newSong() {
+    // Treat 'undo history present' as 'might have unsaved edits' so the
+    // user doesn't lose work by accident. The undo stack also tracks
+    // post-load edits (loadSongFile clears it), so this is a tight
+    // enough heuristic without bolting a separate dirty flag onto the
+    // C core.
+    if (undoStack_->canUndo()) {
+        QMessageBox::StandardButton choice = QMessageBox::question(this,
+            "Start a new song?",
+            "The current song has unsaved edits. Discard them and start "
+            "a fresh empty project?",
+            QMessageBox::Discard | QMessageBox::Cancel,
+            QMessageBox::Cancel);
+        if (choice != QMessageBox::Discard) return;
+    }
+
+    {
+        AudioFence fence;
+        clearsong(1, 1, 1, 1, 1);
+        initchannels();
+        countpatternlengths();
+        eppos = 0;
+        epcolumn = 0;
+        epchn = 0;
+        eschn = 0;
+        for (int c = 0; c < MAX_CHN; c++) espos[c] = 0;
+        epoctave = 4;
+        // Forget the previous file: Save behaves as Save-As next time.
+        songfilename[0] = 0;
+        setWindowTitle(titleForSong(""));
+    }
+    undoStack_->clear();
+    refreshAll();
+    statusStrip_->showMessage("New song");
+}
+
 void MainWindow::openSong() {
     QString start = songpath[0] ? QString::fromLocal8Bit(songpath)
                                 : QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
@@ -981,6 +1110,34 @@ bool MainWindow::chiptunesakAvailable() {
           chiptunesakCached_ ? "AVAILABLE" : "absent",
           proc.exitCode());
     return chiptunesakCached_ != 0;
+}
+
+void MainWindow::showCheatSheet() {
+    // Reuse one dialog across F12 presses — opening / closing doesn't
+    // tear down the QTextBrowser content. Parented to MainWindow so it
+    // closes when the editor quits.
+    static QPointer<QDialog> dlg;
+    if (dlg) {
+        dlg->raise();
+        dlg->activateWindow();
+        return;
+    }
+    dlg = new QDialog(this);
+    dlg->setWindowTitle("GoatTracker Qt — command chart");
+    dlg->resize(1100, 800);
+    auto *lay = new QVBoxLayout(dlg);
+    lay->setContentsMargins(8, 8, 8, 8);
+    auto *tb = new QTextBrowser(dlg);
+    tb->setOpenExternalLinks(true);
+    tb->setHtml(cheatSheetHtml());
+    lay->addWidget(tb);
+    auto *closeBtn = new QPushButton("Close", dlg);
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+    auto *bottom = new QHBoxLayout();
+    bottom->addStretch();
+    bottom->addWidget(closeBtn);
+    lay->addLayout(bottom);
+    dlg->show();
 }
 
 void MainWindow::showAbout() {

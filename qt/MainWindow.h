@@ -27,6 +27,7 @@ public:
     void loadSongFile(const QString &path);
     void loadSidFile(const QString &path, const QStringList &extraOpts = {});
     void showAbout();
+    void showCheatSheet();
 
     // ChiptuneSAK is an OPTIONAL import dependency. If python3 + the
     // chiptunesak module are importable on the host, the Open Song
@@ -51,6 +52,7 @@ public:
     QWidget *activeEditorWidget() const;
 
 private slots:
+    void newSong();
     void openSong();
     void mergeSong();
     void saveSong();

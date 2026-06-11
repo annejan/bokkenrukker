@@ -26,6 +26,10 @@
 #include "UndoStack.h"
 #include "MainWindow.h"
 #include "InstrColors.h"
+#include "Speech.h"
+#include "PatternAccessible.h"
+#include <QAccessible>
+#include <QAccessibleEvent>
 
 extern "C" {
 #include "gcommon.h"
@@ -87,6 +91,14 @@ static BoomColor boomwhackerColor(int semitone) {
 }
 
 PatternView::PatternView(QWidget *parent) : QAbstractScrollArea(parent) {
+    setAccessibleName("Pattern editor");
+    // Register the screen-reader table bridge once (lazily consulted by Qt;
+    // free unless an AT is active). See PatternAccessible.{h,cpp}.
+    static bool s_a11yFactoryInstalled = false;
+    if (!s_a11yFactoryInstalled) {
+        QAccessible::installFactory(patternAccessibleFactory);
+        s_a11yFactoryInstalled = true;
+    }
     QFont mono = Theme::monoFont(11);
     setFont(mono);
     QFontMetrics fm(mono);
@@ -171,6 +183,22 @@ void PatternView::refresh() {
     }
     lastEppos_ = eppos;
     lastEpchn_ = epchn;
+
+    // Screen-reader bridge: if the grid shape changed (pattern switch, pattlen
+    // edit, or 3<->6 stereo toggle), tell the AT to re-read the structure.
+    // Cheap to compute; the notify itself is gated on QAccessible::isActive().
+    int accRows = 0;
+    int accCols = shownChannels();
+    for (int c = 0; c < accCols; c++) {
+        int pn = epnum[c];
+        if (pn >= 0 && pn < MAX_PATT) accRows = std::max(accRows, pattlen[pn]);
+    }
+    if (accRows != lastAccRows_ || accCols != lastAccCols_) {
+        lastAccRows_ = accRows;
+        lastAccCols_ = accCols;
+        notifyAccessibleStructure();
+    }
+
     viewport()->update();
 }
 
@@ -366,7 +394,75 @@ void PatternView::keyPressEvent(QKeyEvent *e) {
     clearGoatKeys();
     refresh();
     if (!isNav) pushEditIfChanged(this, std::move(before), "Pattern edit");
+    announceCursor();
     emit patternEdited();
+}
+
+// Speak the cell under the edit cursor (note / instrument / command),
+// mirroring how paintEvent() decodes a cell. No-op unless self-voicing is
+// enabled and the TextToSpeech module was built in.
+QString PatternView::cellSpeech(int patnum, int row) const {
+    if (patnum < 0 || patnum >= MAX_PATT || row < 0) return {};
+    const unsigned char *cell = &pattern[patnum][row * 4];
+    unsigned char note = cell[0], ins = cell[1], cmd = cell[2], param = cell[3];
+
+    QString s;
+    if (note == REST)             s = "rest";
+    else if (note == KEYOFF)      s = "key off";
+    else if (note == KEYON)       s = "key on";
+    else if (note == ENDPATT)     s = "end of pattern";
+    else if (note >= FIRSTNOTE && note <= LASTNOTE) {
+        // notename is the display string, e.g. "C-4" / "C#4"; make it read
+        // naturally ("C 4" / "C sharp 4").
+        s = QString::fromLatin1(notename[note - FIRSTNOTE]);
+        s.replace('#', " sharp ").replace('-', " ");
+        s = s.simplified();
+    } else s = "rest";
+
+    if (ins)
+        s += QString(", instrument %1").arg(ins, 2, 16, QLatin1Char('0')).toUpper();
+    if (cmd || param)
+        s += QString(", command %1 %2")
+                 .arg(cmd, 1, 16, QLatin1Char('0'))
+                 .arg(param, 2, 16, QLatin1Char('0')).toUpper();
+    return s;
+}
+
+void PatternView::announceCursor() {
+    // Native screen-reader bridge runs independently of self-voicing — both
+    // are no-ops unless their respective consumer (an AT / the Speech toggle)
+    // is active.
+    notifyAccessibleCursor();
+    if (!Speech::instance().enabled()) return;
+    Speech::instance().say(cellSpeech(epnum[epchn], eppos),
+                           Speech::Priority::Cursor);
+}
+
+// Tell the active screen reader the cursor moved: a Focus + Selection event on
+// the (eppos, epchn) cell, so Orca / NVDA / VoiceOver read its content. Inert
+// (single QAccessible::isActive() check) when no AT is running.
+void PatternView::notifyAccessibleCursor() {
+    if (!QAccessible::isActive()) return;
+    QAccessibleInterface *iface = QAccessible::queryAccessibleInterface(this);
+    if (!iface || !iface->tableInterface()) return;
+    QAccessibleInterface *cell = iface->tableInterface()->cellAt(eppos, epchn);
+    if (!cell) return;
+    QAccessibleEvent focus(cell, QAccessible::Focus);
+    QAccessible::updateAccessibility(&focus);
+    QAccessibleEvent sel(cell, QAccessible::Selection);
+    QAccessible::updateAccessibility(&sel);
+}
+
+// Tell the screen reader the grid shape changed (row / column count): pattern
+// switch, pattlen edit, or the 3<->6 stereo toggle. Flushes the cell cache and
+// posts a ModelReset. Inert when no AT is running.
+void PatternView::notifyAccessibleStructure() {
+    if (!QAccessible::isActive()) return;
+    QAccessibleInterface *iface = QAccessible::queryAccessibleInterface(this);
+    if (!iface || !iface->tableInterface()) return;
+    QAccessibleTableModelChangeEvent ev(this, QAccessibleTableModelChangeEvent::ModelReset);
+    iface->tableInterface()->modelChange(&ev);   // flush cached cell interfaces
+    QAccessible::updateAccessibility(&ev);
 }
 
 int PatternView::channelAtX(int x) const {
@@ -823,6 +919,7 @@ void PatternView::mousePressEvent(QMouseEvent *e) {
             }
         }
         refresh();
+        announceCursor();
         emit patternEdited();
     }
 }

@@ -109,6 +109,21 @@ private:
     int headerStripH_ = 0;
 
     int channelAtX(int x) const;
+    // Accessibility self-voicing: speak the cell under the edit cursor.
+    // Called only on user-driven cursor moves / edits (never from the
+    // periodic refresh timer), so playback doesn't make it chatter.
+    void announceCursor();
+    QString cellSpeech(int patnum, int row) const;
+    // Native screen-reader bridge (QAccessibleInterface table). These post
+    // QAccessible events on the GUI thread; the table interface itself lives
+    // in PatternAccessible.{h,cpp}, which reaches cellSpeech() / cellRect()
+    // through friendship.
+    friend class PatternAccessible;
+    friend class PatternCellAccessible;
+    void notifyAccessibleCursor();      // Focus + Selection on the cursor cell
+    void notifyAccessibleStructure();   // ModelReset when row/column count changes
+    int lastAccRows_ = -1;
+    int lastAccCols_ = -1;
     bool instrColorsOn_ = false;
     bool noteColorsOn_ = false;
     bool sidIndOn_ = true;

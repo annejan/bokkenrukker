@@ -8,3 +8,7 @@ build/
 qt/build/
 
 ext/chiptunesak/venv/
+
+# Python bytecode caches
+__pycache__/
+*.py[cod]
